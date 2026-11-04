@@ -66,7 +66,8 @@ async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
     try {
       return await fn();
     } catch (e) {
-      const limited = String((e as Error)?.message ?? e).includes('429') || (e as { cause?: unknown })?.cause === 429;
+      const text = String((e as Error)?.message ?? e) + JSON.stringify((e as { cause?: unknown })?.cause ?? '');
+      const limited = /429|ETIMEDOUT|ECONNRESET|fetch failed|timeout/i.test(text);
       if (!limited || attempt >= 8) throw e;
       await new Promise((r) => setTimeout(r, Math.min(30_000, 1_000 * 2 ** attempt)));
     }

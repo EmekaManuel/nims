@@ -189,3 +189,17 @@ describe('player-owned stall', () => {
     expect(from.every((f) => ['kemi', 'tunde'].includes(f!))).toBe(true); // and only they
   });
 });
+
+
+describe('a fast-forwarded week with an investor', () => {
+  it('the investor takes a stake in every market and is paid dividends for it', async () => {
+    const { runWeek } = await import('./run');
+    const w = runWeek(1);
+    const inv = w.players.find((p) => p.id === 'investor')!;
+    const stakes = w.merchants.filter((m) => !m.owner && (m.shares.investor ?? 0) > 0);
+    expect(new Set(stakes.map((m) => m.market)).size).toBe(3);
+    expect(w.events.some((e) => e.type === 'dividend')).toBe(true);
+    expect(inv.notes.some((n) => n.text.includes('dividends'))).toBe(true);
+    for (const m of w.merchants) expect(sharesHeld(m)).toBeLessThanOrEqual(MAX_PUBLIC_SHARES);
+  });
+});

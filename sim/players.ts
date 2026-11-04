@@ -1,6 +1,7 @@
 /** Simple simulated-player strategies (DESIGN.md §5). They only use engine trade helpers. */
-import { BASE_PRICE, CAPACITY, Item, MARKETS, Player, World } from './world';
+import { BASE_PRICE, CAPACITY, Item, MARKETS, MarketId, Player, World } from './world';
 import {
+  buyShares,
   buyFromMerchant,
   carryCost,
   contributeToAjo,
@@ -81,8 +82,15 @@ const arbitrageur: Strategy = (w, p) => {
   upgradeVehicle(p);
 };
 
+/** Revives closed shops through ajo, and otherwise holds a stake in each market so dividends keep arriving. */
 const investor: Strategy = (w, p) => {
   for (const m of w.merchants) if (m.state === 'closed') contributeToAjo(w, p, m, 4_000);
+  const staked = new Set(w.merchants.filter((m) => !m.owner && (m.shares[p.id] ?? 0) > 0).map((m) => m.market));
+  for (const market of Object.keys(MARKETS) as MarketId[]) {
+    if (staked.has(market) || p.cash < 12_000) continue;
+    const pick = w.merchants.find((m) => !m.owner && m.market === market && m.state === 'open');
+    if (pick) buyShares(w, p, pick, 10);
+  }
 };
 
 /** Dump iron as fast as possible, ignoring price. */

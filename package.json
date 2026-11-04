@@ -4,12 +4,20 @@
   "type": "module",
   "scripts": {
     "test": "vitest run",
-    "sim": "tsx sim/run.ts"
+    "sim": "tsx sim/run.ts",
+    "contract:test": "cargo test --manifest-path contracts/items/Cargo.toml",
+    "contract:build": "cargo build --manifest-path contracts/items/Cargo.toml --target wasm32-unknown-unknown --release",
+    "chain:deploy": "tsx server/run-settle.ts deploy",
+    "chain:settle": "tsx server/run-settle.ts settle"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
     "tsx": "^4.19.0",
     "typescript": "^5.6.0",
     "vitest": "^2.1.0"
+  },
+  "dependencies": {
+    "dotenv": "^18.0.9",
+    "near-api-js": "^7.4.0"
   }
 }

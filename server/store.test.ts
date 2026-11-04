@@ -75,14 +75,20 @@ describe('saving and restoring the game', () => {
     const dir = mkdtempSync(join(tmpdir(), 'oja-save-'));
     const file = join(dir, 'game.json');
     expect(loadGame(file)).toBeNull();
-    writeFileSync(file, '{"version":2,"world":');
+    writeFileSync(file, '{"version":3,"world":');
     const msgs: string[] = [];
     expect(loadGame(file, (m) => msgs.push(m))).toBeNull();
     expect(msgs[0]).toContain('Starting fresh');
     expect(existsSync(file + '.bad')).toBe(true);
-    expect(readFileSync(file + '.bad', 'utf8')).toBe('{"version":2,"world":');
+    expect(readFileSync(file + '.bad', 'utf8')).toBe('{"version":3,"world":');
     writeFileSync(file, JSON.stringify({ version: 99 }));
     expect(loadGame(file, () => {})).toBeNull();
+    // a save from before the economy rebalance is refused too, and kept
+    writeFileSync(file, JSON.stringify({ version: 2, world: {} }));
+    const msgs2: string[] = [];
+    expect(loadGame(file, (m) => msgs2.push(m))).toBeNull();
+    expect(msgs2[0]).toContain('Unsupported save (version 2)');
+    expect(existsSync(file + '.bad')).toBe(true);
   });
 
   it('keeps the live game from growing forever', () => {

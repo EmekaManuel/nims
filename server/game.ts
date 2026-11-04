@@ -25,8 +25,12 @@ const START_CASH = 4_000;
 const AWAY_HOURS = 24;
 const HISTORY_KEEP = 24 * 7;
 const LEDGER_KEEP = 20_000;
-/** Version 2: the Nims renaming (merchants, goods, vehicles). Older saves hold names and items that no longer exist. */
-export const SNAPSHOT_VERSION = 2;
+/**
+ * Version 3: the economy rebalance (wholesale sources, new demand, new goal). A save from before keeps free
+ * sources and old numbers inside it, so it is set aside instead of loaded half-old, half-new.
+ * (Version 2 was the Nims renaming of merchants, goods and vehicles.)
+ */
+export const SNAPSHOT_VERSION = 3;
 
 const FORTUNE_TARGET = 12_000;
 

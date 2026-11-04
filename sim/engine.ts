@@ -86,7 +86,9 @@ export function buyFromMerchant(w: World, p: Player, m: Merchant, item: Item, un
 
 /** Recompute open/struggling/closed and log changes. */
 export function refreshState(w: World, m: Merchant) {
-  const next = merchantState(m.cash, m.cashFloor, totalStock(m));
+  let next = merchantState(m.cash, m.cashFloor, totalStock(m));
+  // Hysteresis: a struggling shop needs a 30% cushion over the floor before it trusts itself again.
+  if (m.state === 'struggling' && next === 'open' && m.cash < m.cashFloor * 1.3) next = 'struggling';
   if (next !== m.state) {
     m.state = next;
     const text =

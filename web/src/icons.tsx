@@ -24,12 +24,12 @@ export function IconSprite() {
           <path d="M9 10c-1-3 1-5 4-5" fill="none" stroke="#2f8f4e" strokeWidth="3" strokeLinecap="round" />
           <path d="M14 13c3 1 5 4 5 7" fill="none" stroke="#fff" strokeWidth="1.6" opacity=".45" strokeLinecap="round" />
         </symbol>
-        <symbol id="i-garri" viewBox="0 0 32 32">
+        <symbol id="i-flour" viewBox="0 0 32 32">
           <path d="M9 9 7 27c0 2 3 3 9 3s9-1 9-3l-2-18z" fill="#f3e2ad" {...o} />
           <path d="M9 9c2-3 4-4 7-4s5 1 7 4c-2 1-4 1-7 1s-5 0-7-1z" fill="#e6cd85" {...o} />
           <path d="M11 19c3-2 7-2 10 0" fill="none" stroke="#b99a4a" strokeWidth="1.6" strokeLinecap="round" />
         </symbol>
-        <symbol id="i-ankara" viewBox="0 0 32 32">
+        <symbol id="i-cotton" viewBox="0 0 32 32">
           <rect x="4" y="7" width="22" height="18" rx="4" fill="#1f4fc4" {...o} />
           <ellipse cx="26" cy="16" rx="3" ry="9" fill="#f2a900" {...o} />
           <circle cx="10" cy="13" r="2.4" fill="#f2a900" />
@@ -68,7 +68,7 @@ export function IconSprite() {
           <circle cx="12" cy="29" r="5" fill="#3b3b3b" {...o} />
           <circle cx="12" cy="29" r="1.6" fill="#ddd" />
         </symbol>
-        <symbol id="v-keke" viewBox="0 0 56 36">
+        <symbol id="v-pickup" viewBox="0 0 56 36">
           <path d="M8 24V13c0-4 3-7 7-7h19c4 0 7 3 7 7v11z" fill="#f2b705" {...o} />
           <path d="M8 13c0-4 3-7 7-7h19c4 0 7 3 7 7z" fill="#1d1d1b" {...o} />
           <rect x="16" y="12" width="12" height="8" rx="2" fill="#bfe3f5" {...o} />
@@ -109,7 +109,7 @@ export function ItemIcon({ item, size = 22 }: { item: Item | string; size?: numb
   );
 }
 
-export function VehicleIcon({ vehicle, size = 34 }: { vehicle: 'wheelbarrow' | 'keke' | 'van'; size?: number }) {
+export function VehicleIcon({ vehicle, size = 34 }: { vehicle: 'wheelbarrow' | 'pickup' | 'van'; size?: number }) {
   return (
     <svg className="icon" width={size * 1.5} height={size} viewBox="0 0 56 36" aria-hidden="true" focusable="false">
       <use href={`#v-${vehicle}`} />

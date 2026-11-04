@@ -35,8 +35,8 @@ function Login({ onIn }: { onIn: () => void }) {
 
   return (
     <main className="login">
-      <h1>Oja</h1>
-      <p className="lede">A Lagos market district where every trader runs on their own. Start with a wheelbarrow. Read the market. End up with a share in half the stalls.</p>
+      <h1>Nims</h1>
+      <p className="lede">A market town where every trader runs on their own. Start with a wheelbarrow. Read the market. End up with a share in half the stalls.</p>
       <form onSubmit={submit}>
         <label>
           Your email
@@ -80,13 +80,13 @@ function Game() {
   const [toast, setToast] = useState<{ ok: boolean; text: string } | null>(null);
   const timer = useRef<number>();
   const [help, setHelp] = useState(() => {
-    try { return !localStorage.getItem('oja-seen-help'); } catch { return true; }
+    try { return !localStorage.getItem('nims-seen-help'); } catch { return true; }
   });
   const [goalOpen, setGoalOpen] = useState(false);
   const asked = useRef(false);
   const closeHelp = () => {
     setHelp(false);
-    try { localStorage.setItem('oja-seen-help', '1'); } catch { /* private mode: fine */ }
+    try { localStorage.setItem('nims-seen-help', '1'); } catch { /* private mode: fine */ }
   };
 
   // Ask for a goal once when there isn't one (or when the last one is done).
@@ -146,7 +146,7 @@ function Game() {
   if (offline && !state) {
     return (
       <main className="login">
-        <h1>Oja</h1>
+        <h1>Nims</h1>
         <p className="note warn" role="alert">The market is closed for now: we can’t reach the game server. It will open automatically as soon as it’s back.</p>
         <p className="muted small">Running it yourself? Start everything with <code>npm run dev</code>.</p>
       </main>

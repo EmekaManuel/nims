@@ -61,7 +61,7 @@ describe('price chart', () => {
   it('has a table twin with the same numbers', () => {
     const series = priceSeries('produce');
     const t = priceTable(series, 36);
-    expect(t.columns).toEqual(['Time', 'tomatoes', 'pepper', 'garri']);
+    expect(t.columns).toEqual(['Time', 'tomatoes', 'pepper', 'flour']);
     expect(t.rows).toHaveLength(4); // hours 0, 12, 24, 36
     render(<DataTable caption="x" columns={t.columns} rows={t.rows} />);
     expect(screen.getByText(/Day 2, 12:00/)).toBeTruthy();

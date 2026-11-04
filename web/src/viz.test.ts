@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { clock, compactNaira, dayOf, itemColor, linear, linePath, niceTicks, SERIES, STATUS, when } from './viz';
+import { clock, compactCoins, dayOf, itemColor, linear, linePath, niceTicks, SERIES, STATUS, when } from './viz';
 
 describe('viz helpers', () => {
   it('picks round ticks that cover the range', () => {
@@ -25,18 +25,18 @@ describe('viz helpers', () => {
     expect(linePath([], (i) => i, (v) => v)).toBe('');
   });
 
-  it('formats time and naira', () => {
+  it('formats time and coins', () => {
     expect(dayOf(0)).toBe(1);
     expect(dayOf(47)).toBe(2);
     expect(clock(26)).toBe('02:00');
     expect(when(50)).toBe('Day 3, 02:00');
-    expect(compactNaira(9_999)).toBe('₦9,999');
-    expect(compactNaira(12_000)).toBe('₦12K');
-    expect(compactNaira(158_227)).toBe('₦158K');
+    expect(compactCoins(9_999)).toBe('9,999');
+    expect(compactCoins(12_000)).toBe('12K');
+    expect(compactCoins(158_227)).toBe('158K');
   });
 
   it('gives every good a fixed, distinct colour and keeps status colours out of the series', () => {
-    const items = ['tomatoes', 'pepper', 'garri', 'ankara', 'lace', 'thread', 'iron', 'copper wire'] as const;
+    const items = ['tomatoes', 'pepper', 'flour', 'cotton', 'lace', 'thread', 'iron', 'copper wire'] as const;
     const colours = items.map(itemColor);
     expect(new Set(colours).size).toBe(8);
     expect(colours).toEqual([...SERIES]); // slots in the validated order, never cycled

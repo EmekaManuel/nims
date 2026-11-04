@@ -1,5 +1,5 @@
 import type { Deal, Focus, GameState } from './api';
-import { naira } from './api';
+import { coins } from './api';
 import { ItemIcon } from './icons';
 
 /** Always-visible answer to "what am I playing for, and what should I do now?" */
@@ -52,11 +52,11 @@ export function Deals({ deals, onFocus }: { deals: Deal[]; onFocus: (f: Focus) =
             <li key={d.item}>
               <div>
                 <b className="itemcell"><ItemIcon item={d.item} size={26} /> {d.item}</b>
-                <span className="profit">+{naira(d.profit)} each</span>
+                <span className="profit">+{coins(d.profit)} each</span>
               </div>
               <p className="muted small">
-                {d.from.kind === 'source' ? (d.from.cost ? `Buy at the ${place(d.from.label)} for ${naira(d.from.cost)}` : `Collect free at the ${place(d.from.label)}`) : `Buy from ${d.from.label} for ${naira(d.from.cost)}`}
-                {' → '}sell to {d.to.stall} for {naira(d.to.price)}
+                {d.from.kind === 'source' ? (d.from.cost ? `Buy at the ${place(d.from.label)} for ${coins(d.from.cost)}` : `Collect free at the ${place(d.from.label)}`) : `Buy from ${d.from.label} for ${coins(d.from.cost)}`}
+                {' → '}sell to {d.to.stall} for {coins(d.to.price)}
               </p>
               <div className="btns">
                 <button onClick={() => onFocus({ kind: d.from.kind, id: d.from.id })}>Where to get it</button>

@@ -1,5 +1,5 @@
-/** Typed client for the Oja game server. Nothing here knows about wallets — the player never sees the chain. */
-export type Item = 'tomatoes' | 'pepper' | 'garri' | 'ankara' | 'lace' | 'thread' | 'iron' | 'copper wire';
+/** Typed client for the Nims game server. Nothing here knows about wallets — the player never sees the chain. */
+export type Item = 'tomatoes' | 'pepper' | 'flour' | 'cotton' | 'lace' | 'thread' | 'iron' | 'copper wire';
 export type MarketId = 'produce' | 'fabric' | 'scrap';
 
 export interface Offer {
@@ -30,8 +30,8 @@ export interface Stall {
   state: 'open' | 'struggling' | 'closed';
   till: number;
   offers: Offer[];
-  ajo?: { pool: number; goal: number; contributors: { name: string; put: number }[] };
-  /** Ajo contributors who reopened this shop. Shown on its sign. */
+  fund?: { pool: number; goal: number; contributors: { name: string; put: number }[] };
+  /** Fund contributors who reopened this shop. Shown on its sign. */
   sign: string[];
   /** Present on a stall run by a player. */
   owner?: { name: string; mine: boolean };
@@ -46,7 +46,7 @@ export interface Deal {
   item: Item;
   from: { kind: 'source' | 'stall'; id: string; label: string; cost: number };
   to: { stall: string; id: string; price: number; market: MarketId };
-  /** ₦ profit per unit. */
+  /** Profit per unit, in coins. */
   profit: number;
 }
 
@@ -94,12 +94,12 @@ export interface GameState {
   you: {
     cash: number;
     netWorth: number;
-    vehicle: 'wheelbarrow' | 'keke' | 'van';
+    vehicle: 'wheelbarrow' | 'pickup' | 'van';
     capacity: number;
     carrying: number;
     inventory: { item: Item; units: number }[];
     at?: MarketId;
-    upgrades: { vehicle: 'keke' | 'van'; cost: number; capacity: number }[];
+    upgrades: { vehicle: 'pickup' | 'van'; cost: number; capacity: number }[];
   };
 }
 
@@ -139,7 +139,7 @@ export const api = {
   goal: (kind: GoalKind) => post('/game/goal', { kind }).then((r) => r.body),
   buyShares: (merchant: string, shares: number) => post('/game/shares/buy', { merchant, shares }).then((r) => r.body),
   sellShares: (merchant: string, shares: number) => post('/game/shares/sell', { merchant, shares }).then((r) => r.body),
-  contribute: (merchant: string, amount: number) => post('/game/ajo', { merchant, amount }).then((r) => r.body),
+  contribute: (merchant: string, amount: number) => post('/game/fund', { merchant, amount }).then((r) => r.body),
   openStall: (market: MarketId) => post('/game/stall/open', { market }).then((r) => r.body),
   stallStock: (item: Item, units: number) => post('/game/stall/stock', { item, units }).then((r) => r.body),
   stallTake: (item: Item, units: number) => post('/game/stall/take', { item, units }).then((r) => r.body),
@@ -150,7 +150,7 @@ export const api = {
   upgrade: (to: string) => post('/game/upgrade', { to }).then((r) => r.body),
 };
 
-export const naira = (n: number) => `₦${Math.round(n).toLocaleString('en-NG')}`;
+export const coins = (n: number) => `${Math.round(n).toLocaleString('en-US')} coins`;
 
 // ---- fast-forward (the open dashboard; no login) ----------------------------------------------
 
@@ -167,7 +167,7 @@ export interface FastForward {
   params: FastForwardParams;
   hours: number;
   items: { item: Item; market: MarketId; base: number }[];
-  /** Average price per item per hour, in naira. */
+  /** Average price per item per hour, in coins. */
   prices: Record<string, number[]>;
   merchants: { id: string; name: string; market: MarketId }[];
   cash: Record<string, number[]>;

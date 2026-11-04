@@ -1,5 +1,5 @@
 import type { GameState } from './api';
-import { naira } from './api';
+import { coins } from './api';
 import { Glyph, ItemIcon, VehicleIcon } from './icons';
 import type { Actions } from './Panels';
 
@@ -8,19 +8,19 @@ const SHOCK: Record<string, string> = {
   'fuel queue': 'Fuel queue: carrying goods between markets costs double',
   'festive season': 'Festive season: fabric is in demand',
 };
-const VEHICLE = { wheelbarrow: 'Wheelbarrow', keke: 'Keke', van: 'Van' } as const;
+const VEHICLE = { wheelbarrow: 'Wheelbarrow', pickup: 'Pickup', van: 'Van' } as const;
 const SEGMENTS = 10;
 
 export function Hud({ state, act, onHelp }: { state: GameState; act: Actions; onHelp?: () => void }) {
   const y = state.you;
-  const nextUp = y.upgrades.find((u) => (u.vehicle === 'keke' && y.vehicle === 'wheelbarrow') || (u.vehicle === 'van' && y.vehicle === 'keke'));
+  const nextUp = y.upgrades.find((u) => (u.vehicle === 'pickup' && y.vehicle === 'wheelbarrow') || (u.vehicle === 'van' && y.vehicle === 'pickup'));
   const h = state.hour % 24;
   const night = h >= 20 || h < 6;
   const filled = Math.round((y.carrying / y.capacity) * SEGMENTS);
   return (
     <header className="hud">
       <div className="brand">
-        Oja
+        Nims
         <small>
           <Glyph name={night ? 'moon' : 'sun'} size={16} /> Day {state.day} · {String(h).padStart(2, '0')}:00
         </small>
@@ -28,11 +28,11 @@ export function Hud({ state, act, onHelp }: { state: GameState; act: Actions; on
       <div className="stats">
         <div>
           <span className="k">Cash</span>
-          <b><Glyph name="coin" size={20} /> {naira(y.cash)}</b>
+          <b><Glyph name="coin" size={20} /> {coins(y.cash)}</b>
         </div>
         <div>
           <span className="k">Net worth</span>
-          <b>{naira(y.netWorth)}</b>
+          <b>{coins(y.netWorth)}</b>
         </div>
         <div className="load">
           <span className="k">{VEHICLE[y.vehicle]} · carrying</span>
@@ -46,7 +46,7 @@ export function Hud({ state, act, onHelp }: { state: GameState; act: Actions; on
         </div>
         {nextUp && (
           <button className="brass" disabled={y.cash < nextUp.cost} onClick={() => act.upgrade(nextUp.vehicle)} title={`Carry ${nextUp.capacity} at a time`}>
-            Buy {nextUp.vehicle} · {naira(nextUp.cost)}
+            Buy {nextUp.vehicle} · {coins(nextUp.cost)}
           </button>
         )}
       </div>

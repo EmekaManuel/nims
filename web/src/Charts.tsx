@@ -1,5 +1,5 @@
 import { useId, useRef, useState } from 'react';
-import { clock, compactNaira, dayOf, linear, linePath, naira, niceTicks, SHOCK_LABEL, STATUS, when } from './viz';
+import { clock, compactCoins, dayOf, linear, linePath, coins, niceTicks, SHOCK_LABEL, STATUS, when } from './viz';
 
 /** One shared crosshair: hover or arrow-key in any chart and all of them show the same hour. */
 export interface Sync {
@@ -141,7 +141,7 @@ export function PriceChart({ series, sync, shocks, yDomain }: { series: PriceSer
           {series.map((s) => (
             <div key={s.key} className="tip-row">
               <LineKey color={s.color}><span className="tip-name">{s.label}</span></LineKey>
-              <b>{naira(s.values[at])}</b>
+              <b>{coins(s.values[at])}</b>
               <span className="tip-pct">{Math.round(pct(s, at))}% of usual</span>
             </div>
           ))}
@@ -154,7 +154,7 @@ export function PriceChart({ series, sync, shocks, yDomain }: { series: PriceSer
 
 export function priceTable(series: PriceSeries[], cursor: number): { columns: string[]; rows: (string | number)[][] } {
   const rows: (string | number)[][] = [];
-  for (let h = 0; h <= cursor; h += 12) rows.push([when(h), ...series.map((s) => `${naira(s.values[h])} (${Math.round((s.values[h] / s.base) * 100)}%)`)]);
+  for (let h = 0; h <= cursor; h += 12) rows.push([when(h), ...series.map((s) => `${coins(s.values[h])} (${Math.round((s.values[h] / s.base) * 100)}%)`)]);
   return { columns: ['Time', ...series.map((s) => s.label)], rows };
 }
 
@@ -180,11 +180,11 @@ export function CashChart({ name, values, sync, closures, revivals, color }: { n
   const eventAt = at === null ? null : closures.includes(at) ? 'closed' : revivals.includes(at) ? 'reopened' : null;
 
   return (
-    <div className="plot" tabIndex={0} role="group" aria-label={`${name}: cash over time. Now ${naira(values[cursor])}. ${closed.length ? `Closed ${closed.length} time${closed.length > 1 ? 's' : ''}.` : ''}`} onKeyDown={scrub.onKeyDown} onFocus={scrub.onFocus} onBlur={scrub.onBlur}>
+    <div className="plot" tabIndex={0} role="group" aria-label={`${name}: cash over time. Now ${coins(values[cursor])}. ${closed.length ? `Closed ${closed.length} time${closed.length > 1 ? 's' : ''}.` : ''}`} onKeyDown={scrub.onKeyDown} onFocus={scrub.onFocus} onBlur={scrub.onBlur}>
       <svg ref={scrub.ref} viewBox={`0 0 ${CW} ${CH}`} className="chart" onPointerMove={scrub.onPointerMove} onPointerLeave={scrub.onPointerLeave} aria-hidden="true">
         <line className="grid-line" x1={CM.l} x2={CW - CM.r} y1={y(top)} y2={y(top)} />
         <line className="axis-line" x1={CM.l} x2={CW - CM.r} y1={y(0)} y2={y(0)} />
-        <text className="tick" x={CM.l - 6} y={y(top) + 4} textAnchor="end">{compactNaira(top)}</text>
+        <text className="tick" x={CM.l - 6} y={y(top) + 4} textAnchor="end">{compactCoins(top)}</text>
         <text className="tick" x={CM.l - 6} y={y(0) + 4} textAnchor="end">0</text>
         {Array.from({ length: Math.ceil(hours / 24) }, (_, d) => d).filter((d) => d % (hours > 24 * 8 ? 2 : 1) === 0).map((d) => (
           <text key={d} className="tick" x={x(Math.min(d * 24, hours - 1))} y={CH - 6} textAnchor="middle">D{d + 1}</text>
@@ -207,9 +207,9 @@ export function CashChart({ name, values, sync, closures, revivals, color }: { n
       {at !== null && scrub.active && (
         <div className="tip" style={{ left: `${(x(at) / CW) * 100}%` }} data-flip={x(at) > CW * 0.6 ? 'left' : 'right'} role="status">
           <div className="tip-when">{when(at)}</div>
-          <div className="tip-row"><LineKey color={color}><span className="tip-name">Cash</span></LineKey><b>{naira(values[at])}</b></div>
+          <div className="tip-row"><LineKey color={color}><span className="tip-name">Cash</span></LineKey><b>{coins(values[at])}</b></div>
           {eventAt === 'closed' && <div className="tip-note" style={{ color: STATUS.critical }}>✕ Closed: out of cash and stock</div>}
-          {eventAt === 'reopened' && <div className="tip-note"><span style={{ color: STATUS.good }}>✓</span> Reopened by an ajo pool</div>}
+          {eventAt === 'reopened' && <div className="tip-note"><span style={{ color: STATUS.good }}>✓</span> Reopened by an community fund</div>}
         </div>
       )}
     </div>
@@ -220,7 +220,7 @@ export function cashTable(name: string, values: number[], cursor: number, closur
   const rows: (string | number)[][] = [];
   for (let h = 0; h <= cursor; h += 12) {
     const note = closures.some((c) => c > h - 12 && c <= h) ? 'Closed' : revivals.some((c) => c > h - 12 && c <= h) ? 'Reopened' : '';
-    rows.push([when(h), naira(values[h]), note]);
+    rows.push([when(h), coins(values[h]), note]);
   }
   return { columns: ['Time', `${name} cash`, 'Event'], rows };
 }

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { fastForward, FastForward, FastForwardParams } from './api';
 import { CashChart, cashTable, DataTable, Figure, LineKey, PriceChart, priceTable, Sync } from './Charts';
-import { dayOf, itemColor, naira, SHOCK_LABEL, STATUS, when } from './viz';
+import { Glyph } from './icons';
+import { dayOf, itemColor, coins, SHOCK_LABEL, STATUS, when } from './viz';
 
 const MARKET_NAME = { produce: 'Produce Market', fabric: 'Fabric Market', scrap: 'Scrap & Hardware' } as const;
 const DEFAULTS: FastForwardParams = { days: 7, seed: 1, gatherers: 3, arbitrageur: true, investor: true, flooder: true };
@@ -81,7 +82,7 @@ export function FastForwardPage() {
           <input id="ff-gatherers" type="number" min={0} max={6} value={params.gatherers} onChange={(e) => set('gatherers', Math.max(0, Math.min(6, Number(e.target.value) || 0)))} />
         </label>
         <label className="check" title="Buys cheap in one stall and sells dear in another"><input id="ff-arb" type="checkbox" checked={params.arbitrageur} onChange={(e) => set('arbitrageur', e.target.checked)} /> Arbitrageur</label>
-        <label className="check" title="Holds shares in every market and puts money into ajo pools"><input id="ff-inv" type="checkbox" checked={params.investor} onChange={(e) => set('investor', e.target.checked)} /> Investor</label>
+        <label className="check" title="Holds shares in every market and puts money into community funds"><input id="ff-inv" type="checkbox" checked={params.investor} onChange={(e) => set('investor', e.target.checked)} /> Investor</label>
         <label className="check" title="Dumps iron on the market whatever the price"><input id="ff-flood" type="checkbox" checked={params.flooder} onChange={(e) => set('flooder', e.target.checked)} /> Market flooder</label>
         <label>Town
           <input id="ff-seed" type="number" min={0} max={999999} value={params.seed} onChange={(e) => set('seed', Math.max(0, Math.floor(Number(e.target.value)) || 0))} />
@@ -156,7 +157,7 @@ function Shops({ data, sync }: { data: FastForward; sync: Sync }) {
   return (
     <section aria-labelledby="ff-shops">
       <h2 id="ff-shops">How much cash each shop holds</h2>
-      <p className="muted small">Each shop has its own scale. A shop with no cash and nothing to sell closes; an ajo pool can reopen it.</p>
+      <p className="muted small">Each shop has its own scale. A shop with no cash and nothing to sell closes; an community fund can reopen it.</p>
       <div className="grid4">
         {data.merchants.map((m) => {
           const closures = data.closures.filter((c) => c.merchant === m.id).map((c) => c.hour);
@@ -171,7 +172,7 @@ function Shops({ data, sync }: { data: FastForward; sync: Sync }) {
       </div>
       <p className="keyline small muted">
         <span className="evt-key" style={{ background: STATUS.critical }} aria-hidden="true">✕</span> Closed ·{' '}
-        <span className="evt-key" style={{ background: STATUS.good }} aria-hidden="true">✓</span> Reopened by an ajo pool
+        <span className="evt-key" style={{ background: STATUS.good }} aria-hidden="true">✓</span> Reopened by an community fund
       </p>
     </section>
   );
@@ -193,8 +194,8 @@ function Players({ data, cursor }: { data: FastForward; cursor: number }) {
                 return (
                   <tr key={p.id}>
                     <th scope="row">{p.label}</th>
-                    <td>{naira(p.start)}</td>
-                    <td><b>{naira(p.now)}</b></td>
+                    <td>{coins(p.start)}</td>
+                    <td><b>{coins(p.now)}</b></td>
                     <td className={up ? 'delta-up' : 'delta-down'}>{up ? '▲' : '▼'} {up ? '+' : '−'}{Math.abs(Math.round(change))}%</td>
                   </tr>
                 );
@@ -216,7 +217,7 @@ function Happenings({ data, cursor }: { data: FastForward; cursor: number }) {
     const list: Happening[] = [
       ...data.shocks.map((s) => ({ hour: s.start, kind: 'shock' as const, text: `${SHOCK_LABEL[s.kind] ?? s.kind} for ${s.end - s.start} hours` })),
       ...data.closures.map((c) => ({ hour: c.hour, kind: 'closed' as const, text: `${name(c.merchant)} ran out of cash and stock` })),
-      ...data.revivals.map((c) => ({ hour: c.hour, kind: 'reopened' as const, text: `${name(c.merchant)} reopened thanks to an ajo pool` })),
+      ...data.revivals.map((c) => ({ hour: c.hour, kind: 'reopened' as const, text: `${name(c.merchant)} reopened thanks to an community fund` })),
     ];
     // Dividends arrive every evening from several shops: say it once a day.
     const byDay = new Map<number, { total: number; shops: Set<string> }>();
@@ -225,7 +226,7 @@ function Happenings({ data, cursor }: { data: FastForward; cursor: number }) {
       e.total += d.amount; e.shops.add(d.merchant);
       byDay.set(dayOf(d.hour), e);
     }
-    for (const [day, e] of byDay) list.push({ hour: day * 24 - 1, kind: 'dividend', text: `Shareholders were paid ${naira(e.total)} by ${e.shops.size} ${e.shops.size === 1 ? 'shop' : 'shops'}` });
+    for (const [day, e] of byDay) list.push({ hour: day * 24 - 1, kind: 'dividend', text: `Shareholders were paid ${coins(e.total)} by ${e.shops.size} ${e.shops.size === 1 ? 'shop' : 'shops'}` });
     return list.sort((a, b) => b.hour - a.hour);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data]);
@@ -242,7 +243,7 @@ function Happenings({ data, cursor }: { data: FastForward; cursor: number }) {
                 {h.kind === 'closed' && <span className="evt-key" style={{ background: STATUS.critical }} aria-hidden="true">✕</span>}
                 {h.kind === 'reopened' && <span className="evt-key" style={{ background: STATUS.good }} aria-hidden="true">✓</span>}
                 {h.kind === 'shock' && <span className="shock-key" aria-hidden="true">◆</span>}
-                {h.kind === 'dividend' && <span className="shock-key" aria-hidden="true">₦</span>}
+                {h.kind === 'dividend' && <span className="shock-key" aria-hidden="true"><Glyph name="coin" size={14} /></span>}
                 {h.kind === 'closed' && <b>Closed: </b>}
                 {h.kind === 'reopened' && <b>Reopened: </b>}
                 {h.text}

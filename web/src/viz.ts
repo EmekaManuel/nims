@@ -12,7 +12,7 @@ import type { Item } from './api';
 export const SERIES = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#6250d6', '#e34948'] as const;
 
 /** Each good keeps one colour everywhere. Consecutive slots within a market, so neighbours were validated together. */
-const ITEM_SLOT: Record<Item, number> = { tomatoes: 0, pepper: 1, garri: 2, ankara: 3, lace: 4, thread: 5, iron: 6, 'copper wire': 7 };
+const ITEM_SLOT: Record<Item, number> = { tomatoes: 0, pepper: 1, flour: 2, cotton: 3, lace: 4, thread: 5, iron: 6, 'copper wire': 7 };
 export const itemColor = (item: Item) => SERIES[ITEM_SLOT[item]];
 
 /** Reserved status colours: used only where the colour MEANS closed (critical) or reopened (good), always with an icon and label. */
@@ -43,8 +43,9 @@ export const dayOf = (hour: number) => Math.floor(hour / 24) + 1;
 export const clock = (hour: number) => `${String(hour % 24).padStart(2, '0')}:00`;
 export const when = (hour: number) => `Day ${dayOf(hour)}, ${clock(hour)}`;
 
-/** ₦1,234 under 10,000; ₦12.3K above, one style per axis. */
-export const naira = (n: number) => `₦${Math.round(n).toLocaleString('en-NG')}`;
-export const compactNaira = (n: number) => (n >= 10_000 ? `₦${(n / 1000).toFixed(n >= 100_000 ? 0 : 1).replace(/\.0$/, '')}K` : naira(n));
+/** "1,234 coins". */
+export const coins = (n: number) => `${Math.round(n).toLocaleString('en-US')} coins`;
+/** Axis style: 1,234 under 10,000, 12K above. No unit on the axis; the chart's heading says coins. */
+export const compactCoins = (n: number) => (n >= 10_000 ? `${(n / 1000).toFixed(n >= 100_000 ? 0 : 1).replace(/\.0$/, '')}K` : Math.round(n).toLocaleString('en-US'));
 
 export const SHOCK_LABEL: Record<string, string> = { rain: 'Rain', 'fuel queue': 'Fuel queue', 'festive season': 'Festive season' };

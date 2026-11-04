@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { GameState, Item, MarketId } from './api';
-import { naira } from './api';
+import { coins } from './api';
 import { ItemIcon } from './icons';
 import type { Actions } from './Panels';
 
@@ -10,7 +10,7 @@ export function StallOffer({ state, act, focus }: { state: GameState; act: Actio
   if (!offer) return null;
   return (
     <div className="offer">
-      <h3>Open your own stall · {naira(offer.cost)}</h3>
+      <h3>Open your own stall · {coins(offer.cost)}</h3>
       <p className="small muted">
         Set your own prices and stock your shelves. Town customers shop with you, and the merchants in your market trade with you too: they’ll buy from you when you undercut them, and sell you their surplus when you pay well.
       </p>
@@ -21,7 +21,7 @@ export function StallOffer({ state, act, focus }: { state: GameState; act: Actio
           </button>
         ))}
       </div>
-      {state.you.cash < offer.cost && <p className="small muted">You need {naira(offer.cost - state.you.cash)} more.</p>}
+      {state.you.cash < offer.cost && <p className="small muted">You need {coins(offer.cost - state.you.cash)} more.</p>}
     </div>
   );
 }
@@ -35,8 +35,8 @@ function Manager({ state, act }: { state: GameState; act: Actions }) {
   return (
     <div className="manager">
       <div className="till">
-        <span><span className="k">Till</span><b>{naira(stall.till)}</b></span>
-        <label>₦ <input type="number" min={1} step={100} value={cash} onChange={(e) => setCash(Math.max(1, Number(e.target.value) || 1))} aria-label="Amount for the till" /></label>
+        <span><span className="k">Till</span><b>{coins(stall.till)}</b></span>
+        <label>Coins <input type="number" min={1} step={100} value={cash} onChange={(e) => setCash(Math.max(1, Number(e.target.value) || 1))} aria-label="Amount for the till" /></label>
         <button disabled={state.you.cash < cash} onClick={() => act.stallDeposit(cash)}>Put in</button>
         <button disabled={stall.till < cash} onClick={() => act.stallWithdraw(cash)}>Take out</button>
       </div>
@@ -51,7 +51,7 @@ function Manager({ state, act }: { state: GameState; act: Actions }) {
               const changed = d.buy !== i.buy || d.sell !== i.sell;
               return (
                 <tr key={i.item}>
-                  <td><span className="itemcell"><ItemIcon item={i.item} size={28} /><span><b>{i.item}</b><span className="muted carry">usual {naira(i.base)} · ₦{i.min}–{i.max}</span></span></span></td>
+                  <td><span className="itemcell"><ItemIcon item={i.item} size={28} /><span><b>{i.item}</b><span className="muted carry">usual {coins(i.base)} · {i.min}–{i.max}</span></span></span></td>
                   <td><input type="number" aria-label={`Price I pay for ${i.item}`} value={d.buy} onChange={(e) => edit(i.item, 'buy', Math.floor(Number(e.target.value)) || 0)} /></td>
                   <td>
                     <input type="number" aria-label={`Price I charge for ${i.item}`} value={d.sell} onChange={(e) => edit(i.item, 'sell', Math.floor(Number(e.target.value)) || 0)} />
@@ -95,19 +95,19 @@ export function BusinessPanel({ state, act, onFocus }: { state: GameState; act: 
                   <tr key={s.id}>
                     <td><button className="link" onClick={() => onFocus(s.id)}>{s.name}</button>{s.state !== 'open' && <span className="muted small"> · {s.state === 'closed' ? 'closed' : 'low on cash'}</span>}</td>
                     <td>{s.shares}</td>
-                    <td>{naira(s.value)}</td>
+                    <td>{coins(s.value)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          <p className="small muted">Total {naira(total)} · paid out every evening from each merchant’s profit.</p>
+          <p className="small muted">Total {coins(total)} · paid out every evening from each merchant’s profit.</p>
         </>
       )}
 
       <h3>What’s happened</h3>
       {b.notes.length === 0 ? (
-        <p className="muted small">Nothing yet. Dividends, stall sales and ajo news will show up here, even while you’re away.</p>
+        <p className="muted small">Nothing yet. Dividends, stall sales and fund news will show up here, even while you’re away.</p>
       ) : (
         <ul className="notes">
           {b.notes.map((n, i) => <li key={i}><span className="muted">Day {Math.floor(n.hour / 24) + 1}, {String(n.hour % 24).padStart(2, '0')}:00</span> {n.text}</li>)}

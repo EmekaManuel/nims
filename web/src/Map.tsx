@@ -22,9 +22,9 @@ export const ZONES: Record<MarketId, { x: number; y: number; w: number; h: numbe
 };
 
 export const STALL_POS: Record<string, [number, number]> = {
-  bisi: [255, 140], tunde: [465, 140], kemi: [255, 270],
-  nkechi: [685, 140], sade: [895, 140],
-  chidi: [310, 522], wale: [500, 522], emeka: [690, 522],
+  mira: [255, 140], june: [465, 140], tomas: [255, 270],
+  lena: [685, 140], omar: [895, 140],
+  anil: [310, 522], ruth: [500, 522], diego: [690, 522],
 };
 
 /** Free plots where a player can open a stall. Scrap & Hardware is full. */
@@ -36,7 +36,7 @@ export const PLOTS: Partial<Record<MarketId, [number, number]>> = {
 const OWNER_CANOPY: [string, string] = ['#d6336c', '#f2a900'];
 
 const SOURCE_POS: Partial<Record<Item, [number, number]>> = {
-  tomatoes: [82, 110], pepper: [82, 250], iron: [100, 470], 'copper wire': [100, 590], ankara: [890, 470],
+  tomatoes: [82, 110], pepper: [82, 250], iron: [100, 470], 'copper wire': [100, 590], cotton: [890, 470],
 };
 
 /** Awning stripes per market. */
@@ -156,12 +156,12 @@ function SourceArt({ item }: { item: Item }) {
       </g>
     );
   }
-  if (item === 'ankara') {
+  if (item === 'cotton') {
     return (
       <g>
         <path d="M-46 22V-12l46-20 46 20v34z" fill="#c9a070" stroke="#2a1a12" strokeWidth="1.6" strokeLinejoin="round" />
         <path d="M-46 -12l46-20 46 20z" fill="#1f4fc4" stroke="#2a1a12" strokeWidth="1.6" strokeLinejoin="round" />
-        {[-30, -6, 18].map((x) => <use key={x} href="#i-ankara" x={x - 12} y="-4" width="26" height="26" />)}
+        {[-30, -6, 18].map((x) => <use key={x} href="#i-cotton" x={x - 12} y="-4" width="26" height="26" />)}
       </g>
     );
   }
@@ -234,7 +234,7 @@ function ShockLayer({ kinds }: { kinds: string[] }) {
       )}
       {fuel && (
         <g className="fuelq">
-          {[0, 1, 2, 3].map((i) => <use key={i} href="#v-keke" x={868} y={338 + i * 22} width={44} height={28} />)}
+          {[0, 1, 2, 3].map((i) => <use key={i} href="#v-pickup" x={868} y={338 + i * 22} width={44} height={28} />)}
           <g transform="translate(922 352)">
             <rect width="62" height="34" rx="5" fill="#16264a" stroke="#2a1a12" strokeWidth="1.6" />
             <text x="31" y="14" textAnchor="middle" className="fuel-sign">FUEL</text>
@@ -335,7 +335,7 @@ export function DistrictMap({ state, selected, onSelect }: { state: GameState; s
               <SourceArt item={src.item} />
               <rect x="-46" y="26" width="92" height="40" rx="7" fill="#16264a" stroke="#2a1a12" strokeWidth="1.4" />
               <text y="43" textAnchor="middle" className="stall-name">{src.item}</text>
-              <text y="58" textAnchor="middle" className="stall-status open">{src.cost > 0 ? `₦${src.cost} each` : `${src.units} free`}</text>
+              <text y="58" textAnchor="middle" className="stall-status open">{src.cost > 0 ? `${src.cost} coins each` : `${src.units} free`}</text>
             </g>
           </g>
         );

@@ -1,5 +1,5 @@
 import type { GameState, Item, MarketId } from './api';
-import { naira } from './api';
+import { coins } from './api';
 import { ItemIcon } from './icons';
 
 /** Each item's price in every market, against its usual price. Arrows and words back up the colour. */
@@ -26,8 +26,8 @@ export function PriceBoard({ state }: { state: GameState }) {
                 const kind = pct <= -10 ? 'low' : pct >= 10 ? 'high' : 'fair';
                 const word = kind === 'low' ? 'cheap here' : kind === 'high' ? 'dear here' : 'about usual';
                 return (
-                  <td key={m.id} className={kind} title={`${word}: usual price ${naira(c.base)}`}>
-                    <b>{naira(c.price)}</b>
+                  <td key={m.id} className={kind} title={`${word}: usual price ${coins(c.base)}`}>
+                    <b>{coins(c.price)}</b>
                     <span className="delta">{kind === 'low' ? '▼' : kind === 'high' ? '▲' : '•'} {pct > 0 ? '+' : ''}{pct}%</span>
                   </td>
                 );

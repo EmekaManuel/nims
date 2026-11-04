@@ -22,14 +22,14 @@ function Modal({ title, onClose, children }: { title: string; onClose?: () => vo
 
 export function HowToPlay({ onClose }: { onClose: () => void }) {
   return (
-    <Modal title="How Oja works" onClose={onClose}>
-      <p className="lede">You’re a trader in a Lagos market district. Eight merchants run their own stalls, each with their own cash and their own mind about prices.</p>
+    <Modal title="How Nims works" onClose={onClose}>
+      <p className="lede">You’re a trader in a small market town. Eight merchants run their own stalls, each with their own cash and their own mind about prices.</p>
       <ol className="how">
         <li><b>Buy low, sell high.</b> Collect goods from the farms and scrap spots (free), or buy them from a stall. Carry them to wherever they’re dear and sell.</li>
         <li><b>Prices move.</b> A stall piled high with iron pays less for more. A stall running short pays more. Dump too much on one stall and its price falls, and it can run out of cash and <b>close</b>.</li>
         <li><b>Hover any price</b> and the merchant tells you why they’re offering it, in their own words.</li>
         <li><b>Pick a goal.</b> A bar at the top tracks it, and a “next step” card always tells you what to do now.</li>
-        <li><b>Grow.</b> Spend your profit on a bigger vehicle: a keke carries three times a wheelbarrow, and a van carries more still.</li>
+        <li><b>Grow.</b> Spend your profit on a bigger vehicle: a pickup carries three times a wheelbarrow, and a van carries more still.</li>
       </ol>
       <p className="muted small">The town keeps trading while you play. Other traders are collecting and selling too.</p>
       <button className="primary" onClick={onClose}>Start trading</button>

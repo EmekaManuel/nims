@@ -25,28 +25,28 @@ describe('map', () => {
     const onSelect = vi.fn();
     render(<DistrictMap state={state} selected={null} onSelect={onSelect} />);
     expect(screen.getAllByRole('button')).toHaveLength(state.stalls.length + state.sources.length);
-    fireEvent.click(screen.getByLabelText(/Chidi Iron Works/));
-    expect(onSelect).toHaveBeenCalledWith({ kind: 'stall', id: 'chidi' });
+    fireEvent.click(screen.getByLabelText(/Anil Metals/));
+    expect(onSelect).toHaveBeenCalledWith({ kind: 'stall', id: 'anil' });
     fireEvent.keyDown(screen.getByLabelText(/Scrap spot \(iron\)/), { key: 'Enter' });
     expect(onSelect).toHaveBeenCalledWith({ kind: 'source', item: 'iron' });
   });
 
   it('shows a closed stall in words, not just colour', () => {
-    const s = { ...state, stalls: state.stalls.map((x) => (x.id === 'bisi' ? { ...x, state: 'closed' as const } : x)) };
+    const s = { ...state, stalls: state.stalls.map((x) => (x.id === 'mira' ? { ...x, state: 'closed' as const } : x)) };
     render(<DistrictMap state={s} selected={null} onSelect={() => {}} />);
-    expect(screen.getByLabelText(/Mama Bisi, Closed/)).toBeTruthy();
+    expect(screen.getByLabelText(/Mira's Greens, Closed/)).toBeTruthy();
   });
 });
 
 describe('stall panel', () => {
-  const stall = state.stalls.find((s) => s.id === 'chidi')!;
+  const stall = state.stalls.find((s) => s.id === 'anil')!;
 
   it("reveals the merchant's reasoning when a price is hovered or focused", () => {
     render(<StallPanel stall={stall} state={withInv} act={act()} />);
     const pays = document.querySelector('.offers .price:not(.off)')!;
     fireEvent.mouseEnter(pays.closest('.tipwrap')!);
     const tip = screen.getByRole('tooltip');
-    expect(tip.textContent).toMatch(/I'll pay ₦\d+ and sell at ₦\d+/);
+    expect(tip.textContent).toMatch(/I'll pay \d+ coins and sell at \d+ coins/);
     fireEvent.mouseLeave(pays.closest('.tipwrap')!);
     expect(screen.queryByRole('tooltip')).toBeNull();
   });
@@ -56,10 +56,10 @@ describe('stall panel', () => {
     render(<StallPanel stall={stall} state={withInv} act={a} />);
     const row = screen.getByText('iron').closest('tr')!;
     fireEvent.click(within(row).getByText('All'));
-    expect(a.sell).toHaveBeenCalledWith('chidi', 'iron', 5, false);
+    expect(a.sell).toHaveBeenCalledWith('anil', 'iron', 5, false);
     fireEvent.click(screen.getByLabelText(/Haggle/));
     fireEvent.click(within(row).getByText('Sell'));
-    expect(a.sell).toHaveBeenLastCalledWith('chidi', 'iron', 5, true);
+    expect(a.sell).toHaveBeenLastCalledWith('anil', 'iron', 5, true);
   });
 
   it("can't sell what you don't carry", () => {
@@ -68,17 +68,17 @@ describe('stall panel', () => {
     expect((within(row).getByText('Sell') as HTMLButtonElement).disabled).toBe(true);
   });
 
-  it('explains a closed shop and the ajo pool', () => {
-    const closed = { ...stall, state: 'closed' as const, ajo: { pool: 4000, goal: 12000, contributors: [{ name: 'Ada', put: 4000 }] } };
+  it('explains a closed shop and the community fund', () => {
+    const closed = { ...stall, state: 'closed' as const, fund: { pool: 4000, goal: 12000, contributors: [{ name: 'Ada', put: 4000 }] } };
     render(<StallPanel stall={closed} state={state} act={act()} />);
-    expect(screen.getByText(/ajo/i)).toBeTruthy();
+    expect(screen.getByText(/fund/i)).toBeTruthy();
     expect(screen.queryByText('Sell')).toBeNull();
   });
 
   it('warns about the fare for carrying goods to another market', () => {
     const away = { ...withInv, you: { ...withInv.you, at: 'produce' as const } };
     render(<StallPanel stall={stall} state={away} act={act()} />);
-    expect(screen.getByText(/fare/i).textContent).toContain(`₦${5 * state.faresPerUnit}`);
+    expect(screen.getByText(/fare/i).textContent).toContain(`${5 * state.faresPerUnit} coins`);
   });
 });
 
@@ -101,9 +101,9 @@ describe('source panel, board and hud', () => {
   it('shows cash, load and a shock banner; the upgrade is disabled until you can afford it', () => {
     const s = { ...state, you: { ...state.you, cash: 3000 }, shocks: [{ kind: 'rain', hoursLeft: 4 }] };
     render(<Hud state={s} act={act()} />);
-    expect(screen.getAllByText('₦3,000', { exact: false }).length).toBeGreaterThanOrEqual(1); // cash (and net worth, for a new player)
+    expect(screen.getAllByText('3,000 coins', { exact: false }).length).toBeGreaterThanOrEqual(1); // cash (and net worth, for a new player)
     expect(screen.getByRole('status').textContent).toMatch(/Rain/);
-    expect((screen.getByText(/Buy keke/) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByText(/Buy pickup/) as HTMLButtonElement).disabled).toBe(true);
   });
 
   it('never shows wallet vocabulary anywhere', () => {
@@ -138,9 +138,9 @@ describe('map layout', () => {
   });
 
   it('marks the coach target on the map', () => {
-    const s = { ...state, coach: { text: 'x', focus: { kind: 'stall' as const, id: 'wale' } } };
+    const s = { ...state, coach: { text: 'x', focus: { kind: 'stall' as const, id: 'ruth' } } };
     render(<DistrictMap state={s} selected={null} onSelect={() => {}} />);
-    expect(screen.getByLabelText(/Baba Wale.*your next step/)).toBeTruthy();
+    expect(screen.getByLabelText(/Ruth's Salvage.*your next step/)).toBeTruthy();
     expect(screen.getAllByText('▼ NEXT')).toHaveLength(1);
   });
 });
@@ -218,24 +218,24 @@ describe('illustrated map', () => {
   });
 
   it('puts the shutters down on a closed stall and says so in words', () => {
-    const s = { ...state, stalls: state.stalls.map((x) => (x.id === 'chidi' ? { ...x, state: 'closed' as const } : x)) };
+    const s = { ...state, stalls: state.stalls.map((x) => (x.id === 'anil' ? { ...x, state: 'closed' as const } : x)) };
     const { container } = render(<DistrictMap state={s} selected={null} onSelect={() => {}} />);
-    expect(screen.getByLabelText(/Chidi Iron Works, Closed/)).toBeTruthy();
+    expect(screen.getByLabelText(/Anil Metals, Closed/)).toBeTruthy();
     expect(container.textContent).toContain('✕ Closed');
   });
 
   it('shows a low-cash badge and wording on a struggling stall', () => {
-    const s = { ...state, stalls: state.stalls.map((x) => (x.id === 'wale' ? { ...x, state: 'struggling' as const } : x)) };
+    const s = { ...state, stalls: state.stalls.map((x) => (x.id === 'ruth' ? { ...x, state: 'struggling' as const } : x)) };
     const { container } = render(<DistrictMap state={s} selected={null} onSelect={() => {}} />);
     expect(container.textContent).toContain('Low on cash');
   });
 
   it('lets the merchant speak in a bubble that names them', () => {
-    const stall = state.stalls.find((x) => x.id === 'chidi')!;
+    const stall = state.stalls.find((x) => x.id === 'anil')!;
     render(<StallPanel stall={stall} state={withInv} act={act()} />);
     const price = document.querySelector('.offers .price:not(.off)')!;
     fireEvent.focus(price.closest('.tipwrap')!);
-    expect(screen.getByRole('tooltip').textContent).toContain('Chidi Iron Works says');
+    expect(screen.getByRole('tooltip').textContent).toContain('Anil Metals says');
   });
 });
 
@@ -244,33 +244,33 @@ describe('ownership', () => {
   const stallOf = (id: string) => state.stalls.find((s) => s.id === id)!;
   const noStall = { ...state, business: { ...state.business, stall: null, stallOffer: { cost: 6000, markets: [{ id: 'produce' as const, name: 'Produce Market', free: true }, { id: 'fabric' as const, name: 'Fabric Market', free: true }, { id: 'scrap' as const, name: 'Scrap & Hardware', free: false }] } } };
 
-  it('lets you put money into a closed shop’s ajo pool and fill it', () => {
+  it('lets you put money into a closed shop’s community fund and fill it', () => {
     const a = act();
-    const bisi = stallOf('bisi');
-    expect(bisi.state).toBe('closed');
-    render(<StallPanel stall={bisi} state={{ ...state, you: { ...state.you, cash: 9000 } }} act={a} />);
+    const mira = stallOf('mira');
+    expect(mira.state).toBe('closed');
+    render(<StallPanel stall={mira} state={{ ...state, you: { ...state.you, cash: 9000 } }} act={a} />);
     expect(screen.getByText(/has closed/)).toBeTruthy();
     expect(screen.getByRole('progressbar').getAttribute('aria-valuenow')).toBe('4000');
-    fireEvent.click(screen.getByText(/Put in ₦1,000/));
-    expect(a.contribute).toHaveBeenCalledWith('bisi', 1000);
+    fireEvent.click(screen.getByText(/Put in 1,000 coins/));
+    expect(a.contribute).toHaveBeenCalledWith('mira', 1000);
     fireEvent.click(screen.getByText('Fill the pool'));
-    expect(a.contribute).toHaveBeenLastCalledWith('bisi', 8000); // what is left in the pool
-    expect(screen.getByText(/Ada ₦4,000/)).toBeTruthy(); // who has chipped in so far
+    expect(a.contribute).toHaveBeenLastCalledWith('mira', 8000); // what is left in the pool
+    expect(screen.getByText(/Ada 4,000 coins/)).toBeTruthy(); // who has chipped in so far
   });
 
   it('shows who reopened a shop on its sign', () => {
-    render(<StallPanel stall={stallOf('kemi')} state={state} act={act()} />);
-    expect(screen.getByText(/Reopened by the ajo/).textContent).toContain('Ada');
+    render(<StallPanel stall={stallOf('tomas')} state={state} act={act()} />);
+    expect(screen.getByText(/Reopened by the community fund/).textContent).toContain('Ada');
   });
 
   it('lets you buy and sell shares, explaining how they pay', () => {
     const a = act();
-    render(<StallPanel stall={stallOf('wale')} state={{ ...state, you: { ...state.you, cash: 9000 } }} act={a} />);
+    render(<StallPanel stall={stallOf('ruth')} state={{ ...state, you: { ...state.you, cash: 9000 } }} act={a} />);
     expect(screen.getByText(/30% of the day’s profit/)).toBeTruthy();
     fireEvent.click(screen.getByText(/^Buy · /));
-    expect(a.buyShares).toHaveBeenCalledWith('wale', 5);
+    expect(a.buyShares).toHaveBeenCalledWith('ruth', 5);
     fireEvent.click(screen.getByText('Sell', { selector: '.invest button' }));
-    expect(a.sellShares).toHaveBeenCalledWith('wale', 5);
+    expect(a.sellShares).toHaveBeenCalledWith('ruth', 5);
   });
 
   it('does not offer shares in a player’s stall, and your own stall points you to My business', () => {
@@ -296,7 +296,7 @@ describe('ownership', () => {
 
   it('cannot afford a stall: says how much more you need', () => {
     render(<StallOffer state={{ ...noStall, you: { ...noStall.you, cash: 1000 } }} act={act()} />);
-    expect(screen.getByText(/You need ₦5,000 more/)).toBeTruthy();
+    expect(screen.getByText(/You need 5,000 coins more/)).toBeTruthy();
     expect((screen.getByText('Fabric Market') as HTMLButtonElement).disabled).toBe(true);
   });
 
@@ -325,11 +325,11 @@ describe('ownership', () => {
 
   it('welcomes you back with what happened while you were away', () => {
     const onClose = vi.fn();
-    render(<AwayModal away={{ hours: 50, notes: ['Madam Nkechi paid you ₦120 in dividends.'], town: ['Mama Bisi has closed.'] }} onClose={onClose} />);
+    render(<AwayModal away={{ hours: 50, notes: ["Lena's Textiles paid you 120 coins in dividends."], town: ["Mira's Greens has closed."] }} onClose={onClose} />);
     const d = screen.getByRole('dialog');
     expect(d.textContent).toContain('2 days');
-    expect(d.textContent).toContain('paid you ₦120');
-    expect(d.textContent).toContain('Mama Bisi has closed');
+    expect(d.textContent).toContain('paid you 120 coins');
+    expect(d.textContent).toContain("Mira's Greens has closed");
     fireEvent.click(screen.getByText('Back to the market'));
     expect(onClose).toHaveBeenCalled();
   });
@@ -351,7 +351,7 @@ describe('ownership', () => {
   });
 
   it('never shows wallet vocabulary in the ownership screens', () => {
-    const { container } = render(<><BusinessPanel state={state} act={act()} onFocus={() => {}} /><StallPanel stall={stallOf('bisi')} state={state} act={act()} /></>);
+    const { container } = render(<><BusinessPanel state={state} act={act()} onFocus={() => {}} /><StallPanel stall={stallOf('mira')} state={state} act={act()} /></>);
     expect(container.textContent).not.toMatch(/seed|mnemonic|private key|wallet|\bgas\b|yocto|\.testnet|signature/i);
   });
 });

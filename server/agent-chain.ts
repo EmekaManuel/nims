@@ -6,7 +6,8 @@ import type { MintCall, TransferLeg } from './settle';
 
 const GAS = 300_000_000_000_000n; // owner calls (batch_mint)
 const SEND_GAS = 100_000_000_000_000n; // delegate-wrapped calls: the whole tx is capped at 300 Tgas, so keep headroom
-const STARTING_BALANCE = 20_000_000_000_000_000_000_000n; // 0.02 NEAR
+// An account only needs to hold its own storage: the relayer pays all gas, so players never spend NEAR.
+const STARTING_BALANCE = 5_000_000_000_000_000_000_000n; // 0.005 NEAR
 
 export function agentChain() {
   const { env, account: owner } = connect();

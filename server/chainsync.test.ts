@@ -3,6 +3,7 @@ import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Game } from './game';
+import { transferCoins } from '../sim/engine';
 import { aggregate, ChainOps, ChainSync, planChunk, Signer, Wallets } from './chainsync';
 import type { MintCall, TransferLeg } from './settle';
 import type { LedgerEntry } from '../sim/world';
@@ -266,6 +267,18 @@ describe('ChainSync', () => {
     expect((await sync.verify()).mismatches).toEqual([]);
   });
 
+  it('pauses, without starting new epochs, when the paying account runs out of NEAR', async () => {
+    const { game, chain, sync } = setup();
+    play(game, 6);
+    await sync.step();
+    play(game, 10);
+    game.w.hour += 200;
+    chain.faults.push({ op: 'send', nth: 1, error: new Error('Account oja-items.testnet lacks balance 5064698309107200000003 yoctoNear for state') });
+    expect(await sync.step()).toBe('paused');
+    expect(sync.status().epoch).toBe(1);
+    expect(sync.status().error).toMatch(/out of testnet NEAR/);
+  });
+
   it('pauses instead of burning accounts if it keeps failing', async () => {
     const { game, chain, sync, logs } = setup();
     play(game, 6);
@@ -354,6 +367,83 @@ describe('ChainSync', () => {
   it('never touches the state file when there is no chain (it just is not created)', () => {
     const { stateFile } = setup();
     expect(existsSync(stateFile)).toBe(false);
+  });
+});
+
+describe('ChainSync on the server’s own seed', () => {
+  it.each([1, 2, 3])('a fresh game with seed %i, run for a while with no human at all', async (seed) => {
+    const { game, sync, logs } = setup({ game: new Game(seed) });
+    await sync.step();
+    for (let h = 0; h < 200; h++) { game.tickOnce(); if (h % 5 === 4) await sync.step(); }
+    await drain(game, sync);
+    expect(logs.filter((l) => /rejected/.test(l))).toEqual([]);
+    expect((await sync.verify()).mismatches).toEqual([]);
+  });
+});
+
+describe('ChainSync while the game keeps moving', () => {
+  it('a retried chunk is the same chunk, even if the backlog grows enough to change the usual window size', async () => {
+    const { game, chain, sync, logs, stateFile } = setup();
+    play(game, 4);
+    await sync.step(); // epoch
+    const behind = () => game.ledgerEnd() - JSON.parse(readFileSync(stateFile, 'utf8')).cursor;
+    while (behind() < 330) play(game, 1); // just under the point where windows get wider
+    game.w.hour += 10; // the first window has closed
+    chain.faults.push({ op: 'send', nth: 2, error: new Error('429 Rate limits exceeded') });
+    expect(await sync.step()).toBe('retry'); // partway into the chunk
+    while (behind() < 700) play(game, 1); // meanwhile the game carries on; windows are now wider
+    for (let i = 0; i < 400; i++) if ((await sync.step()) === 'idle') break;
+    await drain(game, sync);
+    expect(logs.filter((l) => /rejected/.test(l))).toEqual([]);
+    expect(sync.status().epoch).toBe(1);
+    expect((await sync.verify()).mismatches).toEqual([]);
+  });
+});
+
+describe('ChainSync under every kind of play', () => {
+  it('stays an exact mirror while several players do everything, with settling interleaved', async () => {
+    const { game, chain, sync, logs } = setup();
+    let seed = 12345;
+    const rnd = () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
+    const pick = <T,>(xs: T[]) => xs[Math.floor(rnd() * xs.length)];
+    const who = ['a@x.io', 'b@x.io', 'c@x.io'];
+    const items = ['iron', 'copper wire', 'tomatoes', 'pepper', 'flour', 'cotton', 'lace', 'thread'] as never[];
+    const merchants = () => game.w.merchants.map((m) => m.id);
+    who.forEach((e) => game.state(e));
+    await sync.step();
+    const seen = new Set<string>();
+    const ok = new Map<string, number>();
+    const tally = (k: string, r: { ok: boolean }) => ok.set(k, (ok.get(k) ?? 0) + (r.ok ? 1 : 0));
+    for (let h = 0; h < 160; h++) {
+      for (const e of who) {
+        if (h % 4 === 0) transferCoins(game.w, 'town', game.playerFor(e), 3000); // a steady income, so every kind of action gets exercised
+        const r = rnd();
+        const m = pick(merchants());
+        const it = pick(items);
+        if (r < 0.25) tally('gather', game.gather(e, it));
+        else if (r < 0.45) tally('sell', game.sell(e, m, it, 1 + Math.floor(rnd() * 20), rnd() < 0.3));
+        else if (r < 0.55) tally('buy', game.buy(e, m, it, 1 + Math.floor(rnd() * 10), rnd() < 0.3));
+        else if (r < 0.62) tally('buyShares', game.buyShares(e, m, 1 + Math.floor(rnd() * 3)));
+        else if (r < 0.66) tally('sellShares', game.sellShares(e, m, 1));
+        else if (r < 0.72) tally('contribute', game.contribute(e, m, 100 + Math.floor(rnd() * 500)));
+        else if (r < 0.75) tally('openStall', game.openStall(e, pick(['produce', 'fabric', 'scrap'])));
+        else if (r < 0.80) tally('stallStock', game.stallStock(e, it, 1 + Math.floor(rnd() * 8)));
+        else if (r < 0.83) tally('stallTake', game.stallTake(e, it, 1 + Math.floor(rnd() * 4)));
+        else if (r < 0.86) tally('stallCash', game.stallCash(e, rnd() < 0.5 ? 'deposit' : 'withdraw', 50 + Math.floor(rnd() * 300)));
+        else if (r < 0.88) game.stallPrice(e, it, 40, 400);
+        else if (r < 0.9) tally('upgrade', game.upgrade(e, 'pickup'));
+      }
+      game.tickOnce();
+      if (h % 7 === 6) { game.w.hour += rnd() < 0.3 ? 30 : 0; seen.add(await sync.step()); }
+    }
+    await drain(game, sync);
+    expect(logs.filter((l) => /rejected/.test(l))).toEqual([]);
+    expect(sync.status().epoch).toBe(1);
+    expect((await sync.verify()).mismatches).toEqual([]);
+    expect(chain.calls).toBeGreaterThan(20);
+    // the test is only meaningful if the play really exercised these things
+    for (const k of ['gather', 'sell', 'buyShares']) expect(ok.get(k) ?? 0, k).toBeGreaterThan(3);
+    console.log('actions that worked:', Object.fromEntries(ok));
   });
 });
 

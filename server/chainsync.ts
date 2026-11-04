@@ -51,7 +51,7 @@ export interface ChainSyncOptions {
   walletsFor: (nsAccount: string) => Wallets;
   stateFile: string;
   log?: (msg: string) => void;
-  /** Coins to give a new namespace account so it can create the accounts under it (default 0.8 NEAR). */
+  /** Coins to give a new namespace account so it can create the accounts under it (default 0.3 NEAR). */
   nsFund?: bigint;
   sleep?: (ms: number) => Promise<void>;
 }
@@ -66,6 +66,8 @@ interface State {
   stage: 'genesis' | 'live';
   /** Calls of the current chunk already done. */
   callsDone: number;
+  /** How many ledger entries the current chunk covers, fixed when it starts so a retry plans exactly the same calls. */
+  chunk?: number;
   /**
    * Sequence numbers already used: the owner's mints, and each signer's transfers. A call that is retried
    * (after a timeout, or after a restart) reuses its number, and the contract ignores it if it already landed.
@@ -120,6 +122,9 @@ export class ChainSync {
   private resets: number[] = [];
   private lastSettledAt: Date | null = null;
   private lastError = '';
+  /** A plain description of the call in flight, kept so a rejection can say what it was. */
+  private lastCall = '';
+  private lastSend: { signer: string; legs: TransferLeg[] } | null = null;
   private paused = false;
   private stopped = false;
   private readonly log: (m: string) => void;
@@ -212,7 +217,7 @@ export class ChainSync {
     const now = Date.now();
     this.resets = this.resets.filter((t) => now - t < 10 * 60_000);
     this.resets.push(now);
-    if (this.resets.length > 4) {
+    if (this.resets.length > 3) {
       this.paused = true;
       this.lastError = 'Too many restarts in ten minutes. Settlement is paused until the server restarts.';
       this.log(`Chain: ${this.lastError}`);
@@ -223,7 +228,7 @@ export class ChainSync {
       const nsAccount = `${nsName}.${this.o.contractId}`;
       const root = this.o.rootWallets.getOrCreate(nsName);
       try {
-        await this.o.ops.createAccount(root.accountId, root.publicKey, undefined, this.o.nsFund ?? 800_000_000_000_000_000_000_000n);
+        await this.o.ops.createAccount(root.accountId, root.publicKey, undefined, this.o.nsFund ?? 300_000_000_000_000_000_000_000n);
       } catch (e) {
         if (/already exists|AccountAlreadyExists/i.test(String(e))) continue; // that namespace is taken: try the next
         throw e;
@@ -283,18 +288,27 @@ export class ChainSync {
       const first = g.ledgerFrom(st.cursor, 1)[0];
       // Wait until the window is over, so repeated moves can be merged. (A big backlog never waits.)
       if (backlog < 400 && first.hour + hours > g.w.hour) return 'waiting';
-      const entries = g.ledgerFrom(st.cursor, 20_000).filter((e) => e.hour < first.hour + hours);
+      // A chunk is pinned the first time it is planned. The game keeps adding entries while we work (and the usual
+      // window size changes with the backlog), so a retry must not re-plan a different chunk from the same position.
+      if (st.chunk === undefined) {
+        st.chunk = g.ledgerFrom(st.cursor, 20_000).filter((e) => e.hour < first.hour + hours).length;
+        this.save();
+      }
+      const entries = g.ledgerFrom(st.cursor, st.chunk);
 
       const steps = planChunk(entries, st.ns, this.chainBalancesAt(st.cursor));
       for (let i = st.callsDone; i < steps.length; i++) {
         const s = steps[i];
         if (s.kind === 'mint') {
           const seq = st.mintSeq + 1;
+          this.lastCall = `mint #${seq} of ${s.mints.length} balances (call ${i + 1}/${steps.length}, entries ${st.cursor}..${st.cursor + entries.length})`;
           await this.o.ops.batchMint(s.mints, seq);
           st.mintSeq = seq;
         } else {
           const signer = await this.signerFor(s.call.signer);
           const seq = (st.seqs[signer.accountId] ?? 0) + 1;
+          this.lastSend = { signer: signer.accountId, legs: s.call.legs };
+          this.lastCall = `send #${seq} by ${signer.accountId} (call ${i + 1}/${steps.length}, entries ${st.cursor}..${st.cursor + entries.length}): ${JSON.stringify(s.call.legs)}`;
           await this.o.ops.sendMany(signer, s.call.legs, seq);
           st.seqs[signer.accountId] = seq;
         }
@@ -304,6 +318,7 @@ export class ChainSync {
       }
       st.cursor += entries.length;
       st.callsDone = 0;
+      st.chunk = undefined;
       this.save();
       g.markSettled(st.cursor);
       this.lastSettledAt = new Date();
@@ -317,7 +332,22 @@ export class ChainSync {
         this.log(`Chain: slow or busy, will retry (${this.lastError.slice(0, 120)})`);
         return 'retry';
       }
+      if (/lacks balance|LackBalanceForState|NotEnoughBalance/i.test(msg)) {
+        // Not a problem with the game or the chain state: the paying account ran dry. A new epoch would only spend more.
+        this.paused = true;
+        this.lastError = 'The settlement account is out of testnet NEAR. Top it up (testnet faucet) and restart the server. Gameplay is unaffected.';
+        this.log(`Chain: ${this.lastError}`);
+        return 'paused';
+      }
       this.log(`Chain: a call was rejected (${this.lastError.slice(0, 200)}). Starting a fresh epoch from the game's current state.`);
+      if (this.lastCall) this.log(`Chain: the rejected call was ${this.lastCall}`);
+      if (this.lastSend) {
+        try {
+          const held: string[] = [];
+          for (const t of new Set(this.lastSend.legs.map((l) => l.tokenId))) held.push(`${t}=${await this.o.ops.balanceOf(this.lastSend.signer, t)}`);
+          this.log(`Chain: that sender actually holds ${held.join(', ')}`);
+        } catch { /* best effort */ }
+      }
       this.state = null;
       rmSync(this.o.stateFile, { force: true }); // a restart must not resume an epoch we no longer trust
       return 'reset';

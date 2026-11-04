@@ -85,7 +85,8 @@ interface State {
 const TRANSIENT = /Access key .* does not exist|UNKNOWN_ACCESS_KEY|429|ETIMEDOUT|ECONNRESET|ENOTFOUND|EAI_AGAIN|fetch failed|timeout|rate limit|socket hang up|network|ECONNREFUSED/i;
 const MINT_CHUNK = 40;
 /** A window of this many game-hours is settled together; it grows when the chain is behind. */
-const chunkHoursFor = (backlog: number) => (backlog > 1500 ? 24 : backlog > 400 ? 12 : 6);
+// Calls grow with the number of rounds, not the number of entries (repeated moves merge), so a wider window is cheaper per game hour.
+const chunkHoursFor = (backlog: number) => (backlog > 10_000 ? 96 : backlog > 4_000 ? 48 : backlog > 1_500 ? 24 : backlog > 400 ? 12 : 6);
 
 /** Merge repeated legs into one per (from, to, token), and repeated mints into one per (to, token). Totals are unchanged. */
 export function aggregate(entries: LedgerEntry[]): LedgerEntry[] {

@@ -110,7 +110,7 @@ export function refreshState(w: World, m: Merchant) {
         : next === 'struggling'
           ? `${m.name} is low on cash and stopped buying.`
           : `${m.name} is trading normally again.`;
-    w.events.push({ hour: w.hour, type: 'state', text });
+    w.events.push({ hour: w.hour, type: 'state', text, merchant: m.id, to: next });
   }
 }
 
@@ -142,7 +142,7 @@ export function contributeToAjo(w: World, p: Player, m: Merchant, amount: number
     m.memory = [];
     m.state = 'open';
     m.dayStartWorth = merchantWorth(m);
-    w.events.push({ hour: w.hour, type: 'revived', text: `${m.name} reopened thanks to an ajo pool.` });
+    w.events.push({ hour: w.hour, type: 'revived', text: `${m.name} reopened thanks to an ajo pool.`, merchant: m.id });
     refreshState(w, m);
   }
   return true;
@@ -154,7 +154,7 @@ function rollShocks(w: World) {
   const kind = w.rng.pick<ShockKind>(['rain', 'fuel queue', 'festive season']);
   const length = kind === 'festive season' ? 24 : kind === 'rain' ? 6 : 12;
   w.shocks.push({ kind, startHour: w.hour, endHour: w.hour + length });
-  w.events.push({ hour: w.hour, type: 'shock', text: `Shock: ${kind} for ${length}h.` });
+  w.events.push({ hour: w.hour, type: 'shock', text: `Shock: ${kind} for ${length}h.`, shock: kind, length });
 }
 
 /** ₦ per unit to move goods between markets. Fuel queues double it. */
@@ -211,6 +211,14 @@ export function merchantWorth(m: Merchant): number {
   let stock = 0;
   for (const [item, n] of Object.entries(m.stock)) stock += (n ?? 0) * BASE_PRICE[item as Item] * 0.8;
   return m.cash + stock;
+}
+
+/** A player's net worth: cash, goods carried (at base price) and shares (at today's price). */
+export function playerWorth(w: World, p: Player): number {
+  let worth = p.cash;
+  for (const [item, n] of Object.entries(p.inventory)) worth += (n ?? 0) * BASE_PRICE[item as Item];
+  for (const m of w.merchants) if (m.shares[p.id]) worth += m.shares[p.id] * sharePrice(m);
+  return Math.round(worth);
 }
 
 /** One share is 1% of the merchant's worth (never less than ₦1). */
@@ -273,7 +281,7 @@ function payDividends(w: World) {
         paid += pay;
         addNote(w, holder, `${m.name} paid you ₦${pay} in dividends for your ${n} shares.`);
       }
-      if (paid > 0) w.events.push({ hour: w.hour, type: 'dividend', text: `${m.name} paid ₦${paid} in dividends to its shareholders.` });
+      if (paid > 0) w.events.push({ hour: w.hour, type: 'dividend', text: `${m.name} paid ₦${paid} in dividends to its shareholders.`, merchant: m.id, amount: paid });
     }
     m.dayStartWorth = merchantWorth(m); // tomorrow's baseline
   }

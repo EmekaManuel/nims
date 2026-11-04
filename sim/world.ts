@@ -98,6 +98,15 @@ export interface WorldEvent {
   hour: number;
   type: 'shock' | 'state' | 'revived' | 'dividend';
   text: string;
+  /** Merchant this is about (state, revived, dividend). */
+  merchant?: string;
+  /** state events: what the merchant became. dividend events: n/a. */
+  to?: MerchantState;
+  /** dividend events: total ₦ paid out. */
+  amount?: number;
+  /** shock events: which shock and for how long. */
+  shock?: ShockKind;
+  length?: number;
 }
 
 export interface Snapshot {

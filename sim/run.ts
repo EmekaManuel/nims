@@ -1,4 +1,4 @@
-/** Fast-forward a week: `npm run sim` writes sim/out/run.json for dashboard.html. */
+/** Fast-forward a week from the command line: `npm run sim` writes sim/out/run.json. (The visual dashboard is at #sim in the web app.) */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { act, newPlayer } from './players';
 import { tick } from './engine';

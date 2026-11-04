@@ -2,8 +2,8 @@
  * Headless economy engine. Every price comes from merchants/pricing.ts —
  * there is deliberately no price logic in this file.
  */
-import { merchantState, PERSONALITY_PARAMS, quote, Quote } from '../merchants/pricing';
-import { BASE_PRICE, Item, MARKETS, Merchant, PERISHABLE, Player, ShockKind, World } from './world';
+import { clampPlayerPrice, merchantState, PERSONALITY_PARAMS, playerQuote, quote, Quote } from '../merchants/pricing';
+import { BASE_PRICE, Item, MARKETS, MAX_PUBLIC_SHARES, Merchant, MarketId, PERISHABLE, Player, SHARES_TOTAL, ShockKind, World } from './world';
 
 /** Demand memory length in in-game hours. */
 export const WINDOW = 24;
@@ -26,6 +26,10 @@ function recent(m: Merchant, item: Item, hour: number) {
 
 /** The merchant's current quote for an item. This is the single call site of pricing.quote. */
 export function quoteFor(w: World, m: Merchant, item: Item, player?: Player): Quote {
+  if (m.owner) {
+    const pr = m.prices?.[item] ?? { buy: Math.round(BASE_PRICE[item] * 0.8), sell: Math.round(BASE_PRICE[item] * 1.2) };
+    return playerQuote({ itemName: item, basePrice: BASE_PRICE[item], buyPrice: pr.buy, sellPrice: pr.sell, stock: m.stock[item] ?? 0, cash: m.cash, ownerName: m.ownerName ?? 'The owner' });
+  }
   const r = recent(m, item, w.hour);
   const festive = activeShock(w, 'festive season') && m.market === 'fabric';
   return quote({
@@ -91,6 +95,10 @@ export function buyFromMerchant(w: World, p: Player, m: Merchant, item: Item, un
 
 /** Recompute open/struggling/closed and log changes. */
 export function refreshState(w: World, m: Merchant) {
+  if (m.owner) {
+    m.state = 'open'; // a player's stall is open whenever its owner says so
+    return;
+  }
   let next = merchantState(m.cash, m.cashFloor, totalStock(m));
   // Hysteresis: a struggling shop needs a 30% cushion over the floor before it trusts itself again.
   if (m.state === 'struggling' && next === 'open' && m.cash < m.cashFloor * 1.3) next = 'struggling';
@@ -121,12 +129,20 @@ export function contributeToAjo(w: World, p: Player, m: Merchant, amount: number
       m.stock[item] = units;
       if (units) w.ledger.push({ hour: w.hour, kind: 'mint', to: m.id, item, units });
     }
+    // Contributors become shareholders in proportion to what they put in.
+    for (const [id, put] of Object.entries(m.ajo.contributors)) {
+      const grant = Math.min(Math.floor((MAX_PUBLIC_SHARES * put) / m.ajo.goal), publicSharesLeft(m));
+      if (grant > 0) m.shares[id] = (m.shares[id] ?? 0) + grant;
+      const who = w.players.find((x) => x.id === id);
+      if (who) addNote(w, who, `${m.name} reopened thanks to your ajo contribution${grant > 0 ? `. You now hold ${m.shares[id]} shares` : ''}.`);
+    }
+    m.sign = Object.keys(m.ajo.contributors);
     m.ajo.pool = 0;
-    const names = Object.keys(m.ajo.contributors).join(', ');
     m.ajo.contributors = {};
     m.memory = [];
     m.state = 'open';
-    w.events.push({ hour: w.hour, type: 'revived', text: `${m.name} reopened thanks to an ajo pool (${names}).` });
+    m.dayStartWorth = merchantWorth(m);
+    w.events.push({ hour: w.hour, type: 'revived', text: `${m.name} reopened thanks to an ajo pool.` });
     refreshState(w, m);
   }
   return true;
@@ -161,7 +177,7 @@ function ambientTrade(w: World) {
       }
     }
     if (m.state === 'closed') continue;
-    m.cash = Math.max(0, m.cash - RENT_PER_HOUR);
+    if (!m.owner) m.cash = Math.max(0, m.cash - RENT_PER_HOUR);
     for (const item of merchantItems(m)) {
       // Everyday customers: buy a couple of units if the price is fair.
       const q = quoteFor(w, m, item);
@@ -174,7 +190,7 @@ function ambientTrade(w: World) {
         if (n) w.ledger.push({ hour: w.hour, kind: 'transfer', from: m.id, to: 'town', item, units: n });
       }
       // Restock from farms/wholesalers at a discount to base when running low.
-      if ((m.stock[item] ?? 0) < (m.target[item] ?? 0) * 0.6) {
+      if (!m.owner && (m.stock[item] ?? 0) < (m.target[item] ?? 0) * 0.6) {
         const unit = Math.round(BASE_PRICE[item] * 0.95);
         const n = Math.min(3, Math.floor(m.cash / unit));
         m.stock[item] = (m.stock[item] ?? 0) + n;
@@ -184,6 +200,169 @@ function ambientTrade(w: World) {
     }
     refreshState(w, m);
   }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Ownership: shares, dividends, player-owned stalls
+// ---------------------------------------------------------------------------------------------
+
+/** What a merchant is worth: cash plus stock at 80% of base price. */
+export function merchantWorth(m: Merchant): number {
+  let stock = 0;
+  for (const [item, n] of Object.entries(m.stock)) stock += (n ?? 0) * BASE_PRICE[item as Item] * 0.8;
+  return m.cash + stock;
+}
+
+/** One share is 1% of the merchant's worth (never less than ₦1). */
+export const sharePrice = (m: Merchant) => Math.max(1, Math.round(merchantWorth(m) / SHARES_TOTAL));
+export const sharesHeld = (m: Merchant) => Object.values(m.shares).reduce((a, b) => a + b, 0);
+export const publicSharesLeft = (m: Merchant) => Math.max(0, MAX_PUBLIC_SHARES - sharesHeld(m));
+
+/** Buying shares puts your cash into the merchant's till, which can lift a struggling shop. */
+export function buyShares(w: World, p: Player, m: Merchant, n: number): { error: string } | { cost: number } {
+  if (m.owner) return { error: "You can't buy shares in a stall run by another player." };
+  if (m.state === 'closed') return { error: `${m.name} is closed. Start an ajo pool to reopen it.` };
+  if (!Number.isInteger(n) || n < 1) return { error: 'Pick a whole number of shares.' };
+  if (n > publicSharesLeft(m)) return { error: publicSharesLeft(m) === 0 ? `No shares left in ${m.name}. They keep the majority.` : `Only ${publicSharesLeft(m)} shares left in ${m.name}.` };
+  const cost = n * sharePrice(m);
+  if (p.cash < cost) return { error: `${n} shares cost ₦${cost}.` };
+  p.cash -= cost;
+  m.cash += cost;
+  m.shares[p.id] = (m.shares[p.id] ?? 0) + n;
+  m.dayStartWorth = (m.dayStartWorth ?? merchantWorth(m) - cost) + cost; // an investment is not profit
+  refreshState(w, m);
+  return { cost };
+}
+
+/** Selling back is at the current price, if the merchant can afford it. */
+export function sellShares(w: World, p: Player, m: Merchant, n: number): { error: string } | { proceeds: number } {
+  const have = m.shares[p.id] ?? 0;
+  if (!Number.isInteger(n) || n < 1) return { error: 'Pick a whole number of shares.' };
+  if (have < n) return { error: `You only hold ${have} shares in ${m.name}.` };
+  const proceeds = n * sharePrice(m);
+  if (m.cash < proceeds) return { error: `${m.name} can't afford to buy your shares back right now.` };
+  m.cash -= proceeds;
+  p.cash += proceeds;
+  m.shares[p.id] = have - n;
+  if (m.shares[p.id] === 0) delete m.shares[p.id];
+  m.dayStartWorth = (m.dayStartWorth ?? merchantWorth(m) + proceeds) - proceeds;
+  refreshState(w, m);
+  return { proceeds };
+}
+
+export const DIVIDEND_RATE = 0.3; // share of the day's profit paid out
+const DIVIDEND_CUSHION = 1.5; // never pay out below 1.5x the cash floor
+
+/** End of day: each merchant pays shareholders a cut of the day's profit, from cash above a safety cushion. */
+function payDividends(w: World) {
+  for (const m of w.merchants) {
+    if (m.owner || m.state === 'closed') continue;
+    const worth = merchantWorth(m);
+    const base = m.dayStartWorth ?? worth;
+    const profit = worth - base;
+    const held = sharesHeld(m);
+    if (profit > 0 && held > 0) {
+      const pool = Math.min(Math.floor(profit * DIVIDEND_RATE), Math.max(0, Math.floor(m.cash - m.cashFloor * DIVIDEND_CUSHION)));
+      let paid = 0;
+      for (const [id, n] of Object.entries(m.shares)) {
+        const pay = Math.floor((pool * n) / SHARES_TOTAL);
+        const holder = w.players.find((x) => x.id === id);
+        if (pay <= 0 || !holder) continue;
+        holder.cash += pay;
+        m.cash -= pay;
+        paid += pay;
+        addNote(w, holder, `${m.name} paid you ₦${pay} in dividends for your ${n} shares.`);
+      }
+      if (paid > 0) w.events.push({ hour: w.hour, type: 'dividend', text: `${m.name} paid ₦${paid} in dividends to its shareholders.` });
+    }
+    m.dayStartWorth = merchantWorth(m); // tomorrow's baseline
+  }
+}
+
+export const STALL_COST = 6_000;
+/** Markets that have a free plot for a player's stall. */
+export const STALL_MARKETS: MarketId[] = ['produce', 'fabric'];
+
+export function ownerStallOf(w: World, p: Player): Merchant | undefined {
+  return w.merchants.find((m) => m.owner === p.id);
+}
+
+export function openOwnerStall(w: World, p: Player, market: MarketId, ownerName: string): Merchant {
+  const items = MARKETS[market].items;
+  const stall: Merchant = {
+    id: `stall-${p.id}`,
+    name: `${ownerName}'s stall`,
+    market,
+    personality: 'cautious', // unused: a player's prices are not formula-driven
+    cash: 0,
+    cashFloor: 0,
+    stock: {},
+    target: Object.fromEntries(items.map((i) => [i, 20])),
+    state: 'open',
+    memory: [],
+    ajo: { pool: 0, goal: 0, contributors: {} },
+    shares: {},
+    sign: [],
+    owner: p.id,
+    ownerName,
+    prices: Object.fromEntries(items.map((i) => [i, { buy: clampPlayerPrice(BASE_PRICE[i] * 0.8, BASE_PRICE[i]), sell: clampPlayerPrice(BASE_PRICE[i] * 1.2, BASE_PRICE[i]) }])),
+  };
+  w.merchants.push(stall);
+  return stall;
+}
+
+/** Agent merchants trade with a player's stall using their own pricing.ts quotes (DESIGN.md §2). */
+function agentTrade(w: World) {
+  for (const o of w.merchants.filter((x) => x.owner)) {
+    for (const m of w.merchants) {
+      if (m.owner || m.state === 'closed' || m.market !== o.market) continue;
+      for (const item of merchantItems(o)) {
+        if (m.target[item] === undefined) continue;
+        const q = quoteFor(w, m, item);
+        const qo = quoteFor(w, o, item);
+        // The merchant buys from the stall when the stall undercuts what the merchant would charge,
+        // and the merchant has room on its shelf and cash to spare.
+        if (qo.willSell && qo.sellPrice < q.mid * 0.95 && (m.stock[item] ?? 0) < (m.target[item] ?? 0) * 1.2) {
+          const n = Math.min(2, o.stock[item] ?? 0, Math.floor(Math.max(0, m.cash - m.cashFloor) / qo.sellPrice));
+          if (n > 0) {
+            o.stock[item] = (o.stock[item] ?? 0) - n;
+            m.stock[item] = (m.stock[item] ?? 0) + n;
+            m.cash -= n * qo.sellPrice;
+            o.cash += n * qo.sellPrice;
+            m.memory.push({ hour: w.hour, item, kind: 'sold', units: n });
+            w.ledger.push({ hour: w.hour, kind: 'transfer', from: o.id, to: m.id, item, units: n });
+            notifyOwner(w, o, `${m.name} bought ${n} ${item} from your stall for ₦${n * qo.sellPrice}.`);
+            continue;
+          }
+        }
+        // The merchant sells its surplus to the stall when the stall pays at least what the merchant would.
+        if (qo.willBuy && qo.buyPrice >= q.buyPrice && (m.stock[item] ?? 0) > (m.target[item] ?? 0)) {
+          const n = Math.min(2, (m.stock[item] ?? 0) - (m.target[item] ?? 0), Math.floor(o.cash / qo.buyPrice));
+          if (n > 0) {
+            m.stock[item] = (m.stock[item] ?? 0) - n;
+            o.stock[item] = (o.stock[item] ?? 0) + n;
+            m.cash += n * qo.buyPrice;
+            o.cash -= n * qo.buyPrice;
+            m.memory.push({ hour: w.hour, item, kind: 'bought', units: n });
+            w.ledger.push({ hour: w.hour, kind: 'transfer', from: m.id, to: o.id, item, units: n });
+            notifyOwner(w, o, `${m.name} sold ${n} ${item} to your stall for ₦${n * qo.buyPrice}.`);
+          }
+        }
+      }
+      refreshState(w, m);
+    }
+  }
+}
+
+function notifyOwner(w: World, stall: Merchant, text: string) {
+  const owner = w.players.find((p) => p.id === stall.owner);
+  if (owner) addNote(w, owner, text);
+}
+
+/** Record something that happened to a player's business. Keeps only the latest 80. */
+export function addNote(w: World, p: Player, text: string) {
+  p.notes.push({ hour: w.hour, text });
+  if (p.notes.length > 80) p.notes.splice(0, p.notes.length - 80);
 }
 
 function respawnSources(w: World) {
@@ -214,6 +393,8 @@ export function tick(w: World, act: Strategy) {
   respawnSources(w);
   for (const p of w.players) act(w, p);
   ambientTrade(w);
+  agentTrade(w);
+  if (w.hour % 24 === 23) payDividends(w);
   snapshot(w);
   w.hour++;
 }

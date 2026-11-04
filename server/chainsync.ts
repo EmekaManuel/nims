@@ -81,7 +81,8 @@ interface State {
   seqs: Record<string, number>;
 }
 
-const TRANSIENT = /429|ETIMEDOUT|ECONNRESET|ENOTFOUND|EAI_AGAIN|fetch failed|timeout|rate limit|socket hang up|network|ECONNREFUSED/i;
+// "Access key ... does not exist": a just-created account's key has not reached the node we asked yet. It will.
+const TRANSIENT = /Access key .* does not exist|UNKNOWN_ACCESS_KEY|429|ETIMEDOUT|ECONNRESET|ENOTFOUND|EAI_AGAIN|fetch failed|timeout|rate limit|socket hang up|network|ECONNREFUSED/i;
 const MINT_CHUNK = 40;
 /** A window of this many game-hours is settled together; it grows when the chain is behind. */
 const chunkHoursFor = (backlog: number) => (backlog > 1500 ? 24 : backlog > 400 ? 12 : 6);

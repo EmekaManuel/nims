@@ -221,6 +221,19 @@ describe('ChainSync', () => {
     expect((await sync.verify()).mismatches).toEqual([]); // and the totals are exactly right
   });
 
+  it('treats a not-yet-visible new account key as a delay, not a rejection', async () => {
+    const { game, chain, sync } = setup();
+    play(game, 6);
+    await sync.step();
+    play(game, 12);
+    chain.faults.push({ op: 'send', nth: 1, error: new Error('Access key ed25519:abc does not exist at block height 276231920') });
+    game.w.hour += 200;
+    expect(await sync.step()).toBe('retry');
+    for (let i = 0; i < 400; i++) if ((await sync.step()) === 'idle') break;
+    expect(sync.status().epoch).toBe(1);
+    expect((await sync.verify()).mismatches).toEqual([]);
+  });
+
   it('retries a call that never reached the chain (rate limited) without any harm', async () => {
     const { game, chain, sync } = setup();
     play(game, 6);

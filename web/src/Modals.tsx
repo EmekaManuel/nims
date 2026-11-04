@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { GameState, GoalKind } from './api';
+import type { Away } from './api';
 
 function Modal({ title, onClose, children }: { title: string; onClose?: () => void; children: React.ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -48,6 +49,31 @@ export function GoalPicker({ goals, current, onPick, onClose }: { goals: GameSta
           </button>
         ))}
       </div>
+    </Modal>
+  );
+}
+
+/** Shown once when you come back after a long time: what the town and your business did without you. */
+export function AwayModal({ away, onClose }: { away: Away; onClose: () => void }) {
+  const days = Math.max(1, Math.round(away.hours / 24));
+  const quiet = away.notes.length === 0 && away.town.length === 0;
+  return (
+    <Modal title="Welcome back" onClose={onClose}>
+      <p className="lede">The market kept trading for {away.hours >= 24 ? `${days} ${days === 1 ? 'day' : 'days'}` : `${away.hours} hours`} while you were gone.</p>
+      {away.notes.length > 0 && (
+        <>
+          <h3>Your business</h3>
+          <ul className="notes">{away.notes.map((n, i) => <li key={i}>{n}</li>)}</ul>
+        </>
+      )}
+      {away.town.length > 0 && (
+        <>
+          <h3>Around town</h3>
+          <ul className="notes">{away.town.map((n, i) => <li key={i}>{n}</li>)}</ul>
+        </>
+      )}
+      {quiet && <p className="muted">A quiet spell. Prices drifted a little and nothing big happened.</p>}
+      <button className="primary" onClick={onClose}>Back to the market</button>
     </Modal>
   );
 }

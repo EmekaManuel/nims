@@ -3,7 +3,8 @@ import { ActionResponse, api, Focus, GameState, GoalKind } from './api';
 import { DistrictMap, Selection } from './Map';
 import { SourcePanel, StallPanel, Actions } from './Panels';
 import { Deals, Mission } from './Mission';
-import { GoalPicker, HowToPlay } from './Modals';
+import { AwayModal, GoalPicker, HowToPlay } from './Modals';
+import { BusinessPanel, StallOffer } from './Business';
 import { Hud } from './Hud';
 import { PriceBoard } from './PriceBoard';
 import { IconSprite } from './icons';
@@ -112,6 +113,16 @@ function Game() {
     buy: (m, i, u, h) => run(api.buy(m, i, u, h)),
     gather: (i) => run(api.gather(i)),
     upgrade: (to) => run(api.upgrade(to)),
+    buyShares: (m, n) => run(api.buyShares(m, n)),
+    sellShares: (m, n) => run(api.sellShares(m, n)),
+    contribute: (m, amount) => run(api.contribute(m, amount)),
+    openStall: (market) => run(api.openStall(market)),
+    stallStock: (i, u) => run(api.stallStock(i, u)),
+    stallTake: (i, u) => run(api.stallTake(i, u)),
+    stallPrice: (i, b, s) => run(api.stallPrice(i, b, s)),
+    stallDeposit: (n) => run(api.stallDeposit(n)),
+    stallWithdraw: (n) => run(api.stallWithdraw(n)),
+    ack: () => run(api.ack()),
   };
 
   const focusOn = (f: Focus) => setSelected(!f ? null : f.kind === 'stall' ? { kind: 'stall', id: f.id } : { kind: 'source', item: f.id as never });
@@ -151,12 +162,17 @@ function Game() {
         <div className="sidecol">
           {stall && <StallPanel stall={stall} state={state} act={act} />}
           {selected?.kind === 'source' && <SourcePanel item={selected.item} state={state} act={act} />}
+          {selected?.kind === 'plot' && (
+            <section className="panel ledger"><h2>A free plot</h2><StallOffer state={state} act={act} focus={selected.market} /></section>
+          )}
           <Deals deals={state.deals} onFocus={focusOn} />
+          <BusinessPanel state={state} act={act} onFocus={(id) => setSelected({ kind: 'stall', id })} />
           <PriceBoard state={state} />
         </div>
       </div>
       {help && <HowToPlay onClose={closeHelp} />}
-      {!help && goalOpen && <GoalPicker goals={state.goals} current={state.goal?.kind} onPick={pickGoal} onClose={() => setGoalOpen(false)} />}
+      {!help && state.away && <AwayModal away={state.away} onClose={() => act.ack()} />}
+      {!help && !state.away && goalOpen && <GoalPicker goals={state.goals} current={state.goal?.kind} onPick={pickGoal} onClose={() => setGoalOpen(false)} />}
     </div>
   );
 }

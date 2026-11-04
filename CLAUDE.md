@@ -1,4 +1,4 @@
-# CLAUDE.md — Oja
+# CLAUDE.md — Nims
 
 Read `DESIGN.md` before doing anything. It is the source of truth for the game loop, pricing, and architecture.
 
@@ -32,10 +32,10 @@ Read `DESIGN.md` before doing anything. It is the source of truth for the game l
 /merchants/agents/        # merchant agent logic + wallets
 /sim/                     # headless fast-forward simulation + dashboard data
 /contracts/items/         # NEP-245 contract
-/contracts/ajo/           # ajo pools + merchant shares
+/contracts/fund/           # community funds + merchant shares
 /server/                  # game state, relayer, batch settlement
 /web/                     # UI: map, stalls, price board, tooltips
 ```
 
 ## Tone
-Lagos setting: affectionate and specific (places, goods, events, ajo). No caricatures or stereotypes in names, dialogue, or art.
+Fictional, neutral market town: warm, clear and universal. Plain-English goods, a fictional currency (coins), internationally mixed names, and no real-world place needed to follow the game. No caricatures or stereotypes in names, dialogue, or art. (Changed from a Lagos setting so international judges understand it at a glance.)

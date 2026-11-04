@@ -1,6 +1,6 @@
-# Oja
+# Nims
 
-A small Lagos market district where every trader is an AI agent with its own wallet and stock. You start with a wheelbarrow, read the market, move goods where they're dear, revive broke shops, and end up a part-owner of half the stalls. The economy keeps moving whether you're online or not.
+A small market town where every trader is an AI agent with its own wallet and stock. You start with a wheelbarrow, read the market, move goods where they're dear, revive broke shops, and end up a part-owner of half the stalls. The economy keeps moving whether you're online or not.
 
 Built for the **Games With Real Economies** track: the economy *is* the gameplay, and the player never notices the chain.
 
@@ -24,7 +24,7 @@ npm run dev       # starts both; open the address Vite prints (usually http://lo
 |---|---|
 | **Trade** | Collect goods from farms and scrap spots (free) or the wholesaler (fixed price), carry them between three markets, haggle once an hour. Hover any price and the merchant explains it in their own words. |
 | **Read the market** | A chalkboard price board shows every good in every market against its usual price. Each stall draws crates from its real stock, so a flooded stall visibly overflows and a broke one has its shutters down. |
-| **Revive** | A shop with no cash and no stock closes. Neighbours reopen it with an **ajo** pool; contributors become part-owners and their names go on the sign. |
+| **Revive** | A shop with no cash and no stock closes. Neighbours reopen it with an **fund** pool; contributors become part-owners and their names go on the sign. |
 | **Own** | Buy up to 49% of any merchant and get a share of their profit every evening, or open your own stall, set your own prices and let the merchants trade with you. |
 | **Come back** | The town kept trading. A summary says what your shares paid and what happened around town. |
 | **Watch** | *Fast-forward a week* runs the same economy headless and plays it back: prices, shop cash, shocks, closures. Choose which simulated traders take part (gatherers, an arbitrageur, an investor, a market flooder). |
@@ -73,7 +73,7 @@ The deployed contract is `oja-items.testnet`.
 
 ## Known limits (honest list)
 
-- **₦ is not on chain.** Only items are settled. Shares, dividends and ajo pools are game state. The design calls for a small on-chain ajo/shares contract, which needs a ₦ token decision first.
+- **Coins are not on chain.** Only items are settled. Shares, dividends and community funds are game state. The design calls for a small on-chain fund/shares contract, which needs a decision on how coins should work on chain first.
 - **The live game is not auto-settled.** The settlement pipeline is built and verified on testnet against the simulation, and the server settles queued player transfers, but the running game's full item ledger isn't streamed to the chain continuously.
 - **Login links are shown on screen in development.** A real email provider is one small replacement of the `Mailer` interface.
 - **One server process, state in memory with a JSON save.** Fine for a demo; not horizontally scalable.

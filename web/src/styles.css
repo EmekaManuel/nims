@@ -1,5 +1,5 @@
 /*
-  Oja: a laterite market on market day.
+  Nims: a laterite market on market day.
   Navy enamel signboards frame the game, panels are school exercise books (blue rules, red margin),
   the price board is a chalkboard, and merchants talk in speech bubbles. One look, committed.
 */
@@ -211,9 +211,9 @@ th { font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; color:
 .map .plot-label { font: 700 14px var(--font-body); fill: var(--ink); }
 .map .plot:hover .plot-box, .map .plot.on .plot-box, .map .plot:focus-visible .plot-box { stroke: var(--cobalt); fill: rgba(255,255,255,.6); }
 
-/* ---- ajo, shares, my business ---- */
+/* ---- fund, shares, my business ---- */
 .ledger h3 { font-family: var(--font-display); font-weight: 400; font-size: 1rem; color: var(--navy); margin: 1rem 0 .3rem; }
-.ajo .meter { margin: .4rem 0; } .ajo p { margin: .3rem 0; }
+.fund .meter { margin: .4rem 0; } .fund p { margin: .3rem 0; }
 .invest { margin-top: .8rem; padding-top: .6rem; border-top: 2px dashed var(--paper-line); }
 .invest h3 { margin-top: 0; }
 .signline { margin: .3rem 0; padding: .3rem .6rem; background: var(--mango-soft); border: 2px solid var(--ink); border-radius: 8px; font-weight: 700; display: inline-block; }
@@ -232,7 +232,7 @@ th { font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; color:
 .simlink { font-weight: 700; color: var(--cobalt); }
 
 /* ================= fast-forward dashboard ================= */
-/* Chart tokens. The palette is the validated reference set; ink and surface are Oja's own. */
+/* Chart tokens. The palette is the validated reference set; ink and surface are Nims's own. */
 .viz {
   --surface-1: #fbfaf3;
   --ink-1: #2a1a12; --ink-2: #5d4a3b;

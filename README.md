@@ -55,7 +55,7 @@ Read `merchants/pricing.ts` first. It's short and heavily commented.
 ## Tests
 
 ```bash
-npm test               # economy, pricing, server, API (about 105 tests)
+npm test               # economy, pricing, server, API (about 110 tests)
 npm run test:web       # the UI against real game state (about 57 tests)
 npm run contract:test  # the NEP-245 contract (13 tests; needs Rust)
 ```

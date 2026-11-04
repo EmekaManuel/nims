@@ -10,7 +10,9 @@
     "chain:deploy": "tsx server/run-settle.ts deploy",
     "chain:upgrade": "tsx server/run-settle.ts upgrade",
     "chain:settle": "tsx server/run-settle.ts settle",
-    "server": "tsx server/main.ts"
+    "server": "tsx server/main.ts",
+    "web": "cd web && vite",
+    "test:web": "cd web && vitest run"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",

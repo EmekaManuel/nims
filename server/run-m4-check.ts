@@ -16,9 +16,12 @@ import { applyBatch, Balances, genesisLedger, MintCall } from './settle';
 import { WalletStore } from './wallets';
 
 const HOURS = Number(process.argv[2] ?? 12);
+// Each run lives in its own namespace account (e.g. v2.oja-items.testnet) so balances from earlier runs never interfere.
+const NS = process.argv[3] ?? 'v2';
 const chain = agentChain();
-const parent = chain.contractId; // merchants live at bisi.oja-items.testnet etc.
-const wallets = new WalletStore('server/data/wallets.json', parent, process.env.MASTER_KEY!);
+const parent = `${NS}.${chain.contractId}`; // merchants live at bisi.v2.oja-items.testnet etc.
+const root = new WalletStore('server/data/wallets.json', chain.contractId, process.env.MASTER_KEY!);
+const wallets = new WalletStore(`server/data/wallets-${NS}.json`, parent, process.env.MASTER_KEY!);
 
 // 1. Run the sim.
 const players = [
@@ -56,12 +59,19 @@ for (const b of batches) {
 console.log(`${HOURS}h of sim -> ${steps.length} chain steps (${steps.filter((s) => s.kind === 'send').length} self-signed calls); agents refused ${refused} legs`);
 if (refused) throw new Error('A merchant agent refused legs it should have been able to cover');
 
-// 3. Make sure every signer has a real account.
+// 3. Make sure the namespace account and every signer have real accounts.
+const nsWallet = root.getOrCreate(NS);
+if (!nsWallet.onChain) {
+  await chain.createAccount(nsWallet.accountId, nsWallet.publicKey, undefined, 600_000_000_000_000_000_000_000n); // 0.6 NEAR
+  root.markOnChain(NS);
+  console.log('created namespace', nsWallet.accountId);
+}
+const creator = { accountId: nsWallet.accountId, secretKey: root.secretKeyOf(NS) };
 const ids = [...w.merchants.map((m) => m.id), ...players.map((p) => p.id)];
 for (const id of ids) {
   const wl = wallets.getOrCreate(id);
   if (!wl.onChain) {
-    await chain.createAccount(wl.accountId, wl.publicKey);
+    await chain.createAccount(wl.accountId, wl.publicKey, creator);
     wallets.markOnChain(id);
     console.log('created', wl.accountId);
   }
@@ -69,7 +79,7 @@ for (const id of ids) {
 
 // 4. Execute, resumably (progress saved after each step so a rate limit never double-mints).
 const PROGRESS = 'sim/out/m4-progress.json';
-const key = `${parent}|21|${HOURS}`;
+const key = `${parent}|21|${HOURS}`; // progress is per namespace, so a new namespace starts clean
 let done = existsSync(PROGRESS) && JSON.parse(readFileSync(PROGRESS, 'utf8')).key === key ? JSON.parse(readFileSync(PROGRESS, 'utf8')).done : 0;
 const retry = async <T>(fn: () => Promise<T>): Promise<T> => {
   for (let a = 0; ; a++) {

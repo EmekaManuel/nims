@@ -6,6 +6,8 @@
  * settled in the background by `flush()` (called on a timer by server/main.ts).
  */
 import { createServer, IncomingMessage, Server, ServerResponse } from 'node:http';
+import { existsSync, readFileSync, statSync } from 'node:fs';
+import { extname, join, normalize } from 'node:path';
 import { AccountStore } from './accounts';
 import { Auth, looksLikeEmail, normaliseEmail } from './auth';
 import { ChainPort } from './relayer';
@@ -34,6 +36,8 @@ export interface AppDeps {
   chainStatus?: () => unknown;
   /** The signed-in player's own proof link, if the live settler is on. */
   chainProof?: (email: string) => unknown;
+  /** Folder of the built web app (web/dist). When set, this server also serves the game's pages, so one process hosts everything. */
+  staticDir?: string;
   /** Minimum gap between two different fast-forward runs. Default 500ms; tests set 0. */
   fastForwardGapMs?: number;
 }
@@ -43,6 +47,16 @@ interface Pending {
   to: string;
   item: string;
   units: number;
+}
+
+const MIME: Record<string, string> = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.json': 'application/json', '.mp4': 'video/mp4', '.ico': 'image/x-icon' };
+/** A file inside the built web app for this path (the page itself for "/"), or null. Never leaves the folder. */
+function staticFile(dir: string, pathname: string): string | null {
+  const rel = normalize(decodeURIComponent(pathname)).replace(/^([/\\]|\.\.)+/, '');
+  const f = join(dir, rel === '' ? 'index.html' : rel);
+  if (!f.startsWith(dir)) return null;
+  try { if (existsSync(f) && statSync(f).isFile()) return f; } catch { /* fall through */ }
+  return null;
 }
 
 const MERCHANTS = new Set(createMerchants().map((m) => m.id));
@@ -125,11 +139,24 @@ export function createApp(d: AppDeps) {
 
     if (req.method === 'GET' && url.pathname === '/auth/verify') {
       const email = d.auth.verifyMagic(url.searchParams.get('token') ?? '');
-      if (!email) return send(res, 400, { error: 'That link has expired. Ask for a new one.' });
+      // A person clicking the emailed link (a browser page load) lands back in the game; API callers get JSON.
+      const fromBrowser = (req.headers.accept ?? '').includes('text/html');
+      if (!email) {
+        if (fromBrowser) { res.writeHead(302, { location: '/?login=expired' }); return void res.end(); }
+        return send(res, 400, { error: 'That link has expired. Ask for a new one.' });
+      }
       ensureAccount(email);
-      return send(res, 200, { ok: true }, {
-        'set-cookie': `${COOKIE}=${d.auth.sessionToken(email)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=2592000`,
-      });
+      const cookie = `${COOKIE}=${d.auth.sessionToken(email)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=2592000${d.baseUrl.startsWith('https:') ? '; Secure' : ''}`;
+      if (fromBrowser) { res.writeHead(302, { location: '/', 'set-cookie': cookie }); return void res.end(); }
+      return send(res, 200, { ok: true }, { 'set-cookie': cookie });
+    }
+
+    if (req.method === 'GET' && d.staticDir) {
+      const file = staticFile(d.staticDir, url.pathname);
+      if (file) {
+        res.writeHead(200, { 'content-type': MIME[extname(file)] ?? 'application/octet-stream', 'cache-control': file.includes('/assets/') ? 'public, max-age=31536000, immutable' : 'no-cache' });
+        return void res.end(readFileSync(file));
+      }
     }
 
     // Public and read-only: how far the background settlement has got. The game never reads this.

@@ -18,7 +18,7 @@ import { FastForwardPage } from './Fastforward';
 function Login({ onIn }: { onIn: () => void }) {
   const [email, setEmail] = useState('');
   const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState('');
+  const [msg, setMsg] = useState(() => (new URLSearchParams(location.search).get('login') === 'expired' ? 'That link has expired or was already used. Ask for a new one.' : ''));
   /** Something wrong with the email itself, shown on the field. */
   const [error, setError] = useState('');
   const [devLink, setDevLink] = useState('');

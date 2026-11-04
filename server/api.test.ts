@@ -64,6 +64,18 @@ async function login(email = 'ada@example.com') {
 }
 
 describe('api', () => {
+  it('a browser clicking the emailed link is signed in and sent to the game; a spent link goes to a friendly page', async () => {
+    await post('/auth/request', { email: 'ada@example.com' });
+    const token = new URL(links[0]).searchParams.get('token');
+    const html = { accept: 'text/html' };
+    const ok = await fetch(`${base}/auth/verify?token=${token}`, { headers: html, redirect: 'manual' });
+    expect(ok.status).toBe(302);
+    expect(ok.headers.get('location')).toBe('/');
+    expect(ok.headers.get('set-cookie')).toContain('nims_session=');
+    const spent = await fetch(`${base}/auth/verify?token=${token}`, { headers: html, redirect: 'manual' });
+    expect(spent.headers.get('location')).toBe('/?login=expired');
+  });
+
   it('logs in by email link, then /me works', async () => {
     const cookie = await login();
     const me = await (await fetch(base + '/me', { headers: { cookie } })).json();

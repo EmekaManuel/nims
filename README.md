@@ -22,7 +22,7 @@ npm run dev       # starts both; open the address Vite prints (usually http://lo
 
 | | |
 |---|---|
-| **Trade** | Collect goods from farms and scrap spots (free) or the wholesaler (fixed price), carry them between three markets, haggle once an hour. Hover any price and the merchant explains it in their own words. |
+| **Trade** | Buy goods at wholesale from the farms, scrap spots and the cloth wholesaler, carry them between three markets, and sell where they're dear. Your starting cash is the limit, so you start small and grow. You can haggle once an hour. Hover any price and the merchant explains it in their own words. |
 | **Read the market** | The **Prices** tab shows every good in every market against its usual price, tinted green where it's dear and blue where it's cheap. On the map, each stall draws crates from its real stock, so a flooded stall visibly overflows and a broke one has its shutters down. |
 | **Feel it** | The map is alive: traders walk the roads, a delivery truck drives by, you walk between markets with your vehicle, lamps come on at night, and shocks (rain, fuel queue, festive season) show up on the map. Sales float up as "+420 coins", there are small sound effects (with a mute button), your **rank** climbs from Street vendor to Tycoon, and Nim the guide tells you what to do next. |
 | **Revive** | A shop with no cash and no stock closes. Neighbours reopen it by paying into a **community fund**; contributors become part-owners and their names go on the sign. |

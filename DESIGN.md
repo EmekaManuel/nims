@@ -22,9 +22,11 @@ y# Nims — Design
 | *(stretch)* Phone Parts | screens, batteries | Higher value, lower volume |
 
 ### Sources (where players gather)
-- **Farms** on the edge of town → tomatoes, pepper, cassava (→ flour at a merchant).
-- **Scrap spots** around the map → iron, copper wire. Respawn on a timer.
-- **Wholesaler** → buy bulk cloth at a fixed price (a stable price anchor).
+- **Farms** on the edge of town → tomatoes, pepper (flour is stocked by merchants).
+- **Scrap spots** around the map → iron, copper wire. Supply refills slowly on a timer.
+- **Wholesaler** → buy bulk cotton at a fixed price (a stable price anchor).
+
+Sources sell at a **wholesale price: 50% of a good's usual price**. They are not free. If goods cost nothing, the first trip is worth thousands and the market stops mattering; at wholesale, starting cash is the limit and the profit is in price gaps, shortages and shocks. (See "Economy balance" below.)
 
 ### Merchants (v1: 8 agents)
 Each merchant has:
@@ -138,3 +140,21 @@ Pricing is a **pure function**: same inputs, same price. The live game and fast-
 
 ## 7. Out of scope (v1)
 Housing, needs bars, relationships, deep crafting trees, multiplayer chat. Stretch: one crafting step (cloth + thread → tailored outfit) to add a second layer of demand.
+
+## 8. Economy balance (what the numbers are for)
+
+The economy is the gameplay, so it has to stay healthy without a human in it. These are the levers and why they sit where they do. `sim/economy.test.ts` guards them.
+
+| Lever | Value | Why |
+|---|---|---|
+| Wholesale rate | 50% of usual price | Goods are not free. Starting cash limits you, so growth is earned. |
+| Starting cash | 4,000 coins | Enough for a first small load, not enough to flood a market. |
+| Carried goods in net worth | 80% of usual price | Collecting a load is not instant profit. |
+| Everyday demand | per good, per stall, per hour (`DEMAND_PER_HOUR`) | Town-wide demand roughly matches each source's supply, so prices hover near fair value instead of sitting on the floor. |
+| Merchant restock | below 85% of target | Stalls don't sit understocked, which would hold prices permanently high. |
+| NPC gatherers | every 3rd hour, only when the best price beats cost by 40%, sell above cost + 10% | A trader, not a firehose. Supply follows profit, so a glut corrects itself. |
+| Market flooder | bankrolled with 60,000 coins | It is a saboteur who dumps goods whatever they cost, so it needs deep pockets. |
+| Fortune goal | 12,000 coins | A calm player reaches it in roughly 12 to 20 minutes. |
+| Ranks | 3,000 / 7,000 / 15,000 / 35,000 | A new rank every few minutes early on. |
+
+Before this pass a calm player reached the goal in about 40 seconds and Tycoon in 2.5 minutes: free goods plus an oversupplied market made money a fountain. After it, the same bot takes about 12 to 20 minutes for the goal.

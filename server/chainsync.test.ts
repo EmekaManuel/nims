@@ -15,6 +15,8 @@ class FakeChain implements ChainOps {
   mintSeqNow = 0;
   sendSeqNow = new Map<string, number>();
   calls = 0;
+  /** Runs at the start of every call: the real game does not stop while the chain is busy. */
+  onCall: (() => void) | null = null;
   duplicatesIgnored = 0;
   /** One-shot faults. `afterApply` means the call lands and THEN fails (a timeout waiting for confirmation). */
   faults: { op: 'mint' | 'send'; nth: number; error: Error; afterApply?: boolean }[] = [];
@@ -34,6 +36,7 @@ class FakeChain implements ChainOps {
   async mintSeq() { return this.mintSeqNow; }
 
   async batchMint(mints: MintCall[], seq: number) {
+    this.onCall?.();
     const f = this.fault('mint');
     if (f && !f.afterApply) throw f.error;
     this.calls++;
@@ -47,6 +50,7 @@ class FakeChain implements ChainOps {
   }
 
   async sendMany(signer: Signer, legs: TransferLeg[], seq: number) {
+    this.onCall?.();
     const f = this.fault('send');
     if (f && !f.afterApply) throw f.error;
     if (!this.accounts.has(signer.accountId)) throw new Error(`Account ${signer.accountId} does not exist`);
@@ -93,7 +97,7 @@ function setup(opts: { game?: Game; chain?: FakeChain; stateFile?: string; walle
   const wallets = opts.wallets ?? new Map<string, FakeWallets>();
   const logs: string[] = [];
   const sync = new ChainSync({
-    game, ops: chain, contractId: CONTRACT, stateFile, log: (m) => logs.push(m), sleep: async () => {},
+    game, ops: chain, contractId: CONTRACT, stateFile, log: (m) => logs.push(m), sleep: async () => {}, nsSuffix: () => '',
     rootWallets: wallets.get('root') ?? (wallets.set('root', new FakeWallets(CONTRACT)), wallets.get('root')!),
     walletsFor: (ns) => wallets.get(ns) ?? (wallets.set(ns, new FakeWallets(ns)), wallets.get(ns)!),
   });
@@ -382,6 +386,23 @@ describe('ChainSync on the server’s own seed', () => {
 });
 
 describe('ChainSync while the game keeps moving', () => {
+  it('stays exact when the game ticks and the player trades during every chain call (the real server)', async () => {
+    const { game, chain, sync, logs } = setup({ game: new Game(1) });
+    const me2 = 'soak@example.com';
+    game.state(me2);
+    let n = 0;
+    chain.onCall = () => {
+      game.tickOnce();
+      if (n++ % 3 === 0) { const it = n % 2 ? 'iron' : 'copper wire'; game.gather(me2, it); game.sell(me2, n % 4 < 2 ? 'anil' : 'ruth', it, 20); }
+    };
+    for (let i = 0; i < 300; i++) { game.tickOnce(); await sync.step(); }
+    chain.onCall = null;
+    await drain(game, sync);
+    expect(logs.filter((l) => /rejected/.test(l))).toEqual([]);
+    expect(sync.status().epoch).toBe(1);
+    expect((await sync.verify()).mismatches).toEqual([]);
+  });
+
   it('a retried chunk is the same chunk, even if the backlog grows enough to change the usual window size', async () => {
     const { game, chain, sync, logs, stateFile } = setup();
     play(game, 4);

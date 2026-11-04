@@ -54,6 +54,11 @@ export interface ChainSyncOptions {
   /** Coins to give a new namespace account so it can create the accounts under it (default 0.3 NEAR). */
   nsFund?: bigint;
   sleep?: (ms: number) => Promise<void>;
+  /**
+   * Makes namespace names unique across runs (default: the time in base 36). The contract remembers balances and
+   * sequence numbers even for deleted accounts, so a re-created name would inherit stale state. Tests pass () => ''.
+   */
+  nsSuffix?: () => string;
 }
 
 interface State {
@@ -224,7 +229,7 @@ export class ChainSync {
       return;
     }
     for (let epoch = last + 1; epoch < last + 50; epoch++) {
-      const nsName = `g${epoch}`;
+      const nsName = `g${epoch}${(this.o.nsSuffix ?? (() => `-${Date.now().toString(36)}`))()}`;
       const nsAccount = `${nsName}.${this.o.contractId}`;
       const root = this.o.rootWallets.getOrCreate(nsName);
       try {

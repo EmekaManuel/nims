@@ -20,31 +20,41 @@ export function agentChain() {
     },
 
     /** Items enter the world (owner only). */
-    async batchMint(mints: MintCall[]) {
+    async batchMint(mints: MintCall[], seq?: number) {
       if (!mints.length) return;
       await owner.callFunction({
         contractId: env.contractId,
         methodName: 'batch_mint',
-        args: { mints: mints.map((m) => ({ account_id: m.account, token_id: m.tokenId, amount: String(m.amount) })) },
+        args: { mints: mints.map((m) => ({ account_id: m.account, token_id: m.tokenId, amount: String(m.amount) })), seq: seq ?? null },
         gas: GAS,
       });
     },
 
     /** `signer` signs a send_many with its OWN key; the relayer relays it and pays the gas. */
-    async sendMany(signer: { accountId: string; secretKey: string }, legs: TransferLeg[]) {
+    async sendMany(signer: { accountId: string; secretKey: string }, legs: TransferLeg[], seq?: number) {
       const acct = new Account(signer.accountId, env.rpcUrl, signer.secretKey as `ed25519:${string}`);
       const { signedDelegate } = await acct.createSignedMetaTransaction({
         receiverId: env.contractId,
         actions: [
           actions.functionCall(
             'send_many',
-            { legs: legs.map((l) => ({ receiver_id: l.to, token_id: l.tokenId, amount: String(l.amount) })) },
+            { legs: legs.map((l) => ({ receiver_id: l.to, token_id: l.tokenId, amount: String(l.amount) })), seq: seq ?? null },
             SEND_GAS,
             1n,
           ),
         ],
       });
       await relayChecked(owner, signedDelegate); // throws if the inner call failed
+    },
+
+    /** The last sequence number the contract applied for the owner's mints. */
+    async mintSeq(): Promise<number> {
+      return Number((await owner.provider.callFunction<number>({ contractId: env.contractId, method: 'mint_seq', args: {} })) ?? 0);
+    },
+
+    /** The last sequence number the contract applied for this account's send_many. */
+    async sendSeq(accountId: string): Promise<number> {
+      return Number((await owner.provider.callFunction<number>({ contractId: env.contractId, method: 'send_seq', args: { account_id: accountId } })) ?? 0);
     },
 
     async balanceOf(accountId: string, tokenId: string): Promise<number> {

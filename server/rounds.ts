@@ -68,9 +68,9 @@ export function planRounds(legs: TransferLeg[], bal: Balances): Round[] {
 }
 
 /** Whole ledger -> per-chunk mints + rounds. Balances carry across chunks. */
-export function buildAgentBatches(ledger: LedgerEntry[], parent: string, chunkHours = 1): AgentBatch[] {
+export function buildAgentBatches(ledger: LedgerEntry[], parent: string, chunkHours = 1, opening?: Balances): AgentBatch[] {
   const out: AgentBatch[] = [];
-  const bal: Balances = new Map();
+  const bal: Balances = new Map(opening); // a live epoch starts from what is already on chain
   const chunks = new Map<number, LedgerEntry[]>();
   for (const e of ledger) {
     if (e.units <= 0) continue;

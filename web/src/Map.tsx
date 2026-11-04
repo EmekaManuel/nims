@@ -33,7 +33,7 @@ export const PLOTS: Partial<Record<MarketId, [number, number]>> = {
   fabric: [790, 270],
 };
 
-const OWNER_CANOPY: [string, string] = ['#d6336c', '#f2a900'];
+const OWNER_CANOPY: [string, string] = ['#f2b01e', '#fff8e6'];
 
 const SOURCE_POS: Partial<Record<Item, [number, number]>> = {
   tomatoes: [82, 110], pepper: [82, 250], iron: [100, 470], 'copper wire': [100, 590], cotton: [890, 470],
@@ -41,9 +41,9 @@ const SOURCE_POS: Partial<Record<Item, [number, number]>> = {
 
 /** Awning stripes per market. */
 const CANOPY: Record<MarketId, [string, string]> = {
-  produce: ['#2f8f4e', '#f7edc4'],
-  fabric: ['#1f4fc4', '#f2a900'],
-  scrap: ['#b9582a', '#8d98a3'],
+  produce: ['#2f9e5f', '#f1f8f3'],
+  fabric: ['#2a6fdb', '#f1f6fe'],
+  scrap: ['#c8622e', '#f1ede7'],
 };
 
 const STATE_LABEL = { open: 'Open', struggling: 'Low on cash', closed: 'Closed' } as const;
@@ -75,7 +75,7 @@ function Awning({ colors, dim }: { colors: [string, string]; dim: boolean }) {
   return (
     <g filter={dim ? 'url(#desat)' : undefined} opacity={dim ? 0.8 : 1}>
       {Array.from({ length: n }, (_, i) => (
-        <path key={i} d={`M${i * w} 0H${(i + 1) * w}V15a${w / 2} ${w / 2} 0 0 1 -${w} 0Z`} fill={i % 2 ? b : a} stroke="#2a1a12" strokeWidth="1.4" strokeLinejoin="round" />
+        <path key={i} d={`M${i * w} 0H${(i + 1) * w}V15a${w / 2} ${w / 2} 0 0 1 -${w} 0Z`} fill={i % 2 ? b : a} stroke="#26364a" strokeWidth="1.2" strokeLinejoin="round" />
       ))}
     </g>
   );
@@ -95,8 +95,8 @@ function Goods({ offers }: { offers: Offer[] }) {
             {Array.from({ length: n }, (_, k) => (
               <use key={k} href={`#${itemId(o.item)}`} x={n > 1 ? k * step : 17} y={n > 3 && k % 2 ? 24 : 29} width="24" height="24" />
             ))}
-            <rect x="0" y="45" width="58" height="12" rx="2" fill="#a06a3c" stroke="#2a1a12" strokeWidth="1.4" />
-            <path d="M0 51H58" stroke="#6e4524" strokeWidth="1.2" />
+            <rect x="0" y="45" width="58" height="12" rx="2" fill="#d6b68a" stroke="#26364a" strokeWidth="1.2" />
+            <path d="M0 51H58" stroke="#b8946a" strokeWidth="1.2" />
           </g>
         );
       })}
@@ -111,28 +111,28 @@ function StallArt({ s }: { s: Stall }) {
     <g className="stall-art">
       <Awning colors={s.owner ? OWNER_CANOPY : CANOPY[s.market]} dim={closed} />
       <Goods offers={s.offers} />
-      <rect x="0" y="57" width={ART_W} height="7" rx="2" fill="#8a5a34" stroke="#2a1a12" strokeWidth="1.4" />
+      <rect x="0" y="57" width={ART_W} height="7" rx="2" fill="#c9a479" stroke="#26364a" strokeWidth="1.2" />
       {closed && (
         <g>
-          <rect x="3" y="22" width={ART_W - 6} height="36" fill="#8d98a3" stroke="#2a1a12" strokeWidth="1.4" />
+          <rect x="3" y="22" width={ART_W - 6} height="36" fill="#8d98a3" stroke="#26364a" strokeWidth="1.2" />
           {[28, 34, 40, 46, 52].map((y) => <path key={y} d={`M3 ${y}H${ART_W - 3}`} stroke="#6b7682" strokeWidth="1.6" />)}
         </g>
       )}
-      <rect x="0" y="64" width={ART_W} height="28" rx="7" fill="#16264a" stroke="#2a1a12" strokeWidth="1.4" />
+      <rect x="0" y="64" width={ART_W} height="28" rx="7" fill="#16264a" stroke="#26364a" strokeWidth="1.2" />
       <text x={ART_W / 2} y="78" textAnchor="middle" className="stall-name">{s.name}</text>
       <text x={ART_W / 2} y="89" textAnchor="middle" className={`stall-status ${s.state}`}>
         {closed ? '✕ Closed' : low ? '▼ Low on cash' : '● Open'}
       </text>
       {(s.shares?.yours ?? 0) > 0 && (
         <g transform="translate(12 6)">
-          <circle r="11" fill="#f2a900" stroke="#2a1a12" strokeWidth="1.4" />
-          <path d="M0-6l1.8 3.9 4.2.5-3.1 2.9.8 4.2L0 5.4l-3.7 2.1.8-4.2-3.1-2.9 4.2-.5z" fill="#2a1a12" />
+          <circle r="11" fill="#f2a900" stroke="#26364a" strokeWidth="1.2" />
+          <path d="M0-6l1.8 3.9 4.2.5-3.1 2.9.8 4.2L0 5.4l-3.7 2.1.8-4.2-3.1-2.9 4.2-.5z" fill="#26364a" />
         </g>
       )}
       {s.owner?.mine && <text x={ART_W - 8} y="-4" textAnchor="end" className="yours-tag">YOURS</text>}
       {low && (
         <g transform={`translate(${ART_W - 10} 4)`}>
-          <circle r="11" fill="#d6336c" stroke="#2a1a12" strokeWidth="1.4" />
+          <circle r="11" fill="#d6336c" stroke="#26364a" strokeWidth="1.2" />
           <use href="#g-coin" x="-7" y="-9" width="14" height="14" />
           <path d="M-4 7h8l-4 5z" fill="#fff" />
         </g>
@@ -146,11 +146,11 @@ function SourceArt({ item }: { item: Item }) {
   if (item === 'tomatoes' || item === 'pepper') {
     return (
       <g>
-        <rect x="-46" y="-34" width="92" height="56" rx="8" fill="#6f9d44" stroke="#2a1a12" strokeWidth="1.6" />
+        <rect x="-46" y="-34" width="92" height="56" rx="8" fill="#5aa85f" stroke="#26364a" strokeWidth="1.6" />
         {[-22, -4, 14].map((y) => (
           <g key={y}>
-            <path d={`M-38 ${y + 6}H38`} stroke="#4f7a2c" strokeWidth="5" strokeLinecap="round" />
-            {[-30, -16, -2, 12, 26].map((x) => <circle key={x} cx={x} cy={y + 2} r="4.4" fill={crop} stroke="#2a1a12" strokeWidth="1.2" />)}
+            <path d={`M-38 ${y + 6}H38`} stroke="#3f8a47" strokeWidth="5" strokeLinecap="round" />
+            {[-30, -16, -2, 12, 26].map((x) => <circle key={x} cx={x} cy={y + 2} r="4.4" fill={crop} stroke="#26364a" strokeWidth="1.2" />)}
           </g>
         ))}
       </g>
@@ -159,8 +159,8 @@ function SourceArt({ item }: { item: Item }) {
   if (item === 'cotton') {
     return (
       <g>
-        <path d="M-46 22V-12l46-20 46 20v34z" fill="#c9a070" stroke="#2a1a12" strokeWidth="1.6" strokeLinejoin="round" />
-        <path d="M-46 -12l46-20 46 20z" fill="#1f4fc4" stroke="#2a1a12" strokeWidth="1.6" strokeLinejoin="round" />
+        <path d="M-46 22V-12l46-20 46 20v34z" fill="#e6ebf3" stroke="#26364a" strokeWidth="1.6" strokeLinejoin="round" />
+        <path d="M-46 -12l46-20 46 20z" fill="#2a6fdb" stroke="#26364a" strokeWidth="1.6" strokeLinejoin="round" />
         {[-30, -6, 18].map((x) => <use key={x} href="#i-cotton" x={x - 12} y="-4" width="26" height="26" />)}
       </g>
     );
@@ -168,7 +168,7 @@ function SourceArt({ item }: { item: Item }) {
   // scrap spot: a heap
   return (
     <g>
-      <path d="M-46 22L-30 -6 -14 -22 4 -10 20 -30 38 -4 46 22z" fill="#9a8472" stroke="#2a1a12" strokeWidth="1.6" strokeLinejoin="round" />
+      <path d="M-46 22L-30 -6 -14 -22 4 -10 20 -30 38 -4 46 22z" fill="#8e99a8" stroke="#26364a" strokeWidth="1.6" strokeLinejoin="round" />
       <use href={`#${itemId(item)}`} x="-14" y="-24" width="30" height="30" />
       <use href="#i-iron" x="-42" y="-6" width="22" height="22" />
       <use href="#i-copper-wire" x="22" y="-4" width="22" height="22" />
@@ -176,26 +176,12 @@ function SourceArt({ item }: { item: Item }) {
   );
 }
 
-function Bunting({ x, y, w, colors }: { x: number; y: number; w: number; colors: [string, string] }) {
-  const n = Math.floor(w / 24);
-  return (
-    <g>
-      <path d={`M${x + 6} ${y + 2}Q${x + w / 2} ${y + 12} ${x + w - 6} ${y + 2}`} fill="none" stroke="#2a1a12" strokeWidth="1.4" />
-      {Array.from({ length: n }, (_, i) => {
-        const fx = x + 12 + i * ((w - 36) / (n - 1));
-        const sag = 10 * Math.sin(((fx - x) / w) * Math.PI);
-        return <path key={i} d={`M${fx - 7} ${y + 3 + sag}H${fx + 7}L${fx} ${y + 17 + sag}Z`} fill={colors[i % 2]} stroke="#2a1a12" strokeWidth="1.2" strokeLinejoin="round" />;
-      })}
-    </g>
-  );
-}
-
 function Tree({ x, y, s = 1 }: { x: number; y: number; s?: number }) {
   return (
     <g transform={`translate(${x} ${y}) scale(${s})`}>
-      <rect x="-4" y="0" width="8" height="26" rx="2" fill="#7a4a28" stroke="#2a1a12" strokeWidth="1.4" />
-      <circle cx="0" cy="-8" r="20" fill="#3f8a4a" stroke="#2a1a12" strokeWidth="1.4" />
-      <circle cx="-9" cy="-2" r="12" fill="#4d9d57" />
+      <rect x="-4" y="0" width="8" height="26" rx="2" fill="#8b6b4a" stroke="#26364a" strokeWidth="1.2" />
+      <circle cx="0" cy="-8" r="20" fill="#3f9e6a" stroke="#26364a" strokeWidth="1.2" />
+      <circle cx="-9" cy="-2" r="12" fill="#59b383" />
     </g>
   );
 }
@@ -228,7 +214,7 @@ function ShockLayer({ kinds }: { kinds: string[] }) {
       {festive && (
         <g className="festive">
           {Array.from({ length: 26 }, (_, i) => (
-            <circle key={i} cx={602 + ((i * 53) % 376)} cy={46 + ((i * 37) % 280)} r={2.6 + (i % 3)} fill={['#f2a900', '#d6336c', '#1f4fc4', '#2f8f4e'][i % 4]} style={{ animationDelay: `${(i % 7) * 0.3}s` }} />
+            <circle key={i} cx={602 + ((i * 53) % 376)} cy={46 + ((i * 37) % 280)} r={2.6 + (i % 3)} fill={['#f2a900', '#d6336c', '#2a6fdb', '#2f8f4e'][i % 4]} style={{ animationDelay: `${(i % 7) * 0.3}s` }} />
           ))}
         </g>
       )}
@@ -236,7 +222,7 @@ function ShockLayer({ kinds }: { kinds: string[] }) {
         <g className="fuelq">
           {[0, 1, 2, 3].map((i) => <use key={i} href="#v-pickup" x={868} y={338 + i * 22} width={44} height={28} />)}
           <g transform="translate(922 352)">
-            <rect width="62" height="34" rx="5" fill="#16264a" stroke="#2a1a12" strokeWidth="1.6" />
+            <rect width="62" height="34" rx="5" fill="#16264a" stroke="#26364a" strokeWidth="1.6" />
             <text x="31" y="14" textAnchor="middle" className="fuel-sign">FUEL</text>
             <text x="31" y="27" textAnchor="middle" className="fuel-sign">QUEUE</text>
           </g>
@@ -259,16 +245,19 @@ export function DistrictMap({ state, selected, onSelect }: { state: GameState; s
   return (
     <svg viewBox="0 0 1000 680" className="map" aria-label="Map of the market district">
       <defs>
-        <pattern id="speck" width="26" height="26" patternUnits="userSpaceOnUse">
-          <circle cx="4" cy="6" r="1.4" fill="#cfa26a" /><circle cx="17" cy="14" r="1.1" fill="#d9b47c" /><circle cx="9" cy="22" r="1.6" fill="#c99a60" />
+        <pattern id="speck" width="40" height="40" patternUnits="userSpaceOnUse">
+          <path d="M40 0H0V40" fill="none" stroke="#cdd6e3" strokeWidth="1" />
         </pattern>
         <filter id="desat"><feColorMatrix type="saturate" values="0.15" /></filter>
       </defs>
 
-      <rect width="1000" height="680" fill="#e6c590" />
+      <rect width="1000" height="680" fill="#dfe5ee" />
       <rect width="1000" height="680" fill="url(#speck)" />
 
       <g className="road">
+        <path d="M130 110H160M130 250H160M150 470H200M150 590H200M560 190H590M360 330V380M800 500H846M890 330V430" />
+      </g>
+      <g className="road-dash">
         <path d="M130 110H160M130 250H160M150 470H200M150 590H200M560 190H590M360 330V380M800 500H846M890 330V430" />
       </g>
       <Tree x={44} y={372} /> <Tree x={958} y={392} s={0.9} /> <Tree x={900} y={640} s={0.8} /> <Tree x={30} y={660} s={0.7} />
@@ -279,8 +268,7 @@ export function DistrictMap({ state, selected, onSelect }: { state: GameState; s
         return (
           <g key={id} className={`zone zone-${id} ${here ? 'here' : ''}`}>
             <rect x={z.x} y={z.y} width={z.w} height={z.h} rx={22} className="zone-ground" />
-            <Bunting x={z.x} y={z.y + 2} w={z.w} colors={CANOPY[id]} />
-            <g transform={`translate(${z.x + 16} ${z.y + 22})`}>
+            <g transform={`translate(${z.x + 16} ${z.y + 14})`}>
               <rect width={z.plate} height={30} rx={7} className="zone-plate" />
               <text x={z.plate / 2} y={21} textAnchor="middle" className="zone-label">{z.label}</text>
             </g>
@@ -333,7 +321,7 @@ export function DistrictMap({ state, selected, onSelect }: { state: GameState; s
             <rect className="chosen" x={-56} y={-44} width={112} height={120} rx={14} />
             <g className="stall-art" transform="scale(1.12)">
               <SourceArt item={src.item} />
-              <rect x="-46" y="26" width="92" height="40" rx="7" fill="#16264a" stroke="#2a1a12" strokeWidth="1.4" />
+              <rect x="-46" y="26" width="92" height="40" rx="7" fill="#16264a" stroke="#26364a" strokeWidth="1.2" />
               <text y="43" textAnchor="middle" className="stall-name">{src.item}</text>
               <text y="58" textAnchor="middle" className="stall-status open">{src.cost > 0 ? `${src.cost} coins each` : `${src.units} free`}</text>
             </g>

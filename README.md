@@ -38,7 +38,7 @@ merchants/agents/      A merchant agent that reviews its own settlement legs bef
 sim/                   The headless economy: engine, world, simulated players, fast-forward runner
 server/                Game state, login, relayer, batch settlement, HTTP API, saving
 contracts/items/       One NEP-245 contract holding every item type (Rust, near-sdk)
-web/                   The game and the dashboard (Vite + React + SVG)
+web/                   The game and the dashboard (Vite + React + SVG; Radix UI primitives for selects, checkboxes, sliders)
 docs/DEMO.md           The judge walk-through
 ```
 

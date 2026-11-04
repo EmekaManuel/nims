@@ -29,8 +29,10 @@ try {
 } catch (e) {
   console.log(`Running without the chain: ${(e as Error).message} The game itself is unaffected.`);
 }
+// Where accounts, wallets and chain progress live. Override to run a second copy (e.g. to record a demo) without touching the first.
+const DATA = process.env.DATA_DIR ?? 'server/data';
 const port = Number(process.env.PORT ?? 3000);
-const SAVE_FILE = process.env.SAVE_FILE ?? 'server/data/game.json';
+const SAVE_FILE = process.env.SAVE_FILE ?? `${DATA}/game.json`;
 const restored = loadGame(SAVE_FILE);
 const game = restored ?? new Game(Number(process.env.SEED ?? 1));
 console.log(restored ? `Resumed the saved game at day ${Math.floor(game.w.hour / 24) + 1}.` : 'Starting a new game.');
@@ -48,9 +50,9 @@ if (chain !== offlineChain && process.env.CHAIN_SYNC !== '0') {
     game,
     ops: agentChain(),
     contractId,
-    rootWallets: new WalletStore('server/data/chain-roots.json', contractId, secrets.masterKey),
-    walletsFor: (ns) => new WalletStore(`server/data/wallets-${ns}.json`, ns, secrets.masterKey),
-    stateFile: 'server/data/chain-state.json',
+    rootWallets: new WalletStore(`${DATA}/chain-roots.json`, contractId, secrets.masterKey),
+    walletsFor: (ns) => new WalletStore(`${DATA}/wallets-${ns}.json`, ns, secrets.masterKey),
+    stateFile: `${DATA}/chain-state.json`,
     log: (m) => console.log(m),
   });
   void sync.run();
@@ -58,7 +60,7 @@ if (chain !== offlineChain && process.env.CHAIN_SYNC !== '0') {
 }
 const app = createApp({
   auth: new Auth(secrets.sessionSecret),
-  store: new AccountStore('server/data/accounts.json', contractId, secrets.masterKey),
+  store: new AccountStore(`${DATA}/accounts.json`, contractId, secrets.masterKey),
   chain: sync ? offlineChain : chain,
   chainStatus: sync ? () => sync!.status() : undefined,
   chainProof: sync ? (email) => sync!.proof(game.playerFor(email).id) : undefined,

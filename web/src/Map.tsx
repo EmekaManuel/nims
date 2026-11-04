@@ -109,6 +109,7 @@ function StallArt({ s }: { s: Stall }) {
   const low = s.state === 'struggling';
   return (
     <g className="stall-art">
+      <ellipse cx={ART_W / 2} cy={ART_H + 1} rx={ART_W * 0.46} ry="5" fill="#14253d" opacity=".16" />
       <Awning colors={s.owner ? OWNER_CANOPY : CANOPY[s.market]} dim={closed} />
       <Goods offers={s.offers} />
       <rect x="0" y="57" width={ART_W} height="7" rx="2" fill="#c9a479" stroke="#26364a" strokeWidth="1.2" />
@@ -119,8 +120,10 @@ function StallArt({ s }: { s: Stall }) {
         </g>
       )}
       <rect x="0" y="64" width={ART_W} height="28" rx="7" fill="#16264a" stroke="#26364a" strokeWidth="1.2" />
-      <text x={ART_W / 2} y="78" textAnchor="middle" className="stall-name">{s.name}</text>
-      <text x={ART_W / 2} y="89" textAnchor="middle" className={`stall-status ${s.state}`}>
+      <circle cx="15" cy="78" r="9.5" fill={s.owner ? '#f2b01e' : avatarColor(s.id)} stroke="#fff" strokeWidth="1.6" opacity={closed ? 0.5 : 1} />
+      <text x="15" y="82" textAnchor="middle" className="avatar-initial">{s.name.charAt(0)}</text>
+      <text x="29" y="76" className="stall-name">{s.name}</text>
+      <text x="29" y="88" className={`stall-status ${s.state}`}>
         {closed ? '✕ Closed' : low ? '▼ Low on cash' : '● Open'}
       </text>
       {(s.shares?.yours ?? 0) > 0 && (
@@ -186,6 +189,83 @@ function Tree({ x, y, s = 1 }: { x: number; y: number; s?: number }) {
   );
 }
 
+/** A floating "+420 coins" shown where something happened. */
+export interface Popup { id: number; x: number; y: number; text: string; tone: 'gain' | 'spend' | 'info' }
+
+/** Where a stall or source sits on the map (the point just above it), for popups and pointers. */
+export function spotOf(state: GameState, target: { kind: 'stall' | 'source'; id: string }): [number, number] | null {
+  if (target.kind === 'source') {
+    const p = SOURCE_POS[target.id as Item];
+    return p ? [p[0], p[1] - 40] : null;
+  }
+  const st = state.stalls.find((x) => x.id === target.id);
+  const p = st && (STALL_POS[st.id] ?? PLOTS[st.market]);
+  return p ? [p[0], p[1] - STALL_H / 2 + 4] : null;
+}
+
+/** Friendly, bright avatar colours for shopkeepers (abstract, not tied to anyone). */
+const AVATARS = ['#2f9e5f', '#e2557b', '#7b4de0', '#eb6834', '#18a999', '#2a6fdb', '#c98a00', '#0e9fb0'];
+const avatarColor = (id: string) => AVATARS[[...id].reduce((a, c) => a + c.charCodeAt(0), 0) % AVATARS.length];
+
+/** Where your avatar stands in each market (the open plaza between the rows of stalls). */
+const AVATAR_AT: Record<MarketId, [number, number]> = { produce: [340, 368], fabric: [760, 368], scrap: [560, 372] };
+
+/** Little town folk and a delivery truck moving along the roads. Purely decorative, and still when motion is reduced. */
+const WALKERS: { path: string; dur: number; begin: number; color: string }[] = [
+  { path: 'M175 356H845', dur: 34, begin: 0, color: '#e2557b' },
+  { path: 'M845 356H175', dur: 40, begin: -12, color: '#7b4de0' },
+  { path: 'M575 50V336', dur: 18, begin: -4, color: '#eb6834' },
+  { path: 'M575 336V50', dur: 22, begin: -15, color: '#18a999' },
+  { path: 'M122 60V650', dur: 46, begin: -20, color: '#2a6fdb' },
+  { path: 'M122 650V60', dur: 52, begin: -30, color: '#c98a00' },
+  { path: 'M945 60V330', dur: 24, begin: -9, color: '#0e9fb0' },
+];
+const TRUCK_PATH = 'M30 666H970';
+
+function Bean({ color, size = 1 }: { color: string; size?: number }) {
+  return (
+    <g transform={`scale(${size})`}>
+      <ellipse cx="0" cy="1" rx="7" ry="2.4" fill="#14253d" opacity=".2" />
+      <rect x="-6" y="-17" width="12" height="17" rx="6" fill={color} stroke="#26364a" strokeWidth="1.1" />
+      <circle cx="-2.2" cy="-11.5" r="1.7" fill="#fff" /><circle cx="2.2" cy="-11.5" r="1.7" fill="#fff" />
+      <circle cx="-1.8" cy="-11.3" r="0.8" fill="#14253d" /><circle cx="2.6" cy="-11.3" r="0.8" fill="#14253d" />
+    </g>
+  );
+}
+
+function Life({ moving }: { moving: boolean }) {
+  if (!moving) return null;
+  return (
+    <g aria-hidden="true" style={{ pointerEvents: 'none' }}>
+      {WALKERS.map((w, i) => (
+        <g key={i} className="walker">
+          <animateMotion dur={`${w.dur}s`} begin={`${w.begin}s`} repeatCount="indefinite" path={w.path} />
+          <g className="bob"><Bean color={w.color} /></g>
+        </g>
+      ))}
+      <g className="walker">
+        <animateMotion dur="38s" begin="-8s" repeatCount="indefinite" path={TRUCK_PATH} />
+        <use href="#v-pickup" x="-24" y="-26" width="48" height="31" />
+      </g>
+    </g>
+  );
+}
+
+/** You: a blue character with your vehicle. When you go to another market you walk there. */
+function You({ at, vehicle }: { at: MarketId; vehicle: 'wheelbarrow' | 'pickup' | 'van' }) {
+  const [x, y] = AVATAR_AT[at];
+  return (
+    <g className="you" style={{ transform: `translate(${x}px, ${y}px)` }} aria-hidden="true">
+      <g className="bob"><Bean color="#1d63d6" size={1.35} /></g>
+      <use href={`#v-${vehicle}`} x="12" y="-24" width="46" height="30" />
+      <g transform="translate(0 -34)">
+        <rect x="-15" y="-9" width="30" height="16" rx="8" className="you-tag" />
+        <text y="3" textAnchor="middle" className="you-text">You</text>
+      </g>
+    </g>
+  );
+}
+
 /** What the active shocks look like on the map. Decorative only (the HUD banner and events say it in words). */
 function ShockLayer({ kinds }: { kinds: string[] }) {
   const rain = kinds.includes('rain');
@@ -232,7 +312,9 @@ function ShockLayer({ kinds }: { kinds: string[] }) {
   );
 }
 
-export function DistrictMap({ state, selected, onSelect }: { state: GameState; selected: Selection; onSelect: (s: Selection) => void }) {
+export function DistrictMap({ state, selected, onSelect, popups = [], moving }: { state: GameState; selected: Selection; onSelect: (s: Selection) => void; popups?: Popup[]; moving?: boolean }) {
+  // Town folk only move when the reader hasn't asked for less motion.
+  const animate = moving ?? !(typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches);
   const focus: Focus = state.coach.focus;
   const light = lightAt(state.hour);
   const press = (fn: () => void) => ({
@@ -249,6 +331,7 @@ export function DistrictMap({ state, selected, onSelect }: { state: GameState; s
           <path d="M40 0H0V40" fill="none" stroke="#cdd6e3" strokeWidth="1" />
         </pattern>
         <filter id="desat"><feColorMatrix type="saturate" values="0.15" /></filter>
+        <radialGradient id="glow"><stop offset="0" stopColor="#ffd98a" stopOpacity=".7" /><stop offset="1" stopColor="#ffd98a" stopOpacity="0" /></radialGradient>
       </defs>
 
       <rect width="1000" height="680" fill="#dfe5ee" />
@@ -272,12 +355,6 @@ export function DistrictMap({ state, selected, onSelect }: { state: GameState; s
               <rect width={z.plate} height={30} rx={7} className="zone-plate" />
               <text x={z.plate / 2} y={21} textAnchor="middle" className="zone-label">{z.label}</text>
             </g>
-            {here && (
-              <g transform={`translate(${z.x + z.w - 16} ${z.y + 26})`}>
-                <text x={-64} y={22} textAnchor="end" className="you-are-here">you are here</text>
-                <use href={`#v-${state.you.vehicle}`} x={-60} y={0} width={56} height={36} />
-              </g>
-            )}
           </g>
         );
       })}
@@ -302,6 +379,8 @@ export function DistrictMap({ state, selected, onSelect }: { state: GameState; s
         const next = focus?.kind === 'stall' && focus.id === s.id;
         return (
           <g key={s.id} transform={`translate(${x - STALL_W / 2} ${y - STALL_H / 2})`} className={`stall ${s.state} ${on ? 'on' : ''}`} {...press(() => onSelect({ kind: 'stall', id: s.id }))} aria-label={`${s.name}, ${STATE_LABEL[s.state]}${next ? ', your next step' : ''}`}>
+            {/* A solid hit area over the whole stall, so the gaps between crates are clickable too. */}
+            <rect className="hit" x={0} y={0} width={STALL_W} height={STALL_H} fill="transparent" />
             {next && <rect className="pulse" x={-9} y={-9} width={STALL_W + 18} height={STALL_H + 18} rx={16} />}
             <rect className="chosen" x={-6} y={-6} width={STALL_W + 12} height={STALL_H + 12} rx={14} />
             <g transform={`scale(${SCALE})`}><StallArt s={s} /></g>
@@ -317,6 +396,7 @@ export function DistrictMap({ state, selected, onSelect }: { state: GameState; s
         const next = focus?.kind === 'source' && focus.id === src.item;
         return (
           <g key={src.item} transform={`translate(${x} ${y})`} className={`source ${on ? 'on' : ''} ${src.units < 5 ? 'empty' : ''}`} {...press(() => onSelect({ kind: 'source', item: src.item }))} aria-label={`${src.label}, ${src.units} available${next ? ', your next step' : ''}`}>
+            <rect className="hit" x={-52} y={-40} width={104} height={110} fill="transparent" />
             {next && <rect className="pulse" x={-60} y={-48} width={120} height={128} rx={16} />}
             <rect className="chosen" x={-56} y={-44} width={112} height={120} rx={14} />
             <g className="stall-art" transform="scale(1.12)">
@@ -328,6 +408,9 @@ export function DistrictMap({ state, selected, onSelect }: { state: GameState; s
           </g>
         );
       })}
+
+      <Life moving={animate} />
+      <You at={state.you.at ?? 'produce'} vehicle={state.you.vehicle} />
 
       {focus && (() => {
         // The "NEXT" pill is drawn last so no stall or awning can cover it.
@@ -345,6 +428,22 @@ export function DistrictMap({ state, selected, onSelect }: { state: GameState; s
       <ShockLayer kinds={state.shocks.map((x) => x.kind)} />
 
       <rect width="1000" height="680" fill={light.color} opacity={light.opacity} className="daylight" style={{ pointerEvents: 'none', mixBlendMode: 'multiply' }} />
+
+      {/* Warm lamps come on over every stall when it gets dark. */}
+      {light.opacity >= 0.28 && (
+        <g aria-hidden="true" style={{ pointerEvents: 'none', mixBlendMode: 'screen' }} className="lamps">
+          {state.stalls.map((st) => {
+            const p = STALL_POS[st.id] ?? PLOTS[st.market];
+            return p && st.state !== 'closed' ? <circle key={st.id} cx={p[0]} cy={p[1]} r="92" fill="url(#glow)" /> : null;
+          })}
+        </g>
+      )}
+
+      {popups.map((p) => (
+        <g key={p.id} transform={`translate(${p.x} ${p.y})`} aria-hidden="true" style={{ pointerEvents: 'none' }}>
+          <text className={`popup popup-${p.tone}`} textAnchor="middle">{p.text}</text>
+        </g>
+      ))}
     </svg>
   );
 }

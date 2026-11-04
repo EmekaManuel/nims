@@ -5,7 +5,7 @@ import type { Actions } from './Panels';
 const SHOCK: Record<string, string> = { rain: '☔ Rain: produce spoils faster and gathering is slower', 'fuel queue': '⛽ Fuel queue: carrying goods between markets costs double', 'festive season': '🎉 Festive season: fabric is in demand' };
 const VEHICLE = { wheelbarrow: '🛒 Wheelbarrow', keke: '🛺 Keke', van: '🚐 Van' } as const;
 
-export function Hud({ state, act }: { state: GameState; act: Actions }) {
+export function Hud({ state, act, onHelp }: { state: GameState; act: Actions; onHelp?: () => void }) {
   const y = state.you;
   const nextUp = y.upgrades.find((u) => (u.vehicle === 'keke' && y.vehicle === 'wheelbarrow') || (u.vehicle === 'van' && y.vehicle === 'keke'));
   const hour = String(state.hour % 24).padStart(2, '0');
@@ -26,6 +26,7 @@ export function Hud({ state, act }: { state: GameState; act: Actions }) {
           </button>
         )}
       </div>
+      {onHelp && <button className="helpbtn" onClick={onHelp} aria-label="How to play">? How to play</button>}
       <div className="inv" aria-label="What you are carrying">
         {y.inventory.length === 0 ? <span className="muted">Empty-handed</span> : y.inventory.map((i) => <span key={i.item} className="chip">{i.units} {i.item}</span>)}
       </div>

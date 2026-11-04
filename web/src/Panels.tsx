@@ -54,8 +54,8 @@ export function StallPanel({ stall, state, act }: { stall: Stall; state: GameSta
                 return (
                   <tr key={o.item}>
                     <td><b>{o.item}</b>{have > 0 && <div className="muted">you carry {have}</div>}</td>
-                    <td>{o.willBuy ? <Tip text={o.why}><span className="price">{naira(o.buyPrice)}</span></Tip> : <Tip text={o.why}><span className="price off">not buying</span></Tip>}</td>
-                    <td>{o.willSell ? <Tip text={o.why}><span className="price">{naira(o.sellPrice)}</span></Tip> : <span className="price off">sold out</span>}</td>
+                    <td>{o.willBuy ? <Tip text={o.why}><span className="price">{naira(o.buyPrice)}</span></Tip> : <Tip text={o.why}><span className="price off">not buying</span></Tip>}{o.bestPay && <span className="star">★ best in town</span>}</td>
+                    <td>{o.willSell ? <Tip text={o.why}><span className="price">{naira(o.sellPrice)}</span></Tip> : <span className="price off">sold out</span>}{o.bestCharge && <span className="star">★ cheapest</span>}</td>
                     <td>{o.stock}</td>
                     <td className="btns">
                       <button disabled={!o.willBuy || have < 1} onClick={() => act.sell(stall.id, o.item, qty, haggle)}>Sell</button>
@@ -90,20 +90,6 @@ export function SourcePanel({ item, state, act }: { item: Item; state: GameState
       <button className="primary" disabled={full || src.units < 1} onClick={() => act.gather(item)}>
         {full ? 'Your vehicle is full' : `Collect ${item}`}
       </button>
-    </section>
-  );
-}
-
-export function Hint() {
-  return (
-    <section className="panel">
-      <h2>Welcome to the market</h2>
-      <ol className="steps">
-        <li>Tap a <b>source</b> (🍅 🔩 🧵) to collect a load.</li>
-        <li>Tap a <b>stall</b> to see what it pays. Hover a price to hear why.</li>
-        <li>Check the <b>price board</b>: carry goods to where they’re dear.</li>
-        <li>Careful — dump too much on one stall and the price falls.</li>
-      </ol>
     </section>
   );
 }

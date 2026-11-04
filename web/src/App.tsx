@@ -1,7 +1,9 @@
 import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
-import { ActionResponse, api, GameState } from './api';
+import { ActionResponse, api, Focus, GameState, GoalKind } from './api';
 import { DistrictMap, Selection } from './Map';
-import { Hint, SourcePanel, StallPanel, Actions } from './Panels';
+import { SourcePanel, StallPanel, Actions } from './Panels';
+import { Deals, Mission } from './Mission';
+import { GoalPicker, HowToPlay } from './Modals';
 import { Hud } from './Hud';
 import { PriceBoard } from './PriceBoard';
 
@@ -41,7 +43,7 @@ function Login({ onIn }: { onIn: () => void }) {
       </form>
       {devLink && <button onClick={open}>Open my link (development)</button>}
       {msg && <p role="status" className="note">{msg}</p>}
-      <p className="muted small">No password, no wallet — just your email.</p>
+      <p className="muted small">Buy low, carry it, sell high. No password, no wallet — just your email.</p>
     </main>
   );
 }
@@ -52,6 +54,22 @@ export function App() {
   const [selected, setSelected] = useState<Selection>(null);
   const [toast, setToast] = useState<{ ok: boolean; text: string } | null>(null);
   const timer = useRef<number>();
+  const [help, setHelp] = useState(() => {
+    try { return !localStorage.getItem('oja-seen-help'); } catch { return true; }
+  });
+  const [goalOpen, setGoalOpen] = useState(false);
+  const asked = useRef(false);
+  const closeHelp = () => {
+    setHelp(false);
+    try { localStorage.setItem('oja-seen-help', '1'); } catch { /* private mode: fine */ }
+  };
+
+  // Ask for a goal once when there isn't one (or when the last one is done).
+  const needGoal = !!state && (state.goal === null || state.goal.done);
+  useEffect(() => {
+    if (needGoal && !asked.current) { asked.current = true; setGoalOpen(true); }
+    if (!needGoal) asked.current = false;
+  }, [needGoal]);
 
   const refresh = useCallback(async () => {
     const s = await api.state().catch(() => null);
@@ -81,6 +99,9 @@ export function App() {
     upgrade: (to) => run(api.upgrade(to)),
   };
 
+  const focusOn = (f: Focus) => setSelected(!f ? null : f.kind === 'stall' ? { kind: 'stall', id: f.id } : { kind: 'source', item: f.id as never });
+  const pickGoal = (k: GoalKind) => { run(api.goal(k)); setGoalOpen(false); };
+
   if (!checked) return <main className="login"><p className="muted">Opening the market…</p></main>;
   if (!state) return <Login onIn={refresh} />;
 
@@ -88,7 +109,8 @@ export function App() {
 
   return (
     <div className="game">
-      <Hud state={state} act={act} />
+      <Hud state={state} act={act} onHelp={() => setHelp(true)} />
+      <Mission state={state} onFocus={focusOn} onPickGoal={() => setGoalOpen(true)} />
       <div className="aria-live" aria-live="polite">{toast?.text}</div>
       {toast && <div className={`toast ${toast.ok ? 'good' : 'bad'}`}>{toast.text}</div>}
       <div className="layout">
@@ -102,10 +124,14 @@ export function App() {
           </section>
         </div>
         <div className="sidecol">
-          {stall ? <StallPanel stall={stall} state={state} act={act} /> : selected?.kind === 'source' ? <SourcePanel item={selected.item} state={state} act={act} /> : <Hint />}
+          {stall && <StallPanel stall={stall} state={state} act={act} />}
+          {selected?.kind === 'source' && <SourcePanel item={selected.item} state={state} act={act} />}
+          <Deals deals={state.deals} onFocus={focusOn} />
           <PriceBoard state={state} />
         </div>
       </div>
+      {help && <HowToPlay onClose={closeHelp} />}
+      {!help && goalOpen && <GoalPicker goals={state.goals} current={state.goal?.kind} onPick={pickGoal} onClose={() => setGoalOpen(false)} />}
     </div>
   );
 }

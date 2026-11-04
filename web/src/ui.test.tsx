@@ -2,17 +2,21 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import fixture from './fixture.json';
-import type { GameState } from './api';
-import { crateCount, DistrictMap, lightAt, STALL_H, STALL_POS, STALL_W, ZONES } from './Map';
+import type { GameState, MarketId } from './api';
+import { crateCount, DistrictMap, lightAt, PLOTS, STALL_H, STALL_POS, STALL_W, ZONES } from './Map';
 import { Deals, Mission } from './Mission';
-import { GoalPicker, HowToPlay } from './Modals';
+import { AwayModal, GoalPicker, HowToPlay } from './Modals';
+import { BusinessPanel, StallOffer } from './Business';
 import { Hud } from './Hud';
 import { PriceBoard } from './PriceBoard';
 import { StallPanel, SourcePanel, Actions } from './Panels';
 
 afterEach(cleanup);
 const state = fixture as unknown as GameState;
-const act = (): Actions => ({ sell: vi.fn(), buy: vi.fn(), gather: vi.fn(), upgrade: vi.fn() });
+const act = (): Actions => ({
+  sell: vi.fn(), buy: vi.fn(), gather: vi.fn(), upgrade: vi.fn(), buyShares: vi.fn(), sellShares: vi.fn(), contribute: vi.fn(),
+  openStall: vi.fn(), stallStock: vi.fn(), stallTake: vi.fn(), stallPrice: vi.fn(), stallDeposit: vi.fn(), stallWithdraw: vi.fn(), ack: vi.fn(),
+});
 const empty = { ...state, you: { ...state.you, carrying: 0, inventory: [] } };
 const withInv = { ...state, you: { ...state.you, carrying: 5, inventory: [{ item: 'iron' as const, units: 5 }] } };
 
@@ -65,7 +69,7 @@ describe('stall panel', () => {
   });
 
   it('explains a closed shop and the ajo pool', () => {
-    const closed = { ...stall, state: 'closed' as const, ajo: { pool: 4000, goal: 12000 } };
+    const closed = { ...stall, state: 'closed' as const, ajo: { pool: 4000, goal: 12000, contributors: [{ name: 'Ada', put: 4000 }] } };
     render(<StallPanel stall={closed} state={state} act={act()} />);
     expect(screen.getByText(/ajo/i)).toBeTruthy();
     expect(screen.queryByText('Sell')).toBeNull();
@@ -74,7 +78,7 @@ describe('stall panel', () => {
   it('warns about the fare for carrying goods to another market', () => {
     const away = { ...withInv, you: { ...withInv.you, at: 'produce' as const } };
     render(<StallPanel stall={stall} state={away} act={act()} />);
-    expect(screen.getByText(/fare/i).textContent).toMatch(/₦100/);
+    expect(screen.getByText(/fare/i).textContent).toContain(`₦${5 * state.faresPerUnit}`);
   });
 });
 
@@ -110,7 +114,8 @@ describe('source panel, board and hud', () => {
 
 
 describe('map layout', () => {
-  const rects = Object.entries(STALL_POS).map(([id, [x, y]]) => ({ id, x: x - STALL_W / 2, y: y - STALL_H / 2 }));
+  const plots = Object.entries(PLOTS).map(([id, p]) => [`plot-${id}`, p!] as [string, [number, number]]);
+  const rects = [...Object.entries(STALL_POS), ...plots].map(([id, [x, y]]) => ({ id, x: x - STALL_W / 2, y: y - STALL_H / 2 }));
   const overlap = (a: { x: number; y: number }, b: { x: number; y: number }) => a.x < b.x + STALL_W && b.x < a.x + STALL_W && a.y < b.y + STALL_H && b.y < a.y + STALL_H;
 
   it('no two stalls overlap', () => {
@@ -118,8 +123,12 @@ describe('map layout', () => {
   });
 
   it('every stall sits inside its own market, clear of the market label', () => {
-    for (const s of state.stalls) {
-      const [x, y] = STALL_POS[s.id];
+    const spots: [string, MarketId, [number, number]][] = [
+      ...state.stalls.filter((s) => STALL_POS[s.id]).map((s) => [s.id, s.market, STALL_POS[s.id]] as [string, MarketId, [number, number]]),
+      ...Object.entries(PLOTS).map(([mk, p]) => [`plot-${mk}`, mk as MarketId, p!] as [string, MarketId, [number, number]]),
+    ];
+    for (const [id, market, [x, y]] of spots) {
+      const s = { id, market };
       const z = ZONES[s.market];
       expect(x - STALL_W / 2, s.id).toBeGreaterThanOrEqual(z.x);
       expect(x + STALL_W / 2, s.id).toBeLessThanOrEqual(z.x + z.w);
@@ -132,7 +141,7 @@ describe('map layout', () => {
     const s = { ...state, coach: { text: 'x', focus: { kind: 'stall' as const, id: 'wale' } } };
     render(<DistrictMap state={s} selected={null} onSelect={() => {}} />);
     expect(screen.getByLabelText(/Baba Wale.*your next step/)).toBeTruthy();
-    expect(screen.getAllByText('NEXT')).toHaveLength(1);
+    expect(screen.getAllByText('▼ NEXT')).toHaveLength(1);
   });
 });
 
@@ -140,7 +149,7 @@ describe('goal, next step and deals', () => {
   it('shows the goal with progress and the next step, and points at the map when asked', () => {
     const onFocus = vi.fn();
     render(<Mission state={state} onFocus={onFocus} onPickGoal={() => {}} />);
-    expect(screen.getByText('Build a fortune')).toBeTruthy();
+    expect(screen.getByText(state.goal!.title)).toBeTruthy();
     expect(screen.getByRole('progressbar', { hidden: true }) ?? true).toBeTruthy();
     expect(screen.getByText(state.coach.text)).toBeTruthy();
     fireEvent.click(screen.getByText('Show me on the map'));
@@ -181,7 +190,7 @@ describe('goal, next step and deals', () => {
   it('lets the player choose from three goals', () => {
     const onPick = vi.fn();
     render(<GoalPicker goals={state.goals} onPick={onPick} onClose={() => {}} />);
-    expect(screen.getAllByRole('button').filter((b) => b.className.includes('goalopt'))).toHaveLength(3);
+    expect(screen.getAllByRole('button').filter((b) => b.className.includes('goalopt'))).toHaveLength(4);
     fireEvent.click(screen.getByText('Keep the district alive'));
     expect(onPick).toHaveBeenCalledWith('district');
   });
@@ -227,5 +236,122 @@ describe('illustrated map', () => {
     const price = document.querySelector('.offers .price:not(.off)')!;
     fireEvent.focus(price.closest('.tipwrap')!);
     expect(screen.getByRole('tooltip').textContent).toContain('Chidi Iron Works says');
+  });
+});
+
+
+describe('ownership', () => {
+  const stallOf = (id: string) => state.stalls.find((s) => s.id === id)!;
+  const noStall = { ...state, business: { ...state.business, stall: null, stallOffer: { cost: 6000, markets: [{ id: 'produce' as const, name: 'Produce Market', free: true }, { id: 'fabric' as const, name: 'Fabric Market', free: true }, { id: 'scrap' as const, name: 'Scrap & Hardware', free: false }] } } };
+
+  it('lets you put money into a closed shop’s ajo pool and fill it', () => {
+    const a = act();
+    const bisi = stallOf('bisi');
+    expect(bisi.state).toBe('closed');
+    render(<StallPanel stall={bisi} state={{ ...state, you: { ...state.you, cash: 9000 } }} act={a} />);
+    expect(screen.getByText(/has closed/)).toBeTruthy();
+    expect(screen.getByRole('progressbar').getAttribute('aria-valuenow')).toBe('4000');
+    fireEvent.click(screen.getByText(/Put in ₦1,000/));
+    expect(a.contribute).toHaveBeenCalledWith('bisi', 1000);
+    fireEvent.click(screen.getByText('Fill the pool'));
+    expect(a.contribute).toHaveBeenLastCalledWith('bisi', 8000); // what is left in the pool
+    expect(screen.getByText(/Ada ₦4,000/)).toBeTruthy(); // who has chipped in so far
+  });
+
+  it('shows who reopened a shop on its sign', () => {
+    render(<StallPanel stall={stallOf('kemi')} state={state} act={act()} />);
+    expect(screen.getByText(/Reopened by the ajo/).textContent).toContain('Ada');
+  });
+
+  it('lets you buy and sell shares, explaining how they pay', () => {
+    const a = act();
+    render(<StallPanel stall={stallOf('wale')} state={{ ...state, you: { ...state.you, cash: 9000 } }} act={a} />);
+    expect(screen.getByText(/30% of the day’s profit/)).toBeTruthy();
+    fireEvent.click(screen.getByText(/^Buy · /));
+    expect(a.buyShares).toHaveBeenCalledWith('wale', 5);
+    fireEvent.click(screen.getByText('Sell', { selector: '.invest button' }));
+    expect(a.sellShares).toHaveBeenCalledWith('wale', 5);
+  });
+
+  it('does not offer shares in a player’s stall, and your own stall points you to My business', () => {
+    const mine = stallOf(state.business.stall!.id);
+    const { unmount } = render(<StallPanel stall={mine} state={state} act={act()} />);
+    expect(screen.getByText(/This is your stall/)).toBeTruthy();
+    expect(screen.queryByText('Own a piece')).toBeNull();
+    expect(screen.queryByText('Sell')).toBeNull();
+    unmount();
+    const theirs = { ...mine, owner: { name: 'Bo', mine: false } };
+    render(<StallPanel stall={theirs} state={state} act={act()} />);
+    expect(screen.getByText(/Run by Bo/)).toBeTruthy();
+    expect(screen.queryByText('Own a piece')).toBeNull();
+  });
+
+  it('offers a stall for sale where there is a free plot, and not where it is full', () => {
+    const a = act();
+    render(<StallOffer state={{ ...noStall, you: { ...noStall.you, cash: 9000 } }} act={a} />);
+    fireEvent.click(screen.getByText('Fabric Market'));
+    expect(a.openStall).toHaveBeenCalledWith('fabric');
+    expect((screen.getByText(/Scrap & Hardware/) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('cannot afford a stall: says how much more you need', () => {
+    render(<StallOffer state={{ ...noStall, you: { ...noStall.you, cash: 1000 } }} act={act()} />);
+    expect(screen.getByText(/You need ₦5,000 more/)).toBeTruthy();
+    expect((screen.getByText('Fabric Market') as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('manages your stall: set prices, move stock, use the till', () => {
+    const a = act();
+    render(<BusinessPanel state={state} act={a} onFocus={() => {}} />);
+    const thread = state.business.stall!.items.find((i) => i.item === 'thread')!;
+    const pay = screen.getByLabelText('Price I pay for thread') as HTMLInputElement;
+    const set = within(pay.closest('tr')!).getByText('Set') as HTMLButtonElement;
+    expect(set.disabled).toBe(true); // nothing changed yet
+    fireEvent.change(pay, { target: { value: String(thread.buy + 5) } });
+    expect(set.disabled).toBe(false);
+    fireEvent.click(set);
+    expect(a.stallPrice).toHaveBeenCalledWith('thread', thread.buy + 5, thread.sell);
+    fireEvent.click(screen.getByText('Put in'));
+    expect(a.stallDeposit).toHaveBeenCalledWith(1000);
+    expect(screen.getByText(/Your till is what your stall uses to buy/)).toBeTruthy();
+  });
+
+  it('lists your shares with what they are worth, and your latest news', () => {
+    const { container } = render(<BusinessPanel state={state} act={act()} onFocus={() => {}} />);
+    for (const s of state.business.shares) expect(screen.getAllByText(s.name).length).toBeGreaterThan(0);
+    expect(container.textContent).toContain('paid out every evening');
+    expect(container.querySelectorAll('.notes li').length).toBe(state.business.notes.length);
+  });
+
+  it('welcomes you back with what happened while you were away', () => {
+    const onClose = vi.fn();
+    render(<AwayModal away={{ hours: 50, notes: ['Madam Nkechi paid you ₦120 in dividends.'], town: ['Mama Bisi has closed.'] }} onClose={onClose} />);
+    const d = screen.getByRole('dialog');
+    expect(d.textContent).toContain('2 days');
+    expect(d.textContent).toContain('paid you ₦120');
+    expect(d.textContent).toContain('Mama Bisi has closed');
+    fireEvent.click(screen.getByText('Back to the market'));
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it('draws a free plot you can click, and a star on stalls where you hold shares', () => {
+    const onSelect = vi.fn();
+    const { container } = render(<DistrictMap state={noStall} selected={null} onSelect={onSelect} />);
+    expect(screen.getAllByLabelText(/Free plot in the/)).toHaveLength(2);
+    fireEvent.click(screen.getByLabelText(/Free plot in the Fabric Market/));
+    expect(onSelect).toHaveBeenCalledWith({ kind: 'plot', market: 'fabric' });
+    expect(container.querySelectorAll('.stall-art path[d^="M0-6l"]').length).toBeGreaterThan(0); // star on a stall you co-own
+  });
+
+  it('draws your own stall on the plot, marked as yours', () => {
+    const { container } = render(<DistrictMap state={state} selected={null} onSelect={() => {}} />);
+    expect(container.textContent).toContain("Ada's stall");
+    expect(container.textContent).toContain('YOURS');
+    expect(screen.queryAllByLabelText(/Free plot in the/)).toHaveLength(0); // you already have a stall
+  });
+
+  it('never shows wallet vocabulary in the ownership screens', () => {
+    const { container } = render(<><BusinessPanel state={state} act={act()} onFocus={() => {}} /><StallPanel stall={stallOf('bisi')} state={state} act={act()} /></>);
+    expect(container.textContent).not.toMatch(/seed|mnemonic|private key|wallet|\bgas\b|yocto|\.testnet|signature/i);
   });
 });

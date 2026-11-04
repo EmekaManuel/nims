@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { fastForward, FastForward, FastForwardParams } from './api';
 import { CashChart, cashTable, DataTable, Figure, LineKey, PriceChart, priceTable, Sync } from './Charts';
 import { Glyph } from './icons';
+import { Checkbox, Field, NumberField, Select, Slider } from './ui';
 import { dayOf, itemColor, coins, SHOCK_LABEL, STATUS, when } from './viz';
 
 const MARKET_NAME = { produce: 'Produce Market', fabric: 'Fabric Market', scrap: 'Scrap & Hardware' } as const;
@@ -73,20 +74,18 @@ export function FastForwardPage() {
 
       <section className="ffbar" aria-label="Choose who takes part">
         <button className="primary" onClick={() => void run(params)} disabled={loading}>{loading ? 'Running…' : `Fast-forward ${params.days === 7 ? 'a week' : `${params.days} days`}`}</button>
-        <label>Days
-          <select id="ff-days" value={params.days} onChange={(e) => set('days', Number(e.target.value))}>
-            {[3, 7, 14].map((d) => <option key={d} value={d}>{d}</option>)}
-          </select>
-        </label>
-        <label>Gatherers
-          <input id="ff-gatherers" type="number" min={0} max={6} value={params.gatherers} onChange={(e) => set('gatherers', Math.max(0, Math.min(6, Number(e.target.value) || 0)))} />
-        </label>
-        <label className="check" title="Buys cheap in one stall and sells dear in another"><input id="ff-arb" type="checkbox" checked={params.arbitrageur} onChange={(e) => set('arbitrageur', e.target.checked)} /> Arbitrageur</label>
-        <label className="check" title="Holds shares in every market and puts money into community funds"><input id="ff-inv" type="checkbox" checked={params.investor} onChange={(e) => set('investor', e.target.checked)} /> Investor</label>
-        <label className="check" title="Dumps iron on the market whatever the price"><input id="ff-flood" type="checkbox" checked={params.flooder} onChange={(e) => set('flooder', e.target.checked)} /> Market flooder</label>
-        <label>Town
-          <input id="ff-seed" type="number" min={0} max={999999} value={params.seed} onChange={(e) => set('seed', Math.max(0, Math.floor(Number(e.target.value)) || 0))} />
-        </label>
+        <Field label="Days" htmlFor="ff-days">
+          <Select id="ff-days" value={String(params.days)} onValueChange={(v) => set('days', Number(v))} options={[3, 7, 14].map((d) => ({ value: String(d), label: String(d) }))} />
+        </Field>
+        <Field label="Gatherers" htmlFor="ff-gatherers">
+          <NumberField id="ff-gatherers" aria-label="Gatherers" value={params.gatherers} min={0} max={6} onValueChange={(n) => set('gatherers', n)} />
+        </Field>
+        <Checkbox id="ff-arb" checked={params.arbitrageur} onCheckedChange={(v) => set('arbitrageur', v)} title="Buys cheap in one stall and sells dear in another">Arbitrageur</Checkbox>
+        <Checkbox id="ff-inv" checked={params.investor} onCheckedChange={(v) => set('investor', v)} title="Holds shares in every market and puts money into community funds">Investor</Checkbox>
+        <Checkbox id="ff-flood" checked={params.flooder} onCheckedChange={(v) => set('flooder', v)} title="Dumps iron on the market whatever the price">Market flooder</Checkbox>
+        <Field label="Town" htmlFor="ff-seed">
+          <NumberField id="ff-seed" aria-label="Town" value={params.seed} min={0} max={999999} steppers={false} onValueChange={(n) => set('seed', n)} className="wide" />
+        </Field>
         <button onClick={() => { const next = { ...params, seed: Math.floor(Math.random() * 100000) }; setParams(next); void run(next); }} disabled={loading} title="A different random run of the same town">New town</button>
       </section>
       {error && <p className="note warn" role="alert">{error}</p>}
@@ -100,16 +99,13 @@ export function FastForwardPage() {
 
           <div className="playbar" role="group" aria-label="Playback">
             <button onClick={() => { if (cursor >= data.hours - 1) { pos.current = 0; setCursor(0); } setPlaying((p) => !p); }}>{playing ? 'Pause' : cursor >= data.hours - 1 ? 'Replay' : 'Play'}</button>
-            <label className="grow">
-              <span className="sr">Time</span>
-              <input id="ff-scrub" type="range" min={0} max={data.hours - 1} value={cursor} onChange={(e) => { pos.current = Number(e.target.value); setCursor(Number(e.target.value)); setPlaying(false); }} aria-valuetext={when(cursor)} />
-            </label>
+            <div className="grow">
+              <Slider id="ff-scrub" aria-label="Time" valueText={when(cursor)} value={cursor} min={0} max={data.hours - 1} onValueChange={(v) => { pos.current = v; setCursor(v); setPlaying(false); }} />
+            </div>
             <output className="clock" aria-live="off">{when(cursor)}</output>
-            <label>Speed
-              <select id="ff-speed" value={speed} onChange={(e) => setSpeed(Number(e.target.value))}>
-                {[0.5, 1, 2, 4].map((s) => <option key={s} value={s}>{s}×</option>)}
-              </select>
-            </label>
+            <Field label="Speed" htmlFor="ff-speed">
+              <Select id="ff-speed" value={String(speed)} onValueChange={(v) => setSpeed(Number(v))} options={[0.5, 1, 2, 4].map((s) => ({ value: String(s), label: `${s}×` }))} />
+            </Field>
           </div>
 
           <Prices data={data} sync={sync} />

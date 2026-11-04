@@ -3,6 +3,7 @@ import type { GameState, Item, MarketId, Stall } from './api';
 import { coins } from './api';
 import { Tip } from './Tip';
 import { ItemIcon } from './icons';
+import { Checkbox, Field, NumberField } from './ui';
 
 const BLURB = {
   cautious: 'Careful with money. Slow to change prices.',
@@ -42,7 +43,7 @@ function FundSection({ stall, cash, act }: { stall: Stall; cash: number; act: Ac
       </div>
       <p className="small"><b>{coins(pool)}</b> of {coins(goal)} in the pool{stall.fund && stall.fund.contributors.length > 0 && <> · so far: {stall.fund.contributors.map((c) => `${c.name} ${coins(c.put)}`).join(', ')}</>}</p>
       <div className="controls">
-        <label>Put in <input type="number" min={100} step={100} value={amount} onChange={(e) => setAmount(Math.max(0, Number(e.target.value) || 0))} /></label>
+        <Field label="Put in" htmlFor="fund-amount"><NumberField id="fund-amount" aria-label="Amount to put in" min={100} max={1_000_000} step={100} value={amount} onValueChange={setAmount} /></Field>
         <button className="primary" disabled={cash < 100 || amount < 100} onClick={() => act.contribute(stall.id, amount)}>Put in {coins(amount)}</button>
         <button disabled={cash < 100} onClick={() => act.contribute(stall.id, Math.min(remaining, Math.floor(cash)))} title="Everything left in the pool, or all you have">Fill the pool</button>
       </div>
@@ -59,7 +60,7 @@ function InvestSection({ stall, cash, act }: { stall: Stall; cash: number; act: 
       <p className="small muted">Each evening {stall.name} pays shareholders <b>30% of the day’s profit</b>, split by shares. Your money also goes into their till, which helps if they’re short.</p>
       <p><b>{coins(sh.price)}</b> a share · you hold <b>{sh.yours}</b> · {sh.left} left to buy</p>
       <div className="controls">
-        <label>Shares <input type="number" min={1} max={49} value={n} onChange={(e) => setN(Math.max(1, Math.floor(Number(e.target.value)) || 1))} /></label>
+        <Field label="Shares" htmlFor="shares-qty"><NumberField id="shares-qty" aria-label="Shares to buy or sell" min={1} max={49} value={n} onValueChange={setN} /></Field>
         <button className="primary" disabled={cash < sh.price * n || sh.left < n} onClick={() => act.buyShares(stall.id, n)}>Buy · {coins(sh.price * n)}</button>
         <button disabled={sh.yours < n} onClick={() => act.sellShares(stall.id, n)}>Sell</button>
       </div>
@@ -89,12 +90,8 @@ export function StallPanel({ stall, state, act }: { stall: Stall; state: GameSta
           {stall.state === 'struggling' && <p className="note warn">Low on cash — {stall.name} has stopped buying until the till recovers ({coins(stall.till)}).</p>}
           {fare > 0 && <p className="note">Walking here with your load costs a fare of <b>{coins(fare)}</b> ({coins(state.faresPerUnit)} a unit).</p>}
           <div className="controls">
-            <label>
-              Units <input type="number" min={1} max={1000} value={qty} onChange={(e) => setQty(Math.max(1, Number(e.target.value) || 1))} />
-            </label>
-            <label className="check">
-              <input type="checkbox" checked={haggle} onChange={(e) => setHaggle(e.target.checked)} /> Haggle (once an hour)
-            </label>
+            <Field label="Units" htmlFor="units-qty"><NumberField id="units-qty" aria-label="Units" min={1} max={1000} value={qty} onValueChange={setQty} /></Field>
+            <Checkbox id="haggle" checked={haggle} onCheckedChange={setHaggle}>Haggle (once an hour)</Checkbox>
           </div>
 
           <div className="tablewrap">

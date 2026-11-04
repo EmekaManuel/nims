@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { GameState, Item, MarketId } from './api';
 import { coins } from './api';
 import { ItemIcon } from './icons';
+import { Field, NumberField } from './ui';
 import type { Actions } from './Panels';
 
 /** Open-your-own-stall offer. Shown inside My business, and on its own when you click a free plot. */
@@ -36,12 +37,12 @@ function Manager({ state, act }: { state: GameState; act: Actions }) {
     <div className="manager">
       <div className="till">
         <span><span className="k">Till</span><b>{coins(stall.till)}</b></span>
-        <label>Coins <input type="number" min={1} step={100} value={cash} onChange={(e) => setCash(Math.max(1, Number(e.target.value) || 1))} aria-label="Amount for the till" /></label>
+        <Field label="Coins" htmlFor="till-amount"><NumberField id="till-amount" aria-label="Amount for the till" min={1} max={1_000_000} step={100} value={cash} onValueChange={setCash} /></Field>
         <button disabled={state.you.cash < cash} onClick={() => act.stallDeposit(cash)}>Put in</button>
         <button disabled={stall.till < cash} onClick={() => act.stallWithdraw(cash)}>Take out</button>
       </div>
       <p className="small muted">Your till is what your stall uses to buy. Without cash it can’t buy from anyone.</p>
-      <label className="check shelfqty">Shelf moves <input type="number" min={1} max={500} value={qty} onChange={(e) => setQty(Math.max(1, Number(e.target.value) || 1))} aria-label="Units to move" /></label>
+      <Field label="Shelf moves" htmlFor="shelf-qty" className="shelfqty"><NumberField id="shelf-qty" aria-label="Units to move" min={1} max={500} value={qty} onValueChange={setQty} /></Field>
       <div className="tablewrap">
         <table className="offers">
           <thead><tr><th>Item</th><th>I pay</th><th>I charge</th><th>Shelf</th></tr></thead>
@@ -52,9 +53,9 @@ function Manager({ state, act }: { state: GameState; act: Actions }) {
               return (
                 <tr key={i.item}>
                   <td><span className="itemcell"><ItemIcon item={i.item} size={28} /><span><b>{i.item}</b><span className="muted carry">usual {coins(i.base)} · {i.min}–{i.max}</span></span></span></td>
-                  <td><input type="number" aria-label={`Price I pay for ${i.item}`} value={d.buy} onChange={(e) => edit(i.item, 'buy', Math.floor(Number(e.target.value)) || 0)} /></td>
+                  <td><NumberField aria-label={`Price I pay for ${i.item}`} min={i.min} max={i.max} step={5} steppers={false} value={d.buy} onValueChange={(n) => edit(i.item, 'buy', n)} /></td>
                   <td>
-                    <input type="number" aria-label={`Price I charge for ${i.item}`} value={d.sell} onChange={(e) => edit(i.item, 'sell', Math.floor(Number(e.target.value)) || 0)} />
+                    <NumberField aria-label={`Price I charge for ${i.item}`} min={i.min} max={i.max} step={5} steppers={false} value={d.sell} onValueChange={(n) => edit(i.item, 'sell', n)} />
                     <button disabled={!changed} onClick={() => act.stallPrice(i.item, d.buy, d.sell)}>Set</button>
                   </td>
                   <td className="btns">

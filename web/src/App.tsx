@@ -12,21 +12,25 @@ import { Hud } from './Hud';
 import { PriceBoard } from './PriceBoard';
 import { IconSprite } from './icons';
 import { Mascot } from './Mascot';
+import { TextField } from './ui';
 import { FastForwardPage } from './Fastforward';
 
 function Login({ onIn }: { onIn: () => void }) {
   const [email, setEmail] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
+  /** Something wrong with the email itself, shown on the field. */
+  const [error, setError] = useState('');
   const [devLink, setDevLink] = useState('');
 
   async function submit(e: FormEvent) {
     e.preventDefault();
     setBusy(true);
     setMsg('');
+    setError('');
     const r = await api.requestLogin(email);
     setBusy(false);
-    if (r.error) return setMsg(r.error);
+    if (r.error) return setError(r.error);
     if (r.devLink) setDevLink(r.devLink);
     else setMsg('Check your email — we sent you a link to come in.');
   }
@@ -43,10 +47,7 @@ function Login({ onIn }: { onIn: () => void }) {
       <h1>Nims</h1>
       <p className="lede">A market town where every trader runs on their own. Start with a wheelbarrow. Read the market. End up with a share in half the stalls.</p>
       <form onSubmit={submit}>
-        <label>
-          Your email
-          <input type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
-        </label>
+        <TextField label="Your email" type="email" required autoComplete="email" value={email} onChange={(v) => { setEmail(v); setError(''); }} placeholder="you@example.com" error={error || undefined} />
         <button className="primary" disabled={busy || !email}>Send me a link</button>
       </form>
       {devLink && <button onClick={open}>Open my link (development)</button>}

@@ -14,6 +14,10 @@ export interface Offer {
   stock: number;
   /** The merchant's own plain-English reasoning. */
   why: string;
+  /** This stall pays the most in town for this item. */
+  bestPay: boolean;
+  /** This stall charges the least in town for this item. */
+  bestCharge: boolean;
 }
 
 export interface Stall {
@@ -27,7 +31,22 @@ export interface Stall {
   ajo?: { pool: number; goal: number };
 }
 
+export type GoalKind = 'fortune' | 'reach' | 'district';
+export type Focus = { kind: 'source' | 'stall'; id: string } | null;
+
+export interface Deal {
+  item: Item;
+  from: { kind: 'source' | 'stall'; id: string; label: string; cost: number };
+  to: { stall: string; id: string; price: number; market: MarketId };
+  /** ₦ profit per unit. */
+  profit: number;
+}
+
 export interface GameState {
+  goal: { kind: GoalKind; title: string; blurb: string; progress: number; label: string; done: boolean } | null;
+  goals: { kind: GoalKind; title: string; blurb: string }[];
+  coach: { text: string; focus: Focus };
+  deals: Deal[];
   hour: number;
   day: number;
   shocks: { kind: string; hoursLeft: number }[];
@@ -82,6 +101,7 @@ export const api = {
   gather: (item: Item) => post('/game/gather', { item }).then((r) => r.body),
   sell: (merchant: string, item: Item, units: number, haggle: boolean) => post('/game/sell', { merchant, item, units, haggle }).then((r) => r.body),
   buy: (merchant: string, item: Item, units: number, haggle: boolean) => post('/game/buy', { merchant, item, units, haggle }).then((r) => r.body),
+  goal: (kind: GoalKind) => post('/game/goal', { kind }).then((r) => r.body),
   upgrade: (to: string) => post('/game/upgrade', { to }).then((r) => r.body),
 };
 

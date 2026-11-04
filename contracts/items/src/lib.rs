@@ -22,6 +22,7 @@ use near_sdk::{
 enum Key {
     Balances,
     Supply,
+    SendSeq,
 }
 
 /// One leg of a batch settlement: `from` hands `amount` of `token_id` to `to`.
@@ -63,6 +64,19 @@ pub struct Contract {
     /// "token_id\u{1f}account_id" -> balance
     balances: LookupMap<String, u128>,
     supply: LookupMap<String, u128>,
+    /// Last sequence number applied for each sender's `send_many`. Makes a retried call a harmless no-op.
+    send_seq: LookupMap<AccountId, u64>,
+    /// Last sequence number applied for the owner's `batch_mint`.
+    mint_seq: u64,
+}
+
+/// The state before sequence numbers existed. `migrate` reads it and adds the new fields; balances are kept.
+#[near(serializers=[borsh])]
+pub struct OldContract {
+    owner_id: AccountId,
+    settler_id: AccountId,
+    balances: LookupMap<String, u128>,
+    supply: LookupMap<String, u128>,
 }
 
 fn bal_key(token_id: &str, account: &AccountId) -> String {
@@ -85,6 +99,23 @@ impl Contract {
             owner_id,
             balances: LookupMap::new(Key::Balances),
             supply: LookupMap::new(Key::Supply),
+            send_seq: LookupMap::new(Key::SendSeq),
+            mint_seq: 0,
+        }
+    }
+
+    /// Upgrade from the version without sequence numbers. Keeps every balance.
+    #[private]
+    #[init(ignore_state)]
+    pub fn migrate() -> Self {
+        let old: OldContract = env::state_read().expect("No old state to migrate");
+        Self {
+            owner_id: old.owner_id,
+            settler_id: old.settler_id,
+            balances: old.balances,
+            supply: old.supply,
+            send_seq: LookupMap::new(Key::SendSeq),
+            mint_seq: 0,
         }
     }
 
@@ -97,11 +128,23 @@ impl Contract {
     }
 
     /// Mint many (account, token, amount) entries in one call. Owner only, all-or-nothing.
-    pub fn batch_mint(&mut self, mints: Vec<MintEntry>) {
+    ///
+    /// `seq` makes the call idempotent: pass 1, 2, 3 ... in order. A number already applied does nothing
+    /// (so a retry after a timeout can't mint twice); a number that skips ahead is rejected.
+    pub fn batch_mint(&mut self, mints: Vec<MintEntry>, seq: Option<u64>) {
         require!(env::predecessor_account_id() == self.owner_id, "Only the owner can mint");
         require!(!mints.is_empty(), "Nothing to mint");
+        if let Some(s) = seq {
+            if s <= self.mint_seq {
+                return;
+            }
+            require!(s == self.mint_seq + 1, "Out-of-order sequence number");
+        }
         for m in mints {
             self.mint_one(m.account_id, m.token_id, m.amount.0);
+        }
+        if let Some(s) = seq {
+            self.mint_seq = s;
         }
     }
 
@@ -162,11 +205,21 @@ impl Contract {
 
     /// Nims extension: send many (receiver, item, amount) legs from the caller in one call.
     /// This is how an agent merchant settles its own batch. All-or-nothing.
+    ///
+    /// `seq` makes the call idempotent per sender: 1, 2, 3 ... in order. A number already applied does
+    /// nothing (a retry can't send twice); one that skips ahead is rejected.
     #[payable]
-    pub fn send_many(&mut self, legs: Vec<Leg>) {
+    pub fn send_many(&mut self, legs: Vec<Leg>, seq: Option<u64>) {
         assert_one_yocto();
         require!(!legs.is_empty(), "Nothing to send");
         let sender = env::predecessor_account_id();
+        if let Some(s) = seq {
+            let last = self.send_seq.get(&sender).copied().unwrap_or(0);
+            if s <= last {
+                return;
+            }
+            require!(s == last + 1, "Out-of-order sequence number");
+        }
         for l in &legs {
             self.move_tokens(&sender, &l.receiver_id, &l.token_id, l.amount.0);
         }
@@ -179,6 +232,19 @@ impl Contract {
                 }),
             );
         }
+        if let Some(s) = seq {
+            self.send_seq.insert(sender, s);
+        }
+    }
+
+    /// Last sequence number applied for the owner's `batch_mint`.
+    pub fn mint_seq(&self) -> u64 {
+        self.mint_seq
+    }
+
+    /// Last sequence number applied for `account_id`'s `send_many`.
+    pub fn send_seq(&self, account_id: AccountId) -> u64 {
+        self.send_seq.get(&account_id).copied().unwrap_or(0)
     }
 
     pub fn mt_balance_of(&self, account_id: AccountId, token_id: String) -> U128 {
@@ -285,7 +351,7 @@ mod tests {
         c.batch_mint(vec![
             MintEntry { account_id: acct("tomas.testnet"), token_id: "iron".into(), amount: U128(7) },
             MintEntry { account_id: acct("june.testnet"), token_id: "lace".into(), amount: U128(3) },
-        ]);
+        ], None);
         assert_eq!(c.mt_balance_of(acct("tomas.testnet"), "iron".into()).0, 7);
         assert_eq!(c.mt_supply("iron".into()).unwrap().0, 107);
         assert_eq!(c.mt_balance_of(acct("june.testnet"), "lace".into()).0, 3);
@@ -296,7 +362,7 @@ mod tests {
     fn batch_mint_rejects_strangers() {
         let mut c = fresh();
         ctx("mallory.testnet", NearToken::from_near(0));
-        c.batch_mint(vec![MintEntry { account_id: acct("mallory.testnet"), token_id: "iron".into(), amount: U128(1) }]);
+        c.batch_mint(vec![MintEntry { account_id: acct("mallory.testnet"), token_id: "iron".into(), amount: U128(1) }], None);
     }
 
     #[test]
@@ -306,7 +372,7 @@ mod tests {
         c.send_many(vec![
             Leg { receiver_id: acct("tomas.testnet"), token_id: "iron".into(), amount: U128(10) },
             Leg { receiver_id: acct("june.testnet"), token_id: "copper wire".into(), amount: U128(4) },
-        ]);
+        ], None);
         assert_eq!(c.mt_balance_of(acct("mira.testnet"), "iron".into()).0, 90);
         assert_eq!(c.mt_balance_of(acct("june.testnet"), "copper wire".into()).0, 4);
     }
@@ -316,7 +382,7 @@ mod tests {
     fn send_many_cannot_spend_what_the_caller_lacks() {
         let mut c = fresh();
         ctx("tomas.testnet", NearToken::from_yoctonear(1));
-        c.send_many(vec![Leg { receiver_id: acct("mira.testnet"), token_id: "iron".into(), amount: U128(1) }]);
+        c.send_many(vec![Leg { receiver_id: acct("mira.testnet"), token_id: "iron".into(), amount: U128(1) }], None);
     }
 
     #[test]
@@ -324,7 +390,59 @@ mod tests {
     fn send_many_needs_one_yocto() {
         let mut c = fresh();
         ctx("mira.testnet", NearToken::from_near(0));
-        c.send_many(vec![Leg { receiver_id: acct("tomas.testnet"), token_id: "iron".into(), amount: U128(1) }]);
+        c.send_many(vec![Leg { receiver_id: acct("tomas.testnet"), token_id: "iron".into(), amount: U128(1) }], None);
+    }
+
+    #[test]
+    fn a_repeated_mint_sequence_number_does_nothing() {
+        let mut c = fresh();
+        let e = || vec![MintEntry { account_id: acct("kemi.testnet"), token_id: "iron".into(), amount: U128(7) }];
+        c.batch_mint(e(), Some(1));
+        c.batch_mint(e(), Some(1)); // a retry after a timeout: must not mint again
+        assert_eq!(c.mt_balance_of(acct("kemi.testnet"), "iron".into()).0, 7);
+        assert_eq!(c.mint_seq(), 1);
+        c.batch_mint(e(), Some(2));
+        assert_eq!(c.mt_balance_of(acct("kemi.testnet"), "iron".into()).0, 14);
+    }
+
+    #[test]
+    #[should_panic(expected = "Out-of-order sequence number")]
+    fn a_skipped_mint_sequence_number_is_rejected() {
+        let mut c = fresh();
+        c.batch_mint(vec![MintEntry { account_id: acct("kemi.testnet"), token_id: "iron".into(), amount: U128(1) }], Some(3));
+    }
+
+    #[test]
+    fn a_repeated_send_sequence_number_does_nothing_and_each_sender_counts_alone() {
+        let mut c = fresh();
+        ctx("mira.testnet", NearToken::from_yoctonear(1));
+        let leg = || vec![Leg { receiver_id: acct("kemi.testnet"), token_id: "iron".into(), amount: U128(10) }];
+        c.send_many(leg(), Some(1));
+        c.send_many(leg(), Some(1)); // retry: ignored
+        assert_eq!(c.mt_balance_of(acct("mira.testnet"), "iron".into()).0, 90);
+        assert_eq!(c.send_seq(acct("mira.testnet")), 1);
+        assert_eq!(c.send_seq(acct("kemi.testnet")), 0); // another sender is unaffected
+        c.send_many(leg(), Some(2));
+        assert_eq!(c.mt_balance_of(acct("mira.testnet"), "iron".into()).0, 80);
+    }
+
+    #[test]
+    #[should_panic(expected = "Out-of-order sequence number")]
+    fn a_skipped_send_sequence_number_is_rejected() {
+        let mut c = fresh();
+        ctx("mira.testnet", NearToken::from_yoctonear(1));
+        c.send_many(vec![Leg { receiver_id: acct("kemi.testnet"), token_id: "iron".into(), amount: U128(1) }], Some(2));
+    }
+
+    #[test]
+    fn a_failed_call_does_not_use_up_its_sequence_number() {
+        let mut c = fresh();
+        ctx("kemi.testnet", NearToken::from_yoctonear(1)); // holds nothing
+        let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            c.send_many(vec![Leg { receiver_id: acct("mira.testnet"), token_id: "iron".into(), amount: U128(1) }], Some(1));
+        }));
+        assert!(r.is_err());
+        assert_eq!(c.send_seq(acct("kemi.testnet")), 0); // still 0, so the same number can be retried
     }
 
     #[test]

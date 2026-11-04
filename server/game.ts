@@ -111,6 +111,7 @@ export class Game {
         events: w.events,
         history: w.history,
         ledger: w.ledger,
+        ledgerBase: this.ledgerBase,
         rngState: w.rng.state(),
       },
       humans: [...this.humans].map(([email, p]) => [email, p.id] as [string, string]),
@@ -133,6 +134,7 @@ export class Game {
     w.events = snap.world.events;
     w.history = snap.world.history;
     w.ledger = snap.world.ledger;
+    g.ledgerBase = (snap.world as { ledgerBase?: number }).ledgerBase ?? 0;
     w.rng = makeRng(0, snap.world.rngState);
     g.humans = new Map(snap.humans.map(([email, id]) => [email, w.players.find((p) => p.id === id)!]).filter(([, p]) => p) as [string, Player][]);
     g.progress = new Map((snap.progress as [string, Progress & { marketsSold: MarketId[] }][]).map(([email, pr]) => [email, { ...pr, marketsSold: new Set(pr.marketsSold) }]));
@@ -141,12 +143,45 @@ export class Game {
     return g;
   }
 
+  /**
+   * The ledger is numbered over the whole life of the game. `ledgerBase` is the number of ledger[0];
+   * everything before it has been dropped. A chain settler reads from a number it remembers, and tells
+   * us how far it got, so nothing is dropped before it is settled.
+   */
+  ledgerBase = 0;
+  /** How far the chain has been settled, or null when nothing is settling (then only the latest entries are kept). */
+  private settledTo: number | null = null;
+
+  ledgerEnd(): number {
+    return this.ledgerBase + this.w.ledger.length;
+  }
+
+  /** Entries from absolute number `from`, at most `max` of them. */
+  ledgerFrom(from: number, max = Infinity) {
+    if (from < this.ledgerBase) throw new Error(`Ledger entries before ${this.ledgerBase} are gone (asked for ${from})`);
+    return this.w.ledger.slice(from - this.ledgerBase, from - this.ledgerBase + max);
+  }
+
+  /** A settler says: everything before `cursor` is on the chain. */
+  markSettled(cursor: number) {
+    this.settledTo = cursor;
+    this.trimLedger();
+  }
+
+  private trimLedger() {
+    const drop = this.settledTo === null ? Math.max(0, this.w.ledger.length - LEDGER_KEEP) : Math.max(0, Math.min(this.settledTo - this.ledgerBase, this.w.ledger.length));
+    if (drop > 0) {
+      this.w.ledger.splice(0, drop);
+      this.ledgerBase += drop;
+    }
+  }
+
   /** Advance one in-game hour (server/main.ts calls this on a timer). */
   tickOnce() {
     tick(this.w, act);
     // A live game runs for days: keep only the recent past so memory and save files stay small.
     if (this.w.history.length > HISTORY_KEEP) this.w.history.splice(0, this.w.history.length - HISTORY_KEEP);
-    if (this.w.ledger.length > LEDGER_KEEP) this.w.ledger.splice(0, this.w.ledger.length - LEDGER_KEEP);
+    this.trimLedger();
     if (this.w.events.length > 200) this.w.events.splice(0, this.w.events.length - 200);
     const anyClosed = this.w.merchants.some((m) => m.state === 'closed');
     for (const [email, pr] of this.progress) {

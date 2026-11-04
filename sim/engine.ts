@@ -3,7 +3,7 @@
  * there is deliberately no price logic in this file.
  */
 import { clampPlayerPrice, merchantState, PERSONALITY_PARAMS, playerQuote, quote, Quote } from '../merchants/pricing';
-import { BASE_PRICE, Item, MARKETS, MAX_PUBLIC_SHARES, Merchant, MarketId, PERISHABLE, Player, SHARES_TOTAL, ShockKind, World } from './world';
+import { BASE_PRICE, CARRY_VALUE, Item, MARKETS, MAX_PUBLIC_SHARES, Merchant, MarketId, PERISHABLE, Player, SHARES_TOTAL, ShockKind, World } from './world';
 
 /** Demand memory length in in-game hours. */
 export const WINDOW = 24;
@@ -163,6 +163,22 @@ export const carryCost = (w: World) => (activeShock(w, 'fuel queue') ? 40 : 20);
 /** Gathering capacity multiplier (rain slows it). */
 export const gatherRate = (w: World) => (activeShock(w, 'rain') ? 0.5 : 1);
 
+/**
+ * Units each stall sells to everyday customers per hour at a fair price. Set so a good's town-wide demand
+ * roughly matches what its source supplies (see createSources). If supply far outruns demand, prices sit on
+ * the floor and nobody can make money; this keeps prices near fair so shocks and shortages are what pay.
+ */
+export const DEMAND_PER_HOUR: Record<Item, number> = {
+  tomatoes: 3.2,
+  pepper: 2.4,
+  flour: 2,
+  cotton: 1,
+  lace: 0.4,
+  thread: 1.6,
+  iron: 2.5,
+  'copper wire': 1.3,
+};
+
 /** The town trades on its own: everyday customers buy, merchants restock from farms and wholesalers. */
 function ambientTrade(w: World) {
   const rain = activeShock(w, 'rain');
@@ -181,8 +197,9 @@ function ambientTrade(w: World) {
     for (const item of merchantItems(m)) {
       // Everyday customers: buy a couple of units if the price is fair.
       const q = quoteFor(w, m, item);
-      // Dearer goods sell less often (lace moves slower than tomatoes).
-      const want = w.rng.next() < Math.min(1, 300 / BASE_PRICE[item]) ? w.rng.int(0, 2) : 0;
+      // How many units everyday customers want this hour: the item's usual rate, a little random.
+      const rate = DEMAND_PER_HOUR[item];
+      const want = Math.floor(rate) + (w.rng.next() < rate % 1 ? 1 : 0);
       if (q.willSell && q.sellPrice <= BASE_PRICE[item] * 1.6) {
         const n = Math.min(want, m.stock[item] ?? 0);
         m.stock[item] = (m.stock[item] ?? 0) - n;
@@ -190,7 +207,7 @@ function ambientTrade(w: World) {
         if (n) w.ledger.push({ hour: w.hour, kind: 'transfer', from: m.id, to: 'town', item, units: n });
       }
       // Restock from farms/wholesalers at a discount to base when running low.
-      if (!m.owner && (m.stock[item] ?? 0) < (m.target[item] ?? 0) * 0.6) {
+      if (!m.owner && (m.stock[item] ?? 0) < (m.target[item] ?? 0) * 0.85) {
         const unit = Math.round(BASE_PRICE[item] * 0.95);
         const n = Math.min(3, Math.floor(m.cash / unit));
         m.stock[item] = (m.stock[item] ?? 0) + n;
@@ -216,7 +233,7 @@ export function merchantWorth(m: Merchant): number {
 /** A player's net worth: cash, goods carried (at base price) and shares (at today's price). */
 export function playerWorth(w: World, p: Player): number {
   let worth = p.cash;
-  for (const [item, n] of Object.entries(p.inventory)) worth += (n ?? 0) * BASE_PRICE[item as Item];
+  for (const [item, n] of Object.entries(p.inventory)) worth += (n ?? 0) * BASE_PRICE[item as Item] * CARRY_VALUE;
   for (const m of w.merchants) if (m.shares[p.id]) worth += m.shares[p.id] * sharePrice(m);
   return Math.round(worth);
 }

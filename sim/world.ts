@@ -71,6 +71,8 @@ export interface Player {
   inventory: Partial<Record<Item, number>>;
   /** Market the player last traded in (moving between markets costs a fare). */
   at?: MarketId;
+  /** When a simulated gatherer last collected (so it knows how long it has been holding goods). */
+  lastGatherHour?: number;
   /** Fare you couldn't pay up front. It comes out of your next sale, so you can never be stuck holding goods you can't take to market. */
   fareOwed?: number;
   /** Per-merchant reputation 0..1; grows with trades. */
@@ -179,12 +181,22 @@ export function createMerchants(): Merchant[] {
   ];
 }
 
+/**
+ * Farms and scrap spots sell at a wholesale price: this share of the usual price. Not free: if goods
+ * cost nothing, a player's first trip is worth thousands and the market stops mattering. At 50% the
+ * money is in price gaps, shortages and shocks, and starting capital is what limits you.
+ */
+export const WHOLESALE_RATE = 0.5;
+/** Goods you carry count towards net worth at this share of their usual price (a stall pays less than "usual"). */
+export const CARRY_VALUE = 0.8;
+const wholesale = (item: Item) => Math.round(BASE_PRICE[item] * WHOLESALE_RATE);
+
 export function createSources(): Source[] {
   return [
-    { item: 'tomatoes', label: 'Farm (tomatoes)', units: 200, max: 200, respawnPerHour: 12, cost: 0 },
-    { item: 'pepper', label: 'Farm (pepper)', units: 150, max: 150, respawnPerHour: 8, cost: 0 },
-    { item: 'iron', label: 'Scrap spot (iron)', units: 150, max: 150, respawnPerHour: 10, cost: 0 },
-    { item: 'copper wire', label: 'Scrap spot (copper wire)', units: 80, max: 80, respawnPerHour: 5, cost: 0 },
+    { item: 'tomatoes', label: 'Farm (tomatoes)', units: 160, max: 160, respawnPerHour: 8, cost: wholesale('tomatoes') },
+    { item: 'pepper', label: 'Farm (pepper)', units: 120, max: 120, respawnPerHour: 6, cost: wholesale('pepper') },
+    { item: 'iron', label: 'Scrap spot (iron)', units: 120, max: 120, respawnPerHour: 6, cost: wholesale('iron') },
+    { item: 'copper wire', label: 'Scrap spot (copper wire)', units: 60, max: 60, respawnPerHour: 3, cost: wholesale('copper wire') },
     // Wholesaler: fixed price anchor for cloth.
     { item: 'cotton', label: 'Wholesaler (cotton)', units: 1_000_000, max: 1_000_000, respawnPerHour: 0, cost: 680 },
   ];

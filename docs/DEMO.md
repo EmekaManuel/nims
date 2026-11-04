@@ -21,10 +21,10 @@ Say: *"Every price here comes from the same `merchants/pricing.ts` the game uses
 
 Go back to the game (**Back to the game**), sign in with any email, and pick **Build a fortune** when asked.
 
-1. Read the blue **next step** card. It points at the best deal right now. **Show me on the map** puts a **NEXT** marker on it.
+1. Read Nim's **next step** (top left). It points at the best deal right now. **Show me on the map** puts a **NEXT** marker on it. The tabs along the bottom (Deals, Prices, My business, News) open panels on the right.
 2. Collect iron at the scrap spot, then tap **Anil Metals** and **hover a price**. The merchant answers in their own words: *"I'm holding 62 iron and I only want 50, so I'll pay less…"*
 3. Sell. Then **flood Ruth's Salvage**: collect and sell iron to them a few times. Watch the crates pile up on the map, the price fall, and the iron row on the price board turn blue (▼ cheap). Other markets stay unaffected.
-4. Spend profit on a pickup (top bar) to carry three times as much.
+4. Notice the game feel: coins float up from the stall you sold to, your avatar and vehicle stand in the market you're in, traders walk the roads, and your **rank** (top right) climbs as you earn. Spend profit on a pickup (top bar) to carry three times as much.
 
 ## 3. Ownership (1 minute)
 

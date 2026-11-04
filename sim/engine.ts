@@ -3,7 +3,7 @@
  * there is deliberately no price logic in this file.
  */
 import { clampPlayerPrice, merchantState, PERSONALITY_PARAMS, playerQuote, quote, Quote } from '../merchants/pricing';
-import { BASE_PRICE, CARRY_VALUE, Item, MARKETS, MAX_PUBLIC_SHARES, Merchant, MarketId, PERISHABLE, Player, SHARES_TOTAL, ShockKind, World } from './world';
+import { BASE_PRICE, CARRY_VALUE, COINS, Item, MARKETS, MAX_PUBLIC_SHARES, Merchant, MarketId, PERISHABLE, Player, SHARES_TOTAL, ShockKind, World } from './world';
 
 /** Demand memory length in in-game hours. */
 export const WINDOW = 24;
@@ -49,6 +49,22 @@ export function quoteFor(w: World, m: Merchant, item: Item, player?: Player): Qu
   });
 }
 
+/** Anyone who can hold coins: a merchant, a player, or the town (customers, wholesalers, landlords, carriers). */
+export type Holder = Merchant | Player | 'town';
+const idOf = (h: Holder) => (h === 'town' ? 'town' : h.id);
+
+/**
+ * THE way coins move. Updates both balances and records the movement in the ledger, so every coin that
+ * changes hands can be settled on chain. Never change `.cash` anywhere else.
+ * Coins from the town (a customer paying a stall) are created: a 'mint'. Coins to the town are a transfer.
+ */
+export function transferCoins(w: World, from: Holder, to: Holder, amount: number): void {
+  if (amount <= 0) return;
+  if (from !== 'town') from.cash -= amount;
+  if (to !== 'town') to.cash += amount;
+  w.ledger.push({ hour: w.hour, kind: from === 'town' ? 'mint' : 'transfer', ...(from === 'town' ? {} : { from: idOf(from) }), to: idOf(to), item: COINS, units: amount });
+}
+
 export const merchantItems = (m: Merchant): Item[] => Object.keys(m.target) as Item[];
 const totalStock = (m: Merchant) => Object.values(m.stock).reduce((a, b) => a + (b ?? 0), 0);
 
@@ -60,9 +76,8 @@ export function sellToMerchant(w: World, p: Player, m: Merchant, item: Item, uni
     // priceMult > 1 is a haggled swing in the player's favour (a game mechanic, not pricing logic).
     const price = Math.round(q.buyPrice * priceMult);
     if (!q.willBuy || q.buyPrice < minPrice || m.cash < price) break;
-    m.cash -= price;
+    transferCoins(w, m, p, price);
     m.stock[item] = (m.stock[item] ?? 0) + 1;
-    p.cash += price;
     p.inventory[item] = (p.inventory[item] ?? 0) - 1;
     m.memory.push({ hour: w.hour, item, kind: 'sold', units: 1 });
     w.ledger.push({ hour: w.hour, kind: 'transfer', from: p.id, to: m.id, item, units: 1 });
@@ -80,9 +95,8 @@ export function buyFromMerchant(w: World, p: Player, m: Merchant, item: Item, un
     const q = quoteFor(w, m, item, p);
     const price = Math.round(q.sellPrice / priceMult); // haggled discount for the player
     if (!q.willSell || q.sellPrice > maxPrice || p.cash < price) break;
-    m.cash += price;
+    transferCoins(w, p, m, price);
     m.stock[item] = (m.stock[item] ?? 0) - 1;
-    p.cash -= price;
     p.inventory[item] = (p.inventory[item] ?? 0) + 1;
     m.memory.push({ hour: w.hour, item, kind: 'bought', units: 1 });
     w.ledger.push({ hour: w.hour, kind: 'transfer', from: m.id, to: p.id, item, units: 1 });
@@ -119,11 +133,14 @@ export function contributeToFund(w: World, p: Player, m: Merchant, amount: numbe
   if (m.state !== 'closed') return false;
   const give = Math.min(amount, p.cash, m.fund.goal - m.fund.pool);
   if (give <= 0) return false;
+  // The money waits in escrow (an account of its own) until the pool is full, then goes to the shop.
   p.cash -= give;
   m.fund.pool += give;
+  w.ledger.push({ hour: w.hour, kind: 'transfer', from: p.id, to: `fund-${m.id}`, item: COINS, units: give });
   m.fund.contributors[p.id] = (m.fund.contributors[p.id] ?? 0) + give;
   if (m.fund.pool >= m.fund.goal) {
-    m.cash = m.fund.pool;
+    m.cash += m.fund.pool;
+    w.ledger.push({ hour: w.hour, kind: 'transfer', from: `fund-${m.id}`, to: m.id, item: COINS, units: m.fund.pool });
     for (const item of merchantItems(m)) {
       const units = Math.floor((m.target[item] ?? 0) / 2);
       m.stock[item] = units;
@@ -193,7 +210,7 @@ function ambientTrade(w: World) {
       }
     }
     if (m.state === 'closed') continue;
-    if (!m.owner) m.cash = Math.max(0, m.cash - RENT_PER_HOUR);
+    if (!m.owner) transferCoins(w, m, 'town', Math.min(m.cash, RENT_PER_HOUR));
     for (const item of merchantItems(m)) {
       // Everyday customers: buy a couple of units if the price is fair.
       const q = quoteFor(w, m, item);
@@ -203,7 +220,7 @@ function ambientTrade(w: World) {
       if (q.willSell && q.sellPrice <= BASE_PRICE[item] * 1.6) {
         const n = Math.min(want, m.stock[item] ?? 0);
         m.stock[item] = (m.stock[item] ?? 0) - n;
-        m.cash += n * q.sellPrice;
+        transferCoins(w, 'town', m, n * q.sellPrice);
         if (n) w.ledger.push({ hour: w.hour, kind: 'transfer', from: m.id, to: 'town', item, units: n });
       }
       // Restock from farms/wholesalers at a discount to base when running low.
@@ -211,7 +228,7 @@ function ambientTrade(w: World) {
         const unit = Math.round(BASE_PRICE[item] * 0.95);
         const n = Math.min(3, Math.floor(m.cash / unit));
         m.stock[item] = (m.stock[item] ?? 0) + n;
-        m.cash -= n * unit;
+        transferCoins(w, m, 'town', n * unit);
         if (n) w.ledger.push({ hour: w.hour, kind: 'mint', to: m.id, item, units: n });
       }
     }
@@ -251,8 +268,7 @@ export function buyShares(w: World, p: Player, m: Merchant, n: number): { error:
   if (n > publicSharesLeft(m)) return { error: publicSharesLeft(m) === 0 ? `No shares left in ${m.name}. They keep the majority.` : `Only ${publicSharesLeft(m)} shares left in ${m.name}.` };
   const cost = n * sharePrice(m);
   if (p.cash < cost) return { error: `${n} shares cost ${cost} coins.` };
-  p.cash -= cost;
-  m.cash += cost;
+  transferCoins(w, p, m, cost);
   m.shares[p.id] = (m.shares[p.id] ?? 0) + n;
   m.dayStartWorth = (m.dayStartWorth ?? merchantWorth(m) - cost) + cost; // an investment is not profit
   refreshState(w, m);
@@ -266,8 +282,7 @@ export function sellShares(w: World, p: Player, m: Merchant, n: number): { error
   if (have < n) return { error: `You only hold ${have} shares in ${m.name}.` };
   const proceeds = n * sharePrice(m);
   if (m.cash < proceeds) return { error: `${m.name} can't afford to buy your shares back right now.` };
-  m.cash -= proceeds;
-  p.cash += proceeds;
+  transferCoins(w, m, p, proceeds);
   m.shares[p.id] = have - n;
   if (m.shares[p.id] === 0) delete m.shares[p.id];
   m.dayStartWorth = (m.dayStartWorth ?? merchantWorth(m) + proceeds) - proceeds;
@@ -293,8 +308,7 @@ function payDividends(w: World) {
         const pay = Math.floor((pool * n) / SHARES_TOTAL);
         const holder = w.players.find((x) => x.id === id);
         if (pay <= 0 || !holder) continue;
-        holder.cash += pay;
-        m.cash -= pay;
+        transferCoins(w, m, holder, pay);
         paid += pay;
         addNote(w, holder, `${m.name} paid you ${pay} coins in dividends for your ${n} shares.`);
       }
@@ -352,8 +366,7 @@ function agentTrade(w: World) {
           if (n > 0) {
             o.stock[item] = (o.stock[item] ?? 0) - n;
             m.stock[item] = (m.stock[item] ?? 0) + n;
-            m.cash -= n * qo.sellPrice;
-            o.cash += n * qo.sellPrice;
+            transferCoins(w, m, o, n * qo.sellPrice);
             m.memory.push({ hour: w.hour, item, kind: 'sold', units: n });
             w.ledger.push({ hour: w.hour, kind: 'transfer', from: o.id, to: m.id, item, units: n });
             notifyOwner(w, o, `${m.name} bought ${n} ${item} from your stall for ${n * qo.sellPrice} coins.`);
@@ -366,8 +379,7 @@ function agentTrade(w: World) {
           if (n > 0) {
             m.stock[item] = (m.stock[item] ?? 0) - n;
             o.stock[item] = (o.stock[item] ?? 0) + n;
-            m.cash += n * qo.buyPrice;
-            o.cash -= n * qo.buyPrice;
+            transferCoins(w, o, m, n * qo.buyPrice);
             m.memory.push({ hour: w.hour, item, kind: 'bought', units: n });
             w.ledger.push({ hour: w.hour, kind: 'transfer', from: m.id, to: o.id, item, units: n });
             notifyOwner(w, o, `${m.name} sold ${n} ${item} to your stall for ${n * qo.buyPrice} coins.`);

@@ -2,6 +2,7 @@
 import { BASE_PRICE, CAPACITY, Item, MARKETS, MarketId, Player, World } from './world';
 import {
   buyShares,
+  transferCoins,
   buyFromMerchant,
   carryCost,
   contributeToFund,
@@ -26,7 +27,7 @@ export function gather(w: World, p: Player, item: Item): number {
   const affordable = src.cost > 0 ? Math.floor(p.cash / src.cost) : Infinity;
   const n = Math.max(0, Math.floor(Math.min(room * gatherRate(w), src.units, affordable)));
   src.units -= n;
-  p.cash -= n * src.cost;
+  transferCoins(w, p, 'town', n * src.cost);
   p.inventory[item] = (p.inventory[item] ?? 0) + n;
   if (n) w.ledger.push({ hour: w.hour, kind: 'mint', to: p.id, item, units: n });
   return n;
@@ -47,9 +48,9 @@ function sellBest(w: World, p: Player, item: Item, floorFraction: number) {
   }
 }
 
-function upgradeVehicle(p: Player) {
-  if (p.vehicle === 'wheelbarrow' && p.cash > 8_000) (p.vehicle = 'pickup'), (p.cash -= 5_000);
-  else if (p.vehicle === 'pickup' && p.cash > 25_000) (p.vehicle = 'van'), (p.cash -= 18_000);
+function upgradeVehicle(w: World, p: Player) {
+  if (p.vehicle === 'wheelbarrow' && p.cash > 8_000) (p.vehicle = 'pickup'), transferCoins(w, p, 'town', 5_000);
+  else if (p.vehicle === 'pickup' && p.cash > 25_000) (p.vehicle = 'van'), transferCoins(w, p, 'town', 18_000);
 }
 
 const GATHERABLE: Item[] = ['tomatoes', 'pepper', 'iron', 'copper wire'];
@@ -80,7 +81,7 @@ const gatherer: Strategy = (w, p) => {
     p.lastGatherHour = w.hour;
   }
   holdOrSell(w, p, item, src.cost);
-  upgradeVehicle(p);
+  upgradeVehicle(w, p);
 };
 
 const carriedUnits = (p: Player) => Object.values(p.inventory).reduce((a, b) => a + (b ?? 0), 0);
@@ -110,7 +111,7 @@ const arbitrageur: Strategy = (w, p) => {
     const sellerM = sellers(best.item).sort((a, b) => quoteFor(w, a, best!.item).sellPrice - quoteFor(w, b, best!.item).sellPrice)[0];
     buyFromMerchant(w, p, sellerM, best.item, CAPACITY[p.vehicle] - carried(p), best.to - 5);
   }
-  upgradeVehicle(p);
+  upgradeVehicle(w, p);
 };
 
 /** Revives closed shops through fund, and otherwise holds a stake in each market so dividends keep arriving. */
@@ -128,7 +129,7 @@ const investor: Strategy = (w, p) => {
 const flooder: Strategy = (w, p) => {
   gather(w, p, 'iron');
   sellBest(w, p, 'iron', 0);
-  upgradeVehicle(p);
+  upgradeVehicle(w, p);
 };
 
 export const act: Strategy = (w, p) => {

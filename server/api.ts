@@ -10,6 +10,7 @@ import { AccountStore } from './accounts';
 import { Auth, looksLikeEmail, normaliseEmail } from './auth';
 import { ChainPort } from './relayer';
 import { Game } from './game';
+import { runFastForward, sanitize, FastForwardResult } from '../sim/fastforward';
 import { BASE_PRICE, createMerchants } from '../sim/world';
 
 export interface Mailer {
@@ -29,6 +30,8 @@ export interface AppDeps {
   game?: Game;
   /** Dev only: return the login link in the response instead of emailing it. Never enable in production. */
   devLinks?: boolean;
+  /** Minimum gap between two different fast-forward runs. Default 500ms; tests set 0. */
+  fastForwardGapMs?: number;
 }
 
 interface Pending {
@@ -63,6 +66,9 @@ const cookieOf = (req: IncomingMessage) =>
 
 export function createApp(d: AppDeps) {
   const queue: Pending[] = [];
+  // Fast-forward runs are cheap but not free: remember recent ones and space out new ones.
+  const ffCache = new Map<string, FastForwardResult>();
+  let ffLast = 0;
   const creating = new Set<string>();
 
   /** First login: make the player's on-chain account in the background. Gameplay doesn't wait for it. */
@@ -120,6 +126,22 @@ export function createApp(d: AppDeps) {
       return send(res, 200, { ok: true }, {
         'set-cookie': `${COOKIE}=${d.auth.sessionToken(email)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=2592000`,
       });
+    }
+
+    // Open to everyone, no login: it touches no player data and starts its own fresh world.
+    if (req.method === 'POST' && url.pathname === '/sim/fastforward') {
+      const params = sanitize(await readJson(req));
+      const key = JSON.stringify(params);
+      let result = ffCache.get(key);
+      if (!result) {
+        const wait = (d.fastForwardGapMs ?? 500) - (Date.now() - ffLast);
+        if (wait > 0) return send(res, 429, { error: 'One moment, another run just started. Try again in a second.' });
+        ffLast = Date.now();
+        result = runFastForward(params);
+        ffCache.set(key, result);
+        if (ffCache.size > 20) ffCache.delete(ffCache.keys().next().value!);
+      }
+      return send(res, 200, result);
     }
 
     const email = d.auth.verifySession(cookieOf(req));

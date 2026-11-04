@@ -205,3 +205,56 @@ describe('ownership routes', () => {
     expect(JSON.stringify(opened)).not.toMatch(WALLET_WORDS);
   });
 });
+
+
+describe('fast-forward route', () => {
+  it('needs no login, clamps hostile input, and caches identical runs', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'oja-api4-'));
+    server.close();
+    const a4 = createApp({
+      auth: new Auth(randomHex(32)),
+      store: new AccountStore(join(dir, 'a.json'), 'oja.testnet', randomHex(32)),
+      chain: { createPlayerAccount: async () => {}, transferItem: async () => {}, itemBalance: async () => 0 },
+      mailer: { sendLoginLink: async () => {} },
+      baseUrl: 'http://localhost:0',
+      merchantParent: 'run.oja.testnet',
+      fastForwardGapMs: 0,
+    });
+    server = await a4.listen(0);
+    base = `http://localhost:${(server.address() as { port: number }).port}`;
+
+    const r = await post('/sim/fastforward', { days: 3, seed: 2 }); // no cookie
+    expect(r.status).toBe(200);
+    const body = await r.json();
+    expect(body.hours).toBe(72);
+    expect(Object.keys(body.prices)).toHaveLength(8);
+
+    const wild = await (await post('/sim/fastforward', { days: 100000, seed: 'x', gatherers: -4 })).json();
+    expect(wild.params.days).toBe(14);
+    expect(wild.params.gatherers).toBe(0);
+
+    const again = await (await post('/sim/fastforward', { days: 3, seed: 2 })).json();
+    expect(again).toEqual(body);
+    // 'seed' here is the simulation's random seed, not a wallet phrase, so it is allowed on this route
+    expect(JSON.stringify(body)).not.toMatch(/mnemonic|private key|wallet|\bgas\b|yocto|\.testnet|signature/i);
+  });
+
+  it('spaces out new runs instead of letting anyone hammer the server', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'oja-api5-'));
+    server.close();
+    const a5 = createApp({
+      auth: new Auth(randomHex(32)),
+      store: new AccountStore(join(dir, 'a.json'), 'oja.testnet', randomHex(32)),
+      chain: { createPlayerAccount: async () => {}, transferItem: async () => {}, itemBalance: async () => 0 },
+      mailer: { sendLoginLink: async () => {} },
+      baseUrl: 'http://localhost:0',
+      merchantParent: 'run.oja.testnet',
+      fastForwardGapMs: 60_000,
+    });
+    server = await a5.listen(0);
+    base = `http://localhost:${(server.address() as { port: number }).port}`;
+    expect((await post('/sim/fastforward', { days: 2, seed: 1 })).status).toBe(200);
+    expect((await post('/sim/fastforward', { days: 2, seed: 2 })).status).toBe(429); // a different run, too soon
+    expect((await post('/sim/fastforward', { days: 2, seed: 1 })).status).toBe(200); // a cached one is free
+  });
+});

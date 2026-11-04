@@ -63,6 +63,7 @@ export function Hud({ state, act, onHelp, sound, onSound, peakWorth }: { state: 
             </span>
           </span>
         </div>
+        {y.fareOwed > 0 && <span className="chip owe" title="You couldn't pay the whole fare up front. It comes out of your next sale.">Fare owed: {coins(y.fareOwed)}</span>}
         <div className="inv" aria-label="What you are carrying">
           {y.inventory.length === 0 ? <span className="empty">Empty-handed</span> : y.inventory.map((i) => <span key={i.item} className="chip"><ItemIcon item={i.item} size={20} /> {i.units} {i.item}</span>)}
         </div>

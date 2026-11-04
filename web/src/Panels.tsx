@@ -88,7 +88,12 @@ export function StallPanel({ stall, state, act }: { stall: Stall; state: GameSta
       ) : mine ? null : (
         <>
           {stall.state === 'struggling' && <p className="note warn">Low on cash — {stall.name} has stopped buying until the till recovers ({coins(stall.till)}).</p>}
-          {fare > 0 && <p className="note">Walking here with your load costs a fare of <b>{coins(fare)}</b> ({coins(state.faresPerUnit)} a unit).</p>}
+          {fare > 0 && (
+            <p className="note">
+              Walking here with your load costs a fare of <b>{coins(fare)}</b> ({coins(state.faresPerUnit)} a unit).
+              {state.you.cash < fare && <> You don’t have that much, but you can still <b>sell</b> here: the rest of the fare comes out of your sale. (To <b>buy</b> here you’d need the fare in hand.)</>}
+            </p>
+          )}
           <div className="controls">
             <Field label="Units" htmlFor="units-qty"><NumberField id="units-qty" aria-label="Units" min={1} max={1000} value={qty} onValueChange={setQty} /></Field>
             <Checkbox id="haggle" checked={haggle} onCheckedChange={setHaggle}>Haggle (once an hour)</Checkbox>

@@ -97,6 +97,7 @@ button.link { background: none; border: 0; padding: 0; color: var(--accent-stron
 .inv { display: flex; flex-wrap: wrap; gap: .3rem; }
 .chip { display: inline-flex; gap: .3rem; align-items: center; background: var(--surface-2); border: 1px solid var(--line); border-radius: 999px; padding: .1rem .65rem .1rem .3rem; font-size: .85rem; font-weight: 600; white-space: nowrap; color: var(--ink); }
 .hud .chip { background: rgba(255, 255, 255, .14); border-color: rgba(255, 255, 255, .2); color: #fff; }
+.hud .chip.owe { background: var(--gold-soft); border-color: #f0d58a; color: var(--warn); padding-left: .65rem; }
 .hud .empty { color: #a9bff0; font-size: .88rem; }
 .hud-right { margin-left: auto; display: flex; flex-wrap: nowrap; gap: .5rem .7rem; align-items: center; }
 .rank { display: flex; gap: .45rem; align-items: center; }

@@ -93,6 +93,8 @@ export interface GameState {
   events: { hour: number; type: string; text: string }[];
   you: {
     cash: number;
+    /** Fare you couldn't pay up front. It comes out of your next sale. */
+    fareOwed: number;
     netWorth: number;
     vehicle: 'wheelbarrow' | 'pickup' | 'van';
     capacity: number;

@@ -54,13 +54,44 @@ function upgradeVehicle(p: Player) {
 
 const GATHERABLE: Item[] = ['tomatoes', 'pepper', 'iron', 'copper wire'];
 
+/**
+ * A sensible trader, not a firehose. Each gatherer works one source, on its own beat (every third hour),
+ * and only when the trip clearly pays: the best price in town must beat the wholesale cost by 40%. It sells
+ * only above what the goods cost, holding on to them (for up to half a day) rather than dumping at a loss.
+ * That makes supply follow profit, so a glut corrects itself instead of flattening every price.
+ */
 const gatherer: Strategy = (w, p) => {
-  // Each gatherer works a different source (by the id's hash) and takes a fair price.
-  const item = GATHERABLE[[...p.id].reduce((a, c) => a + c.charCodeAt(0), 0) % GATHERABLE.length];
-  gather(w, p, item);
-  sellBest(w, p, item, 0.5);
+  // Spread gatherers evenly over the goods by their number (gatherer-1, -2, -3 ...), so no good gets flooded by accident.
+  const hash = Number(/(\d+)$/.exec(p.id)?.[1] ?? [...p.id].reduce((a, c) => a + c.charCodeAt(0), 0));
+  const item = GATHERABLE[hash % GATHERABLE.length];
+  const src = w.sources.find((x) => x.item === item);
+  if (!src) return;
+  if (w.hour % 3 !== hash % 3) {
+    // Not this trader's hour to travel, but still sell what they are holding if the price is right.
+    holdOrSell(w, p, item, src.cost);
+    return;
+  }
+  const best = Math.max(0, ...w.merchants.filter((m) => m.target[item] !== undefined && m.state !== 'closed').map((m) => {
+    const q = quoteFor(w, m, item, p);
+    return q.willBuy ? q.buyPrice : 0;
+  }));
+  if (carriedUnits(p) === 0 && best >= src.cost * 1.4) {
+    gather(w, p, item);
+    p.lastGatherHour = w.hour;
+  }
+  holdOrSell(w, p, item, src.cost);
   upgradeVehicle(p);
 };
+
+const carriedUnits = (p: Player) => Object.values(p.inventory).reduce((a, b) => a + (b ?? 0), 0);
+
+/** Sell above cost, or after holding for 12 hours accept anything above the usual 50% floor. */
+function holdOrSell(w: World, p: Player, item: Item, cost: number) {
+  if ((p.inventory[item] ?? 0) <= 0) return;
+  const waited = w.hour - (p.lastGatherHour ?? w.hour);
+  const floor = waited > 12 ? BASE_PRICE[item] * 0.5 : Math.max(cost * 1.1, BASE_PRICE[item] * 0.5);
+  sellBest(w, p, item, floor / BASE_PRICE[item]);
+}
 
 const arbitrageur: Strategy = (w, p) => {
   for (const item of Object.keys(p.inventory) as Item[]) sellBest(w, p, item, 0.5);

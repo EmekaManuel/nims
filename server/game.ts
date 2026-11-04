@@ -8,6 +8,7 @@
  * Nothing here knows about wallets, keys or gas, and nothing returned to a player mentions them.
  */
 import { createHash } from 'node:crypto';
+import { makeRng } from '../sim/rng';
 import { act, newPlayer } from '../sim/players';
 import {
   activeShock, addNote, buyFromMerchant, buyShares, carryCost, contributeToAjo, gatherRate, merchantItems, openOwnerStall, ownerStallOf,
@@ -22,6 +23,9 @@ const SOURCE_LABEL: Record<string, string> = {};
 const START_CASH = 3_000;
 /** Away for this many in-game hours (about 1.5 minutes of real time) and you get a summary on return. */
 const AWAY_HOURS = 24;
+const HISTORY_KEEP = 24 * 7;
+const LEDGER_KEEP = 20_000;
+export const SNAPSHOT_VERSION = 1;
 
 export type GoalKind = 'fortune' | 'reach' | 'stake' | 'district';
 
@@ -82,9 +86,60 @@ export class Game {
     for (const s of this.w.sources) SOURCE_LABEL[s.item] = s.label;
   }
 
+  /**
+   * Everything needed to carry on after a restart: the world (with its RNG), who the human players
+   * are, their goals and progress, and their display names. Plain JSON.
+   */
+  snapshot() {
+    const w = this.w;
+    return {
+      version: SNAPSHOT_VERSION,
+      world: {
+        hour: w.hour,
+        merchants: w.merchants,
+        players: w.players,
+        sources: w.sources,
+        shocks: w.shocks,
+        events: w.events,
+        history: w.history,
+        ledger: w.ledger,
+        rngState: w.rng.state(),
+      },
+      humans: [...this.humans].map(([email, p]) => [email, p.id] as [string, string]),
+      progress: [...this.progress].map(([email, pr]) => [email, { ...pr, marketsSold: [...pr.marketsSold] }] as [string, unknown]),
+      names: [...this.names],
+      haggled: [...this.haggled],
+    };
+  }
+
+  /** Rebuild a game from snapshot(). Throws on a snapshot it does not understand. */
+  static restore(snap: ReturnType<Game['snapshot']>): Game {
+    if (!snap || snap.version !== SNAPSHOT_VERSION) throw new Error(`Unsupported save (version ${snap?.version})`);
+    const g = new Game(1);
+    const w = g.w;
+    w.hour = snap.world.hour;
+    w.merchants = snap.world.merchants;
+    w.players = snap.world.players;
+    w.sources = snap.world.sources;
+    w.shocks = snap.world.shocks;
+    w.events = snap.world.events;
+    w.history = snap.world.history;
+    w.ledger = snap.world.ledger;
+    w.rng = makeRng(0, snap.world.rngState);
+    g.humans = new Map(snap.humans.map(([email, id]) => [email, w.players.find((p) => p.id === id)!]).filter(([, p]) => p) as [string, Player][]);
+    g.progress = new Map((snap.progress as [string, Progress & { marketsSold: MarketId[] }][]).map(([email, pr]) => [email, { ...pr, marketsSold: new Set(pr.marketsSold) }]));
+    g.names = new Map(snap.names);
+    g.haggled = new Map(snap.haggled);
+    return g;
+  }
+
   /** Advance one in-game hour (server/main.ts calls this on a timer). */
   tickOnce() {
     tick(this.w, act);
+    // A live game runs for days: keep only the recent past so memory and save files stay small.
+    if (this.w.history.length > HISTORY_KEEP) this.w.history.splice(0, this.w.history.length - HISTORY_KEEP);
+    if (this.w.ledger.length > LEDGER_KEEP) this.w.ledger.splice(0, this.w.ledger.length - LEDGER_KEEP);
+    if (this.w.events.length > 200) this.w.events.splice(0, this.w.events.length - 200);
     const anyClosed = this.w.merchants.some((m) => m.state === 'closed');
     for (const [email, pr] of this.progress) {
       if (pr.kind === 'district' && !pr.done) pr.streak = anyClosed ? 0 : pr.streak + 1;

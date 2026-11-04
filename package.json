@@ -14,7 +14,8 @@
     "web": "cd web && vite",
     "test:web": "cd web && vitest run",
     "dev": "concurrently -k -n server,web -c blue,green \"NIMS_DEV=1 npm run server\" \"npm run web\"",
-    "setup": "npm install && npm install --prefix web"
+    "setup": "npm install && npm install --prefix web",
+    "balance": "tsx sim/balance.ts"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",

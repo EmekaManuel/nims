@@ -12,6 +12,8 @@ export interface Offer {
   willBuy: boolean;
   willSell: boolean;
   stock: number;
+  /** How much the stall likes to hold. */
+  target: number;
   /** The merchant's own plain-English reasoning. */
   why: string;
   /** This stall pays the most in town for this item. */

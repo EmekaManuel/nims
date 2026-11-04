@@ -281,6 +281,8 @@ export class Game {
           willBuy: q.willBuy && m.state !== 'closed',
           willSell: q.willSell && m.state !== 'closed',
           stock: m.stock[item] ?? 0,
+          /** How much they like to hold. The map draws crates from stock / target. */
+          target: m.target[item] ?? 0,
           why: q.tooltip,
         };
       }),

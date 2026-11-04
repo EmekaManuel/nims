@@ -356,6 +356,13 @@ export class ChainSync {
     };
   }
 
+  /** What a curious player can look up on a block explorer: their own account, and how far settlement has got. */
+  proof(simId: string): { account: string; explorer: string; behind: number } | null {
+    const account = this.accountOf(simId);
+    if (!account || !this.state) return null;
+    return { account, explorer: `https://explorer.testnet.near.org/accounts/${account}`, behind: this.o.game.ledgerEnd() - this.state.cursor };
+  }
+
   /** Where to look on a block explorer for one player's goods and coins. */
   accountOf(simId: string): string | null {
     return this.state ? accountFor(simId, this.state.ns) : null;

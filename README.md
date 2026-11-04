@@ -70,12 +70,16 @@ Everything below is optional and is how the chain side was verified.
 3. `npx tsx server/run-m4-check.ts 12 v2` settles 12 simulated hours where **every merchant and player signs its own transfers** (the relayer only pays gas), then checks each merchant's on-chain stock against the simulation.
 4. `npx tsx server/run-m3-check.ts` makes a brand-new email-only player, creates their account, and moves items on chain with no wallet step.
 
+5. `npx tsx server/run-live-check.ts 30` plays 30 game hours, streams them to testnet through the same settler the server uses, and verifies every goods and coin balance on the chain equals the game's.
+
+With testnet credentials in `.env`, `npm run server` streams the running game to the chain in the background (set `CHAIN_SYNC=0` to turn that off). After changing the contract, run `npx tsx server/run-settle.ts upgrade` then `migrate`. `GET /chain/status` shows how far settlement has got; players get a quiet link to their own account in the news panel.
+
 The deployed contract is `oja-items.testnet`. (That account was created before the game was renamed to Nims; an on-chain account name can't be changed.)
 
 ## Known limits (honest list)
 
-- **Coins are not on chain.** Only items are settled. Shares, dividends and community funds are game state. The design calls for a small on-chain fund/shares contract, which needs a decision on how coins should work on chain first.
-- **The live game is not auto-settled.** The settlement pipeline is built and verified on testnet against the simulation, and the server settles queued player transfers, but the running game's full item ledger isn't streamed to the chain continuously.
+- **Shares and the fund rules are game logic, not contract logic.** Goods *and coins* are real tokens on chain (coins are a token id in the same NEP-245 contract), and every contribution, dividend and revival moves real coins. But the rules for who is owed what are enforced by the game server, not by a contract.
+- **The chain follows the game, it does not lead it.** Trades apply instantly; the chain catches up within a minute or so. If the chain ever rejects a call, the settler starts a fresh epoch (a new set of accounts minted from the game's current state) instead of patching, so older epochs stay on the testnet as history.
 - **Login links are shown on screen in development.** A real email provider is one small replacement of the `Mailer` interface.
 - **One server process, state in memory with a JSON save.** Fine for a demo; not horizontally scalable.
 - **Free testnet RPC endpoints rate-limit.** Settlement retries with backoff, but a busy demo wants a paid key.

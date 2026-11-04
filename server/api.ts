@@ -32,6 +32,8 @@ export interface AppDeps {
   devLinks?: boolean;
   /** Opt-in proof for the curious: where the game's goods and coins live on the testnet. Nothing in the game needs it. */
   chainStatus?: () => unknown;
+  /** The signed-in player's own proof link, if the live settler is on. */
+  chainProof?: (email: string) => unknown;
   /** Minimum gap between two different fast-forward runs. Default 500ms; tests set 0. */
   fastForwardGapMs?: number;
 }
@@ -174,6 +176,7 @@ export function createApp(d: AppDeps) {
     if (d.game && url.pathname.startsWith('/game/')) {
       const g = d.game;
       if (req.method === 'GET' && url.pathname === '/game/state') return send(res, 200, g.state(email));
+      if (req.method === 'GET' && url.pathname === '/game/chain') return send(res, 200, d.chainProof?.(email) ?? null);
       if (req.method === 'POST') {
         const b = await readJson(req);
         const item = String(b.item ?? '') as never;

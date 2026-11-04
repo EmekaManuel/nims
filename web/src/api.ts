@@ -118,7 +118,15 @@ async function json<T>(path: string, init?: RequestInit): Promise<{ status: numb
 
 const post = (path: string, body: unknown) => json<ActionResponse>(path, { method: 'POST', body: JSON.stringify(body) });
 
+export interface ChainProof { account: string; explorer: string; behind: number }
+
 export const api = {
+  /** Where this player's goods and coins live on the testnet, or null when the live chain is off. */
+  async chain(): Promise<ChainProof | null> {
+    const r = await json<ChainProof | null>('/game/chain').catch(() => null);
+    return r && r.status === 200 ? r.body : null;
+  },
+
   /** null means "not logged in". */
   async state(): Promise<GameState | null> {
     const r = await json<GameState>('/game/state');

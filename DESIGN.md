@@ -105,10 +105,11 @@ Pricing is a **pure function**: same inputs, same price. The live game and fast-
 | Concern | Approach |
 |---|---|
 | Items | One **NEP-245** multi-token contract holds every item type (token id per item). |
-| Money | An in-game coin token, either fungible or a NEP-245 id. Keep it simple. |
+| Money | **Coins are a token id (`coins`) in the same NEP-245 contract.** A `town` pseudo-account marks coins entering (mints) or leaving (transfers) the economy. Fund escrows are accounts too. |
 | Login | Social or email login creates a NEAR account behind the scenes. No seed phrase. |
 | Gas | A relayer pays for meta-transactions, so player actions are signed silently. |
-| Speed | Trades apply instantly to game state, then **batch-settle** to the chain every few seconds. The player never waits on a block. |
+| Speed | Trades apply instantly to game state, then **batch-settle** to the chain in the background (time-windowed, merged, every account signing its own). The player never waits on a block. |
+| Exactness | Calls carry per-signer sequence numbers, so a retry after a timeout can never apply twice. If a call is ever rejected, a fresh **epoch** (new namespace, minted from the game's state) starts instead of patching. |
 | Merchants | Each agent owns a NEAR account and signs its own settlements. |
 | Cross-market moves and investments | Expressed as **NEAR Intents**, for example "move 50 iron from Scrap to Hardware for X coins." |
 | Fund pools and shares | A small contract (or contract module) tracks contributions and pays out. |

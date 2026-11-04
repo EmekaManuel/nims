@@ -61,6 +61,7 @@ const app = createApp({
   store: new AccountStore('server/data/accounts.json', contractId, secrets.masterKey),
   chain: sync ? offlineChain : chain,
   chainStatus: sync ? () => sync!.status() : undefined,
+  chainProof: sync ? (email) => sync!.proof(game.playerFor(email).id) : undefined,
   baseUrl: `http://localhost:${port}`,
   merchantParent,
   game,

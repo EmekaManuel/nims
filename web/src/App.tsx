@@ -1,5 +1,5 @@
 import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
-import { ActionResponse, api, coins, Focus, GameState, GoalKind } from './api';
+import { ActionResponse, api, ChainProof, coins, Focus, GameState, GoalKind } from './api';
 import { DistrictMap, Popup, Selection, spotOf } from './Map';
 import { Confetti, Dock, Drawer, Tab } from './Dock';
 import { rankOf } from './rank';
@@ -83,12 +83,16 @@ export function App() {
 type At = { kind: 'stall' | 'source'; id: string };
 
 function NewsFeed({ state }: { state: GameState }) {
+  // Optional proof for the curious. The game never waits for, or depends on, any of this.
+  const [proof, setProof] = useState<ChainProof | null>(null);
+  useEffect(() => { let live = true; void api.chain().then((p) => live && setProof(p)); return () => { live = false; }; }, []);
   return (
     <section className="panel feed" aria-label="What's happening">
       <h2>Around town</h2>
       {state.events.length === 0 ? <p className="muted">All quiet so far.</p> : (
         <ul>{state.events.map((e, i) => <li key={i}><span className="muted">Day {Math.floor(e.hour / 24) + 1}, {String(e.hour % 24).padStart(2, '0')}:00</span> {e.text}</li>)}</ul>
       )}
+      {proof && <p className="small muted">Your goods and coins are real. <a href={proof.explorer} target="_blank" rel="noreferrer">See them on the public ledger →</a></p>}
       <p className="small"><a href="#sim">Watch a whole week of the market unfold →</a></p>
     </section>
   );

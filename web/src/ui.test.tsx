@@ -355,3 +355,32 @@ describe('ownership', () => {
     expect(container.textContent).not.toMatch(/seed|mnemonic|private key|wallet|\bgas\b|yocto|\.testnet|signature/i);
   });
 });
+
+
+describe('shocks on the map', () => {
+  const withShocks = (...kinds: string[]) => ({ ...state, shocks: kinds.map((kind) => ({ kind, hoursLeft: 5 })) });
+
+  it('shows nothing when there is no shock', () => {
+    const { container } = render(<DistrictMap state={withShocks()} selected={null} onSelect={() => {}} />);
+    expect(container.querySelector('.rain, .festive, .fuelq')).toBeNull();
+  });
+
+  it('shows rain, festive lights and a fuel queue for each shock', () => {
+    const rain = render(<DistrictMap state={withShocks('rain')} selected={null} onSelect={() => {}} />);
+    expect(rain.container.querySelector('.rain')).toBeTruthy();
+    expect(rain.container.querySelector('.festive, .fuelq')).toBeNull();
+    rain.unmount();
+    const both = render(<DistrictMap state={withShocks('festive season', 'fuel queue')} selected={null} onSelect={() => {}} />);
+    expect(both.container.querySelectorAll('.festive circle').length).toBeGreaterThan(10);
+    expect(both.container.querySelectorAll('.fuelq use')).toHaveLength(4);
+    expect(both.container.textContent).toContain('QUEUE');
+  });
+
+  it('keeps the weather out of the way of play: decoration is hidden from assistive tech and cannot be clicked', () => {
+    const { container } = render(<DistrictMap state={withShocks('rain', 'festive season', 'fuel queue')} selected={null} onSelect={() => {}} />);
+    const layer = container.querySelector('.rain')!.parentElement!;
+    expect(layer.getAttribute('aria-hidden')).toBe('true');
+    expect((layer as unknown as SVGElement).style.pointerEvents).toBe('none');
+    expect(screen.getAllByRole('button')).toHaveLength(state.stalls.length + state.sources.length + (state.business.stallOffer ? 2 : 0));
+  });
+});

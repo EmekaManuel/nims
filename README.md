@@ -23,8 +23,8 @@ npm run dev       # starts both; open the address Vite prints (usually http://lo
 | | |
 |---|---|
 | **Trade** | Collect goods from farms and scrap spots (free) or the wholesaler (fixed price), carry them between three markets, haggle once an hour. Hover any price and the merchant explains it in their own words. |
-| **Read the market** | A chalkboard price board shows every good in every market against its usual price. Each stall draws crates from its real stock, so a flooded stall visibly overflows and a broke one has its shutters down. |
-| **Revive** | A shop with no cash and no stock closes. Neighbours reopen it with an **fund** pool; contributors become part-owners and their names go on the sign. |
+| **Read the market** | A price board shows every good in every market against its usual price, tinted green where it's dear and blue where it's cheap. Each stall draws crates from its real stock, so a flooded stall visibly overflows and a broke one has its shutters down. |
+| **Revive** | A shop with no cash and no stock closes. Neighbours reopen it by paying into a **community fund**; contributors become part-owners and their names go on the sign. |
 | **Own** | Buy up to 49% of any merchant and get a share of their profit every evening, or open your own stall, set your own prices and let the merchants trade with you. |
 | **Come back** | The town kept trading. A summary says what your shares paid and what happened around town. |
 | **Watch** | *Fast-forward a week* runs the same economy headless and plays it back: prices, shop cash, shocks, closures. Choose which simulated traders take part (gatherers, an arbitrageur, an investor, a market flooder). |
@@ -69,7 +69,7 @@ Everything below is optional and is how the chain side was verified.
 3. `npx tsx server/run-m4-check.ts 12 v2` settles 12 simulated hours where **every merchant and player signs its own transfers** (the relayer only pays gas), then checks each merchant's on-chain stock against the simulation.
 4. `npx tsx server/run-m3-check.ts` makes a brand-new email-only player, creates their account, and moves items on chain with no wallet step.
 
-The deployed contract is `oja-items.testnet`.
+The deployed contract is `oja-items.testnet`. (That account was created before the game was renamed to Nims; an on-chain account name can't be changed.)
 
 ## Known limits (honest list)
 

@@ -8,7 +8,7 @@ import { refreshState } from '../sim/engine';
 
 const me = 'ada@example.com';
 
-/** A game with some history: goal, shares, a stall, an fund shop, a haggle, and time passed. */
+/** A game with some history: goal, shares, a stall, a community-fund shop, a haggle, and time passed. */
 function played(): Game {
   const g = new Game(9);
   g.state(me);

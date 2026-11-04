@@ -21,7 +21,7 @@ describe('Milestone 1 exit test', () => {
     expect(tomato1).toBeGreaterThan(tomato0 * 0.5);
   });
 
-  it('a merchant can go broke and be revived by an community fund', () => {
+  it('a merchant can go broke and be revived by a community fund', () => {
     const investor = newPlayer('investor', 'investor', 40_000);
     const w = createWorld(3, [investor]);
     const m = w.merchants[0];

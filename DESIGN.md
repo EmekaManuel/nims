@@ -67,7 +67,7 @@ Each merchant has:
 
 ### Every session (20–30 minutes): ownership and legacy
 1. **Invest:** shares in merchants pay out a cut of their profits.
-2. **Revive:** when an community fund fills, the closed shop reopens with contributors' names on its sign.
+2. **Revive:** when a community fund fills, the closed shop reopens with contributors' names on its sign.
 3. **Own a stall:** you unlock your own stall and set your own prices. Agent merchants buy from you and sell to you, which makes the market player-owned.
 4. **Return:** the town kept trading without you. Merchants restocked, someone went broke, prices drifted, and your shares paid out (or didn't).
 5. **Session goals** (the player picks one):
@@ -90,7 +90,7 @@ sellPrice = mid * (1 + margin)      // what the merchant charges the player
 Rules:
 - Clamp `mid` to `[basePrice * minMult, basePrice * maxMult]` so prices never go absurd.
 - If `cash < cashFloor`: the merchant stops buying, and the state becomes `struggling`.
-- If `cash == 0` and there's no sellable stock: the state becomes `closed`, and the shop is investable via an community fund.
+- If `cash == 0` and there's no sellable stock: the state becomes `closed`, and the shop is investable via a community fund.
 - Personality only changes the parameters (`elasticity`, `demandWeight`, `margin`), never the formula.
 - Every term returns a plain-English line, and the tooltip is those lines joined together.
 

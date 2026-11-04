@@ -43,7 +43,7 @@ const app = createApp({
   baseUrl: `http://localhost:${port}`,
   merchantParent,
   game,
-  devLinks: process.env.OJA_DEV === '1',
+  devLinks: process.env.NIMS_DEV === '1',
   mailer: {
     async sendLoginLink(email, link) {
       console.log(`[dev mailer] login link for ${email}: ${link}`);

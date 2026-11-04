@@ -6,9 +6,26 @@ import { Auth } from './auth';
 import { Game } from './game';
 import { loadGame, saveGame } from './store';
 import { loadEnv } from './chain';
-import { realChain } from './relayer';
+import { ChainPort, offlineChain, realChain } from './relayer';
+import { loadSecrets } from './secrets';
 
-const env = loadEnv();
+const secrets = loadSecrets();
+if (secrets.generated) console.log('No MASTER_KEY/SESSION_SECRET in .env: using generated development secrets (server/data/dev-secrets.json).');
+
+// Testnet is optional. With credentials the game settles to the chain in the background; without them
+// it runs exactly the same, and just doesn't settle anywhere. Gameplay never depends on the chain.
+let chain: ChainPort = offlineChain;
+let contractId = 'oja.testnet';
+let merchantParent = 'oja.testnet';
+try {
+  const env = loadEnv();
+  chain = realChain();
+  contractId = env.contractId;
+  merchantParent = env.parent;
+  console.log(`Settling to NEAR testnet through ${env.contractId}.`);
+} catch (e) {
+  console.log(`Running without the chain: ${(e as Error).message} The game itself is unaffected.`);
+}
 const port = Number(process.env.PORT ?? 3000);
 const SAVE_FILE = process.env.SAVE_FILE ?? 'server/data/game.json';
 const restored = loadGame(SAVE_FILE);
@@ -20,11 +37,11 @@ for (const sig of ['SIGINT', 'SIGTERM'] as const) process.on(sig, () => { save()
 // One in-game hour every 4 real seconds: a day passes in about a minute and a half.
 setInterval(() => game.tickOnce(), Number(process.env.TICK_MS ?? 4000));
 const app = createApp({
-  auth: new Auth(process.env.SESSION_SECRET!),
-  store: new AccountStore('server/data/accounts.json', env.contractId, process.env.MASTER_KEY!),
-  chain: realChain(),
+  auth: new Auth(secrets.sessionSecret),
+  store: new AccountStore('server/data/accounts.json', contractId, secrets.masterKey),
+  chain,
   baseUrl: `http://localhost:${port}`,
-  merchantParent: env.parent,
+  merchantParent,
   game,
   devLinks: process.env.OJA_DEV === '1',
   mailer: {

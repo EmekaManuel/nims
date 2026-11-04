@@ -1,7 +1,10 @@
 import { useId, useState } from 'react';
 
-/** Hover, focus or tap a price to read the merchant's own reasoning for it. */
-export function Tip({ text, children }: { text: string; children: React.ReactNode }) {
+/**
+ * Hover, focus or tap a price and the merchant answers in their own words, in a speech bubble.
+ * `who` is the stall's name; `text` is the reasoning from pricing.ts.
+ */
+export function Tip({ who, text, children }: { who: string; text: string; children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const id = useId();
   return (
@@ -17,7 +20,8 @@ export function Tip({ text, children }: { text: string; children: React.ReactNod
     >
       {children}
       {open && (
-        <span role="tooltip" id={id} className="tip">
+        <span role="tooltip" id={id} className="bubble">
+          <span className="who">{who} says</span>
           “{text}”
         </span>
       )}

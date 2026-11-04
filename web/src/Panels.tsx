@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { GameState, Item, Stall } from './api';
 import { naira } from './api';
 import { Tip } from './Tip';
+import { ItemIcon } from './icons';
 
 const BLURB = {
   cautious: 'Careful with money. Slow to change her prices.',
@@ -23,7 +24,7 @@ export function StallPanel({ stall, state, act }: { stall: Stall; state: GameSta
   const fare = state.you.at && state.you.at !== stall.market ? state.you.carrying * state.faresPerUnit : 0;
 
   return (
-    <section className="panel" aria-labelledby="stall-h">
+    <section className="panel ledger" aria-labelledby="stall-h">
       <h2 id="stall-h">{stall.name}</h2>
       <p className="muted">{BLURB[stall.personality]}</p>
 
@@ -44,19 +45,19 @@ export function StallPanel({ stall, state, act }: { stall: Stall; state: GameSta
             </label>
           </div>
 
+          <div className="tablewrap">
           <table className="offers">
             <thead>
-              <tr><th>Item</th><th>They pay you</th><th>They charge you</th><th>Stock</th><th></th></tr>
+              <tr><th>Item</th><th>They pay you</th><th>They charge you</th><th></th></tr>
             </thead>
             <tbody>
               {stall.offers.map((o) => {
                 const have = carrying(o.item);
                 return (
                   <tr key={o.item}>
-                    <td><b>{o.item}</b>{have > 0 && <div className="muted">you carry {have}</div>}</td>
-                    <td>{o.willBuy ? <Tip text={o.why}><span className="price">{naira(o.buyPrice)}</span></Tip> : <Tip text={o.why}><span className="price off">not buying</span></Tip>}{o.bestPay && <span className="star">★ best in town</span>}</td>
-                    <td>{o.willSell ? <Tip text={o.why}><span className="price">{naira(o.sellPrice)}</span></Tip> : <span className="price off">sold out</span>}{o.bestCharge && <span className="star">★ cheapest</span>}</td>
-                    <td>{o.stock}</td>
+                    <td><span className="itemcell"><ItemIcon item={o.item} size={30} /><span><b>{o.item}</b><span className="muted carry">{o.stock} in stock{have > 0 ? ` · you carry ${have}` : ''}</span></span></span></td>
+                    <td>{o.willBuy ? <Tip who={stall.name} text={o.why}><span className="price">{naira(o.buyPrice)}</span></Tip> : <Tip who={stall.name} text={o.why}><span className="price off">not buying</span></Tip>}{o.bestPay && <span className="star">★ best in town</span>}</td>
+                    <td>{o.willSell ? <Tip who={stall.name} text={o.why}><span className="price">{naira(o.sellPrice)}</span></Tip> : <span className="price off">sold out</span>}{o.bestCharge && <span className="star">★ cheapest</span>}</td>
                     <td className="btns">
                       <button disabled={!o.willBuy || have < 1} onClick={() => act.sell(stall.id, o.item, qty, haggle)}>Sell</button>
                       <button disabled={!o.willBuy || have < 1} onClick={() => act.sell(stall.id, o.item, have, haggle)} title="Sell everything you carry of this">All</button>
@@ -67,6 +68,7 @@ export function StallPanel({ stall, state, act }: { stall: Stall; state: GameSta
               })}
             </tbody>
           </table>
+          </div>
           <p className="muted small">Hover, focus or tap a price to hear why they’re offering it.</p>
         </>
       )}
@@ -78,12 +80,12 @@ export function SourcePanel({ item, state, act }: { item: Item; state: GameState
   const src = state.sources.find((s) => s.item === item)!;
   const full = state.you.carrying >= state.you.capacity;
   return (
-    <section className="panel" aria-labelledby="src-h">
+    <section className="panel ledger" aria-labelledby="src-h">
       <h2 id="src-h">{src.label}</h2>
       <p className="muted">
         {src.cost > 0 ? `The wholesaler sells at a fixed ₦${src.cost} a unit — a steady price anchor.` : 'Free to collect. It refills over time, and other traders are collecting too.'}
       </p>
-      {state.gatherSpeed < 1 && <p className="note warn">☔ Rain is slowing everyone down: you’ll collect half as much.</p>}
+      {state.gatherSpeed < 1 && <p className="note warn">Rain is slowing everyone down: you’ll collect half as much.</p>}
       <p>
         <b>{src.units}</b> available · you can carry <b>{state.you.capacity - state.you.carrying}</b> more
       </p>

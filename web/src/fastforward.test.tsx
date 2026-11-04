@@ -70,6 +70,16 @@ describe('price chart', () => {
 });
 
 describe('cash chart', () => {
+  it('keeps every value inside its chart: the axis ceiling is at or above the highest cash', () => {
+    for (const m of data.merchants) {
+      const { container, unmount } = render(<CashChart name={m.name} values={data.cash[m.id]} sync={sync()} closures={[]} revivals={[]} color="#2a78d6" />);
+      const label = container.querySelector('.tick')!.textContent!.replace(/,/g, '');
+      const top = label.endsWith('K') ? parseFloat(label) * 1000 : parseFloat(label);
+      expect(top, m.name).toBeGreaterThanOrEqual(Math.max(...data.cash[m.id]) * 0.95); // K labels are rounded, so allow a hair of rounding
+      unmount();
+    }
+  });
+
   it('marks closures with an icon and says so in the tooltip, in words as well as colour', () => {
     const m = data.merchants.find((x) => data.closures.some((c) => c.merchant === x.id))!;
     const closures = data.closures.filter((c) => c.merchant === m.id).map((c) => c.hour);

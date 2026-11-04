@@ -156,8 +156,8 @@ function Prices({ data, sync }: { data: FastForward; sync: Sync }) {
 function Shops({ data, sync }: { data: FastForward; sync: Sync }) {
   return (
     <section aria-labelledby="ff-shops">
-      <h2 id="ff-shops">How much cash each shop holds</h2>
-      <p className="muted small">Each shop has its own scale. A shop with no cash and nothing to sell closes; an community fund can reopen it.</p>
+      <h2 id="ff-shops">How much cash each shop holds (in coins)</h2>
+      <p className="muted small">Each shop has its own scale. A shop with no cash and nothing to sell closes; a community fund can reopen it.</p>
       <div className="grid4">
         {data.merchants.map((m) => {
           const closures = data.closures.filter((c) => c.merchant === m.id).map((c) => c.hour);
@@ -172,7 +172,7 @@ function Shops({ data, sync }: { data: FastForward; sync: Sync }) {
       </div>
       <p className="keyline small muted">
         <span className="evt-key" style={{ background: STATUS.critical }} aria-hidden="true">✕</span> Closed ·{' '}
-        <span className="evt-key" style={{ background: STATUS.good }} aria-hidden="true">✓</span> Reopened by an community fund
+        <span className="evt-key" style={{ background: STATUS.good }} aria-hidden="true">✓</span> Reopened by a community fund
       </p>
     </section>
   );
@@ -217,7 +217,7 @@ function Happenings({ data, cursor }: { data: FastForward; cursor: number }) {
     const list: Happening[] = [
       ...data.shocks.map((s) => ({ hour: s.start, kind: 'shock' as const, text: `${SHOCK_LABEL[s.kind] ?? s.kind} for ${s.end - s.start} hours` })),
       ...data.closures.map((c) => ({ hour: c.hour, kind: 'closed' as const, text: `${name(c.merchant)} ran out of cash and stock` })),
-      ...data.revivals.map((c) => ({ hour: c.hour, kind: 'reopened' as const, text: `${name(c.merchant)} reopened thanks to an community fund` })),
+      ...data.revivals.map((c) => ({ hour: c.hour, kind: 'reopened' as const, text: `${name(c.merchant)} reopened thanks to a community fund` })),
     ];
     // Dividends arrive every evening from several shops: say it once a day.
     const byDay = new Map<number, { total: number; shops: Set<string> }>();

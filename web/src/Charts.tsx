@@ -168,7 +168,8 @@ const CM = { l: 44, r: 8, t: 12, b: 22 };
 export function CashChart({ name, values, sync, closures, revivals, color }: { name: string; values: number[]; sync: Sync; closures: number[]; revivals: number[]; color: string }) {
   const { hours, cursor, hover } = sync;
   const max = Math.max(1, ...values.slice(0, cursor + 1));
-  const top = niceTicks(0, max, 2).slice(-1)[0] || max;
+  // The ceiling is the first round number at or above the highest value, so a line never leaves its chart.
+  const top = niceTicks(0, max * 1.1, 3).find((t) => t >= max) ?? max;
   const x = linear(0, hours - 1, CM.l, CW - CM.r);
   const y = linear(0, Math.max(top, 1), CH - CM.b, CM.t);
   const scrub = useScrub(sync, CM.l, CW - CM.r, CW);
@@ -209,7 +210,7 @@ export function CashChart({ name, values, sync, closures, revivals, color }: { n
           <div className="tip-when">{when(at)}</div>
           <div className="tip-row"><LineKey color={color}><span className="tip-name">Cash</span></LineKey><b>{coins(values[at])}</b></div>
           {eventAt === 'closed' && <div className="tip-note" style={{ color: STATUS.critical }}>✕ Closed: out of cash and stock</div>}
-          {eventAt === 'reopened' && <div className="tip-note"><span style={{ color: STATUS.good }}>✓</span> Reopened by an community fund</div>}
+          {eventAt === 'reopened' && <div className="tip-note"><span style={{ color: STATUS.good }}>✓</span> Reopened by a community fund</div>}
         </div>
       )}
     </div>

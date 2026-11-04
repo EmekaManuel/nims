@@ -83,3 +83,12 @@ The deployed contract is `oja-items.testnet`. (That account was created before t
 - **Login links are shown on screen in development.** A real email provider is one small replacement of the `Mailer` interface.
 - **One server process, state in memory with a JSON save.** Fine for a demo; not horizontally scalable.
 - **Free testnet RPC endpoints rate-limit.** Settlement retries with backoff, but a busy demo wants a paid key.
+
+## Host it
+
+One container serves the game's pages and its API (`Dockerfile`). Any host that runs a container and gives it a persistent volume will do (Fly.io, Railway, Render).
+
+1. Set the variables from `.env.example`: the NEAR testnet ones, plus `PUBLIC_URL` (your https address), `RESEND_API_KEY` and `MAIL_FROM` for real sign-in emails, and `MASTER_KEY` / `SESSION_SECRET` (generate with `openssl rand -hex 32`; without them the server makes throwaway ones and everyone is signed out on each restart).
+2. Mount a volume at `/data`. It holds accounts, wallets and chain progress. The game itself is saved there too.
+3. Run **one** copy only. The game world and the chain settler live in that process.
+4. Keep the settlement account funded: if it runs out of testnet NEAR, the status page says so and settlement pauses (gameplay keeps going).

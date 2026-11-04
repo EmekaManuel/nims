@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { Game } from './game';
+import { displayName, Game } from './game';
+import { refreshState } from '../sim/engine';
 
 let g: Game;
 const me = 'ada@example.com';
@@ -109,10 +110,10 @@ describe('game', () => {
 });
 
 describe('goals, coach and deals', () => {
-  it('starts with no goal, offers three, and asks the player to pick one', () => {
+  it('starts with no goal, offers the goals, and asks the player to pick one', () => {
     const s = g.state(me);
     expect(s.goal).toBeNull();
-    expect(s.goals.map((x) => x.kind)).toEqual(['fortune', 'reach', 'district']);
+    expect(s.goals.map((x) => x.kind)).toEqual(['fortune', 'reach', 'stake', 'district']);
     expect(s.coach.text).toMatch(/Pick a goal/);
     expect(g.chooseGoal(me, 'nonsense').ok).toBe(false);
   });
@@ -178,5 +179,152 @@ describe('goals, coach and deals', () => {
     const best = iron.filter((o) => o.bestPay);
     expect(best.length).toBeGreaterThan(0);
     expect(Math.max(...best.map((o) => o.buyPrice))).toBe(Math.max(...iron.filter((o) => o.willBuy).map((o) => o.buyPrice)));
+  });
+});
+
+
+describe('ownership', () => {
+  const human = (g: Game) => g.w.players.find((p) => p.strategy === 'human')!;
+  const closeShop = (g: Game, id: string) => { const m = g.w.merchants.find((x) => x.id === id)!; m.cash = 0; m.stock = {}; refreshState(g.w, m); return m; };
+
+  it('turns an email into a friendly first name and never shows the address', () => {
+    expect(displayName('ada.obi@example.com')).toBe('Ada');
+    expect(displayName('CHIDI_99@x.io')).toBe('Chidi');
+    expect(displayName('1234@x.io')).toBe('Trader');
+    g.state(me);
+    expect(JSON.stringify(g.state(me))).not.toContain('example.com');
+  });
+
+  it('buys shares, counts them in net worth, and lists them in My business', () => {
+    human(g.state(me) && g)!.cash = 10_000;
+    const before = g.state(me).you.netWorth;
+    expect(g.buyShares(me, 'wale', 10).ok).toBe(true);
+    const s = g.state(me);
+    expect(s.business.shares[0]).toMatchObject({ id: 'wale', shares: 10 });
+    expect(s.stalls.find((x) => x.id === 'wale')!.shares!.yours).toBe(10);
+    expect(Math.abs(s.you.netWorth - before)).toBeLessThan(before * 0.05); // swapped cash for shares, not richer or poorer
+    expect(g.buyShares(me, 'wale', 500).ok).toBe(false);
+  });
+
+  it('"A stake in every market" tracks shares by market and the coach points at where to buy', () => {
+    g.chooseGoal(me, 'stake');
+    human(g.state(me) && g)!.cash = 30_000;
+    expect(g.state(me).goal!.label).toBe('Shares in 0 of 3 markets');
+    expect(g.state(me).coach.text).toMatch(/Buy a few shares in/);
+    g.buyShares(me, 'wale', 1); // scrap
+    g.buyShares(me, 'bisi', 1); // produce
+    expect(g.state(me).goal!.label).toBe('Shares in 2 of 3 markets');
+    g.buyShares(me, 'nkechi', 1); // fabric
+    expect(g.state(me).goal!.done).toBe(true);
+  });
+
+  it('puts ajo money into a closed shop; a full pool reopens it with your name on the sign', () => {
+    human(g.state(me) && g)!.cash = 20_000;
+    closeShop(g, 'bisi');
+    expect(g.contribute(me, 'wale', 500).ok).toBe(false); // wale is open
+    expect(g.contribute(me, 'bisi', 50).ok).toBe(false); // too small
+    const r1 = g.contribute(me, 'bisi', 5_000);
+    expect(r1.ok).toBe(true);
+    expect(g.state(me).stalls.find((x) => x.id === 'bisi')!.ajo!.contributors).toEqual([{ name: 'Ada', put: 5_000 }]);
+    const r2 = g.contribute(me, 'bisi', 7_000);
+    expect(r2.message).toMatch(/open again/);
+    const bisi = g.state(me).stalls.find((x) => x.id === 'bisi')!;
+    expect(bisi.state).toBe('open');
+    expect(bisi.sign).toEqual(['Ada']);
+    expect(bisi.shares!.yours).toBeGreaterThan(0);
+  });
+
+  it('the district goal coach points at a closed shop', () => {
+    g.chooseGoal(me, 'district');
+    closeShop(g, 'kemi');
+    const c = g.state(me).coach;
+    expect(c.text).toMatch(/Kemi.*closed/);
+    expect(c.focus).toEqual({ kind: 'stall', id: 'kemi' });
+  });
+
+  it('opens a stall for ₦6,000 in a market with a free plot', () => {
+    expect(g.openStall(me, 'fabric').ok).toBe(false); // ₦3,000 is not enough
+    human(g.state(me) && g)!.cash = 10_000;
+    expect(g.openStall(me, 'scrap').ok).toBe(false); // no free plot
+    expect(g.openStall(me, 'fabric').ok).toBe(true);
+    expect(g.openStall(me, 'produce').ok).toBe(false); // one per player
+    const s = g.state(me);
+    expect(s.business.stall).toMatchObject({ market: 'fabric', till: 0 });
+    expect(s.stalls.find((x) => x.owner?.mine)!.name).toBe("Ada's stall");
+    expect(s.business.stallOffer).toBeNull();
+  });
+
+  it('stocks the stall from what you carry, validates prices, and moves cash through the till', () => {
+    human(g.state(me) && g)!.cash = 10_000;
+    g.openStall(me, 'fabric');
+    const p = human(g)!;
+    p.inventory.thread = 10;
+    expect(g.stallStock(me, 'thread', 4).ok).toBe(true);
+    expect(g.stallStock(me, 'thread', 99).ok).toBe(false); // only 6 left
+    expect(g.stallStock(me, 'iron', 1).ok).toBe(false); // not a fabric item
+    expect(p.inventory.thread).toBe(6);
+    expect(g.state(me).business.stall!.items.find((i) => i.item === 'thread')!.stock).toBe(4);
+
+    expect(g.stallPrice(me, 'thread', 90, 130).ok).toBe(true);
+    expect(g.stallPrice(me, 'thread', 130, 90).ok).toBe(false); // sells below cost
+    expect(g.stallPrice(me, 'thread', 1, 130).ok).toBe(false); // outside the band
+    expect(g.stallPrice(me, 'thread', 90.5, 130).ok).toBe(false);
+
+    const cash = p.cash;
+    expect(g.stallCash(me, 'deposit', 2_000).ok).toBe(true);
+    expect(p.cash).toBe(cash - 2_000);
+    expect(g.stallCash(me, 'withdraw', 5_000).ok).toBe(false);
+    expect(g.stallCash(me, 'withdraw', 500).ok).toBe(true);
+    expect(g.stallTake(me, 'thread', 2).ok).toBe(true);
+    expect(g.state(me).business.stall!.items.find((i) => i.item === 'thread')!.stock).toBe(2);
+  });
+
+  it('you cannot trade with your own stall, but another player can and you hear about it', () => {
+    human(g.state(me) && g)!.cash = 10_000;
+    g.openStall(me, 'fabric');
+    human(g)!.inventory.thread = 5;
+    g.stallStock(me, 'thread', 5);
+    expect(g.sell(me, 'stall-' + human(g)!.id, 'thread', 1).ok).toBe(false);
+    expect(g.sell(me, 'stall-' + human(g)!.id, 'thread', 1).message).toMatch(/your own stall/);
+
+    const bo = 'bo@example.com';
+    g.state(bo);
+    g.w.players.find((x) => x.id !== human(g)!.id && x.strategy === 'human')!.cash = 1_000;
+    expect(g.buy(bo, 'stall-' + human(g)!.id, 'thread', 2).ok).toBe(true);
+    expect(g.state(me).business.notes[0].text).toContain('Bo bought 2 thread from your stall');
+    expect(g.state(me).business.stall!.till).toBeGreaterThan(0);
+  });
+
+  it('agent merchants trade with your stall while you are away', () => {
+    human(g.state(me) && g)!.cash = 20_000;
+    g.openStall(me, 'fabric');
+    g.stallCash(me, 'deposit', 8_000);
+    g.stallPrice(me, 'ankara', 900, 1500);
+    for (const id of ['nkechi', 'sade']) g.w.merchants.find((m) => m.id === id)!.stock.ankara = 90;
+    for (let i = 0; i < 6; i++) g.tickOnce();
+    const st = g.state(me).business.stall!;
+    expect(st.items.find((i) => i.item === 'ankara')!.stock).toBeGreaterThan(0);
+    expect(g.state(me).business.notes.some((n) => n.text.includes('sold') && n.text.includes('ankara'))).toBe(true);
+  });
+
+  it('shows a "while you were away" summary after a long absence, until dismissed', () => {
+    g.state(me);
+    expect(g.state(me).away).toBeNull();
+    human(g)!.cash = 10_000;
+    g.openStall(me, 'fabric');
+    for (let i = 0; i < 30; i++) g.tickOnce(); // 30 in-game hours with no one looking
+    const back = g.state(me).away!;
+    expect(back.hours).toBeGreaterThanOrEqual(24);
+    expect(back.notes.concat(back.town).length).toBeGreaterThan(0);
+    expect(g.state(me).away).not.toBeNull(); // still there on the next poll
+    g.ack(me);
+    expect(g.state(me).away).toBeNull();
+  });
+
+  it('shows the player no wallet vocabulary in the new data either', () => {
+    human(g.state(me) && g)!.cash = 10_000;
+    g.buyShares(me, 'wale', 2);
+    g.openStall(me, 'fabric');
+    expect(JSON.stringify([g.state(me), g.stallCash(me, 'deposit', 100)])).not.toMatch(/seed|mnemonic|private key|wallet|\bgas\b|yocto|\.testnet|signature/i);
   });
 });

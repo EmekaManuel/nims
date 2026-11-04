@@ -3,7 +3,7 @@ name = "oja-items"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.86"
-description = "Oja items: one NEP-245 multi-token contract holding every item type."
+description = "Nims items: one NEP-245 multi-token contract holding every item type."
 
 [lib]
 crate-type = ["cdylib", "rlib"]

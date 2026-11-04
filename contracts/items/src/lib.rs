@@ -1,4 +1,4 @@
-//! Oja items — ONE NEP-245 multi-token contract that holds every item type.
+//! Nims items — ONE NEP-245 multi-token contract that holds every item type.
 //!
 //! Token ids are item names ("iron", "tomatoes", ...). Never deploy a contract per item.
 //!
@@ -6,7 +6,7 @@
 //! mt_batch_balance_of, mt_supply, plus nep245 `mt_mint` / `mt_transfer` events.
 //! Deliberately left out for v1: approvals and mt_transfer_call (no receiver callbacks yet).
 //!
-//! Oja extension: `settle` applies many trades atomically, callable only by the
+//! Nims extension: `settle` applies many trades atomically, callable only by the
 //! settler (the relayer). This is how the server batch-settles gameplay trades so
 //! the player never waits on a block (see DESIGN.md §4).
 
@@ -160,7 +160,7 @@ impl Contract {
         );
     }
 
-    /// Oja extension: send many (receiver, item, amount) legs from the caller in one call.
+    /// Nims extension: send many (receiver, item, amount) legs from the caller in one call.
     /// This is how an agent merchant settles its own batch. All-or-nothing.
     #[payable]
     pub fn send_many(&mut self, legs: Vec<Leg>) {
@@ -193,7 +193,7 @@ impl Contract {
         self.supply.get(&token_id).map(|s| U128(*s))
     }
 
-    // ---- Oja extension: batch settlement -------------------------------------
+    // ---- Nims extension: batch settlement -------------------------------------
 
     /// Apply many game trades at once. All-or-nothing: one bad leg reverts the batch.
     pub fn settle(&mut self, transfers: Vec<Transfer>) {
@@ -258,15 +258,15 @@ mod tests {
     fn fresh() -> Contract {
         ctx("oja.testnet", NearToken::from_near(0));
         let mut c = Contract::new(acct("oja.testnet"), None);
-        c.mint(acct("bisi.testnet"), "iron".into(), U128(100));
-        c.mint(acct("bisi.testnet"), "copper wire".into(), U128(10));
+        c.mint(acct("mira.testnet"), "iron".into(), U128(100));
+        c.mint(acct("mira.testnet"), "copper wire".into(), U128(10));
         c
     }
 
     #[test]
     fn mint_sets_balance_and_supply() {
         let c = fresh();
-        assert_eq!(c.mt_balance_of(acct("bisi.testnet"), "iron".into()).0, 100);
+        assert_eq!(c.mt_balance_of(acct("mira.testnet"), "iron".into()).0, 100);
         assert_eq!(c.mt_supply("iron".into()).unwrap().0, 100);
         assert!(c.mt_supply("lace".into()).is_none());
     }
@@ -283,12 +283,12 @@ mod tests {
     fn batch_mint_mints_many_and_is_owner_only() {
         let mut c = fresh();
         c.batch_mint(vec![
-            MintEntry { account_id: acct("kemi.testnet"), token_id: "iron".into(), amount: U128(7) },
-            MintEntry { account_id: acct("tunde.testnet"), token_id: "lace".into(), amount: U128(3) },
+            MintEntry { account_id: acct("tomas.testnet"), token_id: "iron".into(), amount: U128(7) },
+            MintEntry { account_id: acct("june.testnet"), token_id: "lace".into(), amount: U128(3) },
         ]);
-        assert_eq!(c.mt_balance_of(acct("kemi.testnet"), "iron".into()).0, 7);
+        assert_eq!(c.mt_balance_of(acct("tomas.testnet"), "iron".into()).0, 7);
         assert_eq!(c.mt_supply("iron".into()).unwrap().0, 107);
-        assert_eq!(c.mt_balance_of(acct("tunde.testnet"), "lace".into()).0, 3);
+        assert_eq!(c.mt_balance_of(acct("june.testnet"), "lace".into()).0, 3);
     }
 
     #[test]
@@ -302,68 +302,68 @@ mod tests {
     #[test]
     fn send_many_moves_from_the_caller_only() {
         let mut c = fresh();
-        ctx("bisi.testnet", NearToken::from_yoctonear(1));
+        ctx("mira.testnet", NearToken::from_yoctonear(1));
         c.send_many(vec![
-            Leg { receiver_id: acct("kemi.testnet"), token_id: "iron".into(), amount: U128(10) },
-            Leg { receiver_id: acct("tunde.testnet"), token_id: "copper wire".into(), amount: U128(4) },
+            Leg { receiver_id: acct("tomas.testnet"), token_id: "iron".into(), amount: U128(10) },
+            Leg { receiver_id: acct("june.testnet"), token_id: "copper wire".into(), amount: U128(4) },
         ]);
-        assert_eq!(c.mt_balance_of(acct("bisi.testnet"), "iron".into()).0, 90);
-        assert_eq!(c.mt_balance_of(acct("tunde.testnet"), "copper wire".into()).0, 4);
+        assert_eq!(c.mt_balance_of(acct("mira.testnet"), "iron".into()).0, 90);
+        assert_eq!(c.mt_balance_of(acct("june.testnet"), "copper wire".into()).0, 4);
     }
 
     #[test]
     #[should_panic(expected = "Not enough balance")]
     fn send_many_cannot_spend_what_the_caller_lacks() {
         let mut c = fresh();
-        ctx("kemi.testnet", NearToken::from_yoctonear(1));
-        c.send_many(vec![Leg { receiver_id: acct("bisi.testnet"), token_id: "iron".into(), amount: U128(1) }]);
+        ctx("tomas.testnet", NearToken::from_yoctonear(1));
+        c.send_many(vec![Leg { receiver_id: acct("mira.testnet"), token_id: "iron".into(), amount: U128(1) }]);
     }
 
     #[test]
     #[should_panic(expected = "Requires attached deposit of exactly 1 yoctoNEAR")]
     fn send_many_needs_one_yocto() {
         let mut c = fresh();
-        ctx("bisi.testnet", NearToken::from_near(0));
-        c.send_many(vec![Leg { receiver_id: acct("kemi.testnet"), token_id: "iron".into(), amount: U128(1) }]);
+        ctx("mira.testnet", NearToken::from_near(0));
+        c.send_many(vec![Leg { receiver_id: acct("tomas.testnet"), token_id: "iron".into(), amount: U128(1) }]);
     }
 
     #[test]
     fn transfer_moves_tokens() {
         let mut c = fresh();
-        ctx("bisi.testnet", NearToken::from_yoctonear(1));
-        c.mt_transfer(acct("kemi.testnet"), "iron".into(), U128(30), None, None);
-        assert_eq!(c.mt_balance_of(acct("bisi.testnet"), "iron".into()).0, 70);
-        assert_eq!(c.mt_balance_of(acct("kemi.testnet"), "iron".into()).0, 30);
+        ctx("mira.testnet", NearToken::from_yoctonear(1));
+        c.mt_transfer(acct("tomas.testnet"), "iron".into(), U128(30), None, None);
+        assert_eq!(c.mt_balance_of(acct("mira.testnet"), "iron".into()).0, 70);
+        assert_eq!(c.mt_balance_of(acct("tomas.testnet"), "iron".into()).0, 30);
     }
 
     #[test]
     #[should_panic(expected = "Not enough balance")]
     fn transfer_rejects_overdraw() {
         let mut c = fresh();
-        ctx("bisi.testnet", NearToken::from_yoctonear(1));
-        c.mt_transfer(acct("kemi.testnet"), "iron".into(), U128(101), None, None);
+        ctx("mira.testnet", NearToken::from_yoctonear(1));
+        c.mt_transfer(acct("tomas.testnet"), "iron".into(), U128(101), None, None);
     }
 
     #[test]
     #[should_panic(expected = "Requires attached deposit of exactly 1 yoctoNEAR")]
     fn transfer_needs_one_yocto() {
         let mut c = fresh();
-        ctx("bisi.testnet", NearToken::from_near(0));
-        c.mt_transfer(acct("kemi.testnet"), "iron".into(), U128(1), None, None);
+        ctx("mira.testnet", NearToken::from_near(0));
+        c.mt_transfer(acct("tomas.testnet"), "iron".into(), U128(1), None, None);
     }
 
     #[test]
     fn batch_transfer_moves_several_items() {
         let mut c = fresh();
-        ctx("bisi.testnet", NearToken::from_yoctonear(1));
+        ctx("mira.testnet", NearToken::from_yoctonear(1));
         c.mt_batch_transfer(
-            acct("kemi.testnet"),
+            acct("tomas.testnet"),
             vec!["iron".into(), "copper wire".into()],
             vec![U128(5), U128(2)],
             None,
             None,
         );
-        let b = c.mt_batch_balance_of(acct("kemi.testnet"), vec!["iron".into(), "copper wire".into()]);
+        let b = c.mt_batch_balance_of(acct("tomas.testnet"), vec!["iron".into(), "copper wire".into()]);
         assert_eq!((b[0].0, b[1].0), (5, 2));
     }
 
@@ -372,11 +372,11 @@ mod tests {
         let mut c = fresh();
         ctx("oja.testnet", NearToken::from_near(0));
         c.settle(vec![
-            Transfer { from: acct("bisi.testnet"), to: acct("kemi.testnet"), token_id: "iron".into(), amount: U128(10) },
-            Transfer { from: acct("kemi.testnet"), to: acct("tunde.testnet"), token_id: "iron".into(), amount: U128(4) },
+            Transfer { from: acct("mira.testnet"), to: acct("tomas.testnet"), token_id: "iron".into(), amount: U128(10) },
+            Transfer { from: acct("tomas.testnet"), to: acct("june.testnet"), token_id: "iron".into(), amount: U128(4) },
         ]);
-        assert_eq!(c.mt_balance_of(acct("kemi.testnet"), "iron".into()).0, 6);
-        assert_eq!(c.mt_balance_of(acct("tunde.testnet"), "iron".into()).0, 4);
+        assert_eq!(c.mt_balance_of(acct("tomas.testnet"), "iron".into()).0, 6);
+        assert_eq!(c.mt_balance_of(acct("june.testnet"), "iron".into()).0, 4);
     }
 
     #[test]
@@ -385,7 +385,7 @@ mod tests {
         let mut c = fresh();
         ctx("mallory.testnet", NearToken::from_near(0));
         c.settle(vec![Transfer {
-            from: acct("bisi.testnet"), to: acct("mallory.testnet"), token_id: "iron".into(), amount: U128(1),
+            from: acct("mira.testnet"), to: acct("mallory.testnet"), token_id: "iron".into(), amount: U128(1),
         }]);
     }
 }

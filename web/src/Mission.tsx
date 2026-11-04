@@ -1,13 +1,14 @@
 import type { Deal, Focus, GameState } from './api';
 import { coins } from './api';
 import { ItemIcon } from './icons';
+import { Mascot } from './Mascot';
 
-/** Always-visible answer to "what am I playing for, and what should I do now?" */
+/** The quest tracker: what you're playing for, and Nim the guide telling you what to do next. */
 export function Mission({ state, onFocus, onPickGoal }: { state: GameState; onFocus: (f: Focus) => void; onPickGoal: () => void }) {
   const g = state.goal;
   return (
-    <section className="mission" aria-label="Your goal and next step">
-      <div className="goalcard">
+    <section className="quest" aria-label="Your goal and next step">
+      <div className="quest-goal">
         <span className="k">Your goal</span>
         {g ? (
           <>
@@ -27,10 +28,13 @@ export function Mission({ state, onFocus, onPickGoal }: { state: GameState; onFo
           </>
         )}
       </div>
-      <div className="coachcard">
-        <span className="k">Your next step</span>
-        <p>{state.coach.text}</p>
-        {state.coach.focus && <button onClick={() => onFocus(state.coach.focus)}>Show me on the map</button>}
+      <div className="quest-guide">
+        <Mascot size={54} mood={g?.done ? 'cheer' : 'happy'} />
+        <div className="guide-bubble">
+          <span className="k">Your next step</span>
+          <p>{state.coach.text}</p>
+          {state.coach.focus && <button onClick={() => onFocus(state.coach.focus)}>Show me on the map</button>}
+        </div>
       </div>
     </section>
   );

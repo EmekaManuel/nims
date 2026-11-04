@@ -8,6 +8,7 @@
     "contract:test": "cargo test --manifest-path contracts/items/Cargo.toml",
     "contract:build": "cargo build --manifest-path contracts/items/Cargo.toml --target wasm32-unknown-unknown --release",
     "chain:deploy": "tsx server/run-settle.ts deploy",
+    "chain:upgrade": "tsx server/run-settle.ts upgrade",
     "chain:settle": "tsx server/run-settle.ts settle"
   },
   "devDependencies": {

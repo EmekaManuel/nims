@@ -35,6 +35,16 @@ pub struct Transfer {
     pub amount: U128,
 }
 
+/// One entry of a batch mint.
+#[derive(Serialize, Deserialize, NearSchema, Clone)]
+#[serde(crate = "near_sdk::serde")]
+#[abi(json)]
+pub struct MintEntry {
+    pub account_id: AccountId,
+    pub token_id: String,
+    pub amount: U128,
+}
+
 #[derive(PanicOnDefault)]
 #[near(contract_state)]
 pub struct Contract {
@@ -73,14 +83,16 @@ impl Contract {
     /// Create `amount` of `token_id` and give it to `account_id`. Owner only.
     pub fn mint(&mut self, account_id: AccountId, token_id: String, amount: U128) {
         require!(env::predecessor_account_id() == self.owner_id, "Only the owner can mint");
-        require!(amount.0 > 0, "Amount must be positive");
-        self.credit(&account_id, &token_id, amount.0);
-        let s = self.supply.get(&token_id).copied().unwrap_or(0);
-        self.supply.insert(token_id.clone(), s.checked_add(amount.0).expect("supply overflow"));
-        emit(
-            "mt_mint",
-            json!({ "owner_id": account_id, "token_ids": [token_id], "amounts": [amount.0.to_string()] }),
-        );
+        self.mint_one(account_id, token_id, amount.0);
+    }
+
+    /// Mint many (account, token, amount) entries in one call. Owner only, all-or-nothing.
+    pub fn batch_mint(&mut self, mints: Vec<MintEntry>) {
+        require!(env::predecessor_account_id() == self.owner_id, "Only the owner can mint");
+        require!(!mints.is_empty(), "Nothing to mint");
+        for m in mints {
+            self.mint_one(m.account_id, m.token_id, m.amount.0);
+        }
     }
 
     pub fn set_settler(&mut self, settler_id: AccountId) {
@@ -172,6 +184,17 @@ impl Contract {
 }
 
 impl Contract {
+    fn mint_one(&mut self, account_id: AccountId, token_id: String, amount: u128) {
+        require!(amount > 0, "Amount must be positive");
+        self.credit(&account_id, &token_id, amount);
+        let s = self.supply.get(&token_id).copied().unwrap_or(0);
+        self.supply.insert(token_id.clone(), s.checked_add(amount).expect("supply overflow"));
+        emit(
+            "mt_mint",
+            json!({ "owner_id": account_id, "token_ids": [token_id], "amounts": [amount.to_string()] }),
+        );
+    }
+
     fn credit(&mut self, account: &AccountId, token_id: &str, amount: u128) {
         let k = bal_key(token_id, account);
         let cur = self.balances.get(&k).copied().unwrap_or(0);
@@ -223,6 +246,26 @@ mod tests {
         let mut c = fresh();
         ctx("mallory.testnet", NearToken::from_near(0));
         c.mint(acct("mallory.testnet"), "iron".into(), U128(1));
+    }
+
+    #[test]
+    fn batch_mint_mints_many_and_is_owner_only() {
+        let mut c = fresh();
+        c.batch_mint(vec![
+            MintEntry { account_id: acct("kemi.testnet"), token_id: "iron".into(), amount: U128(7) },
+            MintEntry { account_id: acct("tunde.testnet"), token_id: "lace".into(), amount: U128(3) },
+        ]);
+        assert_eq!(c.mt_balance_of(acct("kemi.testnet"), "iron".into()).0, 7);
+        assert_eq!(c.mt_supply("iron".into()).unwrap().0, 107);
+        assert_eq!(c.mt_balance_of(acct("tunde.testnet"), "lace".into()).0, 3);
+    }
+
+    #[test]
+    #[should_panic(expected = "Only the owner can mint")]
+    fn batch_mint_rejects_strangers() {
+        let mut c = fresh();
+        ctx("mallory.testnet", NearToken::from_near(0));
+        c.batch_mint(vec![MintEntry { account_id: acct("mallory.testnet"), token_id: "iron".into(), amount: U128(1) }]);
     }
 
     #[test]

@@ -54,6 +54,12 @@ export async function deploy(wasmPath = 'contracts/items/target/wasm32-unknown-u
   return env.contractId;
 }
 
+/** Upgrade code only (state is kept, no re-init). */
+export async function upgrade(wasmPath = 'contracts/items/target/wasm32-unknown-unknown/release/oja_items.wasm') {
+  const { account } = connect();
+  await account.deployContract(readFileSync(wasmPath));
+}
+
 /** Retry on RPC rate limits (429) with exponential backoff; the free endpoints are strict. */
 async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
   for (let attempt = 0; ; attempt++) {
@@ -68,10 +74,10 @@ async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
 }
 
 /** One unit of chain work. A batch is its mints followed by one atomic `settle`. */
-export type Call = { kind: 'mint'; account: string; tokenId: string; amount: number } | { kind: 'settle'; transfers: Batch['transfers'] };
+export type Call = { kind: 'mint'; mints: Batch['mints'] } | { kind: 'settle'; transfers: Batch['transfers'] };
 
 export const callsOf = (b: Batch): Call[] => [
-  ...b.mints.map((m) => ({ kind: 'mint' as const, ...m })),
+  ...(b.mints.length ? [{ kind: 'mint' as const, mints: b.mints }] : []),
   ...(b.transfers.length ? [{ kind: 'settle' as const, transfers: b.transfers }] : []),
 ];
 
@@ -81,8 +87,8 @@ export async function submitCall(c: Call) {
     c.kind === 'mint'
       ? account.callFunction({
           contractId: env.contractId,
-          methodName: 'mint',
-          args: { account_id: c.account, token_id: c.tokenId, amount: String(c.amount) },
+          methodName: 'batch_mint',
+          args: { mints: c.mints.map((m) => ({ account_id: m.account, token_id: m.tokenId, amount: String(m.amount) })) },
           gas: GAS,
         })
       : account.callFunction({

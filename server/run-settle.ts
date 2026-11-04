@@ -8,7 +8,7 @@
 import { runWeek } from '../sim/run';
 import { accountFor, buildBatches, genesisLedger } from './settle';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { balanceOf, callsOf, deploy, loadEnv, submitCall } from './chain';
+import { balanceOf, callsOf, deploy, loadEnv, submitCall, upgrade } from './chain';
 
 // Progress is saved after every successful call, so a crash or rate limit resumes instead of double-minting.
 const PROGRESS = 'sim/out/settle-progress.json';
@@ -19,6 +19,9 @@ const cmd = process.argv[2];
 
 if (cmd === 'deploy') {
   console.log('Deployed to', await deploy());
+} else if (cmd === 'upgrade') {
+  await upgrade();
+  console.log('Contract code upgraded (state kept).');
 } else if (cmd === 'settle') {
   const { parent } = loadEnv();
   const w = runWeek(1);

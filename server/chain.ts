@@ -7,6 +7,8 @@ import { readFileSync } from 'node:fs';
 import { Account } from 'near-api-js';
 import type { Batch } from './settle';
 
+/** Known testnet RPC hosts. rpc.testnet.near.org is deprecated and rate-limits (429). */
+const TESTNET_RPCS = ['test.rpc.fastnear.com', 'rpc.testnet.near.org', 'testnet'];
 const GAS = 300_000_000_000_000n; // 300 Tgas
 const ONE_YOCTO = 1n;
 
@@ -26,8 +28,8 @@ export function loadEnv(): ChainEnv & { privateKey: string } {
   };
   const accountId = need('NEAR_ACCOUNT_ID');
   const contractId = process.env.CONTRACT_ID || accountId;
-  const rpcUrl = process.env.NEAR_RPC_URL || 'https://rpc.testnet.near.org';
-  if (!accountId.endsWith('.testnet') || !contractId.endsWith('.testnet') || !rpcUrl.includes('testnet')) {
+  const rpcUrl = process.env.NEAR_RPC_URL || 'https://test.rpc.fastnear.com';
+  if (!accountId.endsWith('.testnet') || !contractId.endsWith('.testnet') || !TESTNET_RPCS.some((h) => rpcUrl.includes(h))) {
     throw new Error('Refusing to run: Oja only talks to NEAR testnet.');
   }
   return { accountId, contractId, rpcUrl, parent: process.env.ACCOUNT_PARENT || contractId, privateKey: need('NEAR_PRIVATE_KEY') };

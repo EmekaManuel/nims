@@ -1,4 +1,4 @@
-# Oja — Design
+y# Oja — Design
 
 **Track:** Games With Real Economies (id: `games`) — "The economy is the gameplay"
 **Pitch:** A small Lagos market district where every trader is an AI agent with its own wallet and stock. Start with a wheelbarrow, read the market, move goods where they're dear, revive broke shops, and end up a shareholder in half the stalls. The economy keeps moving whether you're online or not.

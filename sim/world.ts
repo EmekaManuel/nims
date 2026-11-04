@@ -51,10 +51,12 @@ export const CAPACITY: Record<Vehicle, number> = { wheelbarrow: 20, keke: 60, va
 
 export interface Player {
   id: string;
-  strategy: 'gatherer' | 'arbitrageur' | 'investor' | 'flooder';
+  strategy: 'gatherer' | 'arbitrageur' | 'investor' | 'flooder' | 'human';
   cash: number;
   vehicle: Vehicle;
   inventory: Partial<Record<Item, number>>;
+  /** Market the player last traded in (moving between markets costs a fare). */
+  at?: MarketId;
   /** Per-merchant reputation 0..1; grows with trades. */
   reputation: Record<string, number>;
 }

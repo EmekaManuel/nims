@@ -49,14 +49,16 @@ export const merchantItems = (m: Merchant): Item[] => Object.keys(m.target) as I
 const totalStock = (m: Merchant) => Object.values(m.stock).reduce((a, b) => a + (b ?? 0), 0);
 
 /** Sell `units` of `item` to a merchant, one unit at a time so each unit moves the price. Returns units sold. */
-export function sellToMerchant(w: World, p: Player, m: Merchant, item: Item, units: number, minPrice = 0): number {
+export function sellToMerchant(w: World, p: Player, m: Merchant, item: Item, units: number, minPrice = 0, priceMult = 1): number {
   let done = 0;
   while (done < units && (p.inventory[item] ?? 0) > 0 && m.state !== 'closed') {
     const q = quoteFor(w, m, item, p);
-    if (!q.willBuy || q.buyPrice < minPrice) break;
-    m.cash -= q.buyPrice;
+    // priceMult > 1 is a haggled swing in the player's favour (a game mechanic, not pricing logic).
+    const price = Math.round(q.buyPrice * priceMult);
+    if (!q.willBuy || q.buyPrice < minPrice || m.cash < price) break;
+    m.cash -= price;
     m.stock[item] = (m.stock[item] ?? 0) + 1;
-    p.cash += q.buyPrice;
+    p.cash += price;
     p.inventory[item] = (p.inventory[item] ?? 0) - 1;
     m.memory.push({ hour: w.hour, item, kind: 'sold', units: 1 });
     w.ledger.push({ hour: w.hour, kind: 'transfer', from: p.id, to: m.id, item, units: 1 });
@@ -68,14 +70,15 @@ export function sellToMerchant(w: World, p: Player, m: Merchant, item: Item, uni
 }
 
 /** Buy up to `units` of `item` from a merchant. Returns units bought. */
-export function buyFromMerchant(w: World, p: Player, m: Merchant, item: Item, units: number, maxPrice = Infinity): number {
+export function buyFromMerchant(w: World, p: Player, m: Merchant, item: Item, units: number, maxPrice = Infinity, priceMult = 1): number {
   let done = 0;
   while (done < units && (m.stock[item] ?? 0) > 0 && m.state !== 'closed') {
     const q = quoteFor(w, m, item, p);
-    if (!q.willSell || q.sellPrice > maxPrice || p.cash < q.sellPrice) break;
-    m.cash += q.sellPrice;
+    const price = Math.round(q.sellPrice / priceMult); // haggled discount for the player
+    if (!q.willSell || q.sellPrice > maxPrice || p.cash < price) break;
+    m.cash += price;
     m.stock[item] = (m.stock[item] ?? 0) - 1;
-    p.cash -= q.sellPrice;
+    p.cash -= price;
     p.inventory[item] = (p.inventory[item] ?? 0) + 1;
     m.memory.push({ hour: w.hour, item, kind: 'bought', units: 1 });
     w.ledger.push({ hour: w.hour, kind: 'transfer', from: m.id, to: p.id, item, units: 1 });

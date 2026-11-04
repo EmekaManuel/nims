@@ -18,7 +18,7 @@ export function newPlayer(id: string, strategy: Player['strategy'], cash = 3_000
 }
 
 /** Collect a load from a source. Respects capacity, rain, source stock and the player's cash. */
-function gather(w: World, p: Player, item: Item): number {
+export function gather(w: World, p: Player, item: Item): number {
   const src = w.sources.find((s) => s.item === item);
   if (!src) return 0;
   const room = CAPACITY[p.vehicle] - carried(p);
@@ -93,6 +93,7 @@ const flooder: Strategy = (w, p) => {
 };
 
 export const act: Strategy = (w, p) => {
+  if (p.strategy === 'human') return; // humans act through the game API
   ({ gatherer, arbitrageur, investor, flooder })[p.strategy](w, p);
 };
 

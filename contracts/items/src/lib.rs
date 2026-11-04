@@ -45,6 +45,16 @@ pub struct MintEntry {
     pub amount: U128,
 }
 
+/// One outgoing leg of `send_many`; the sender is whoever signs the call.
+#[derive(Serialize, Deserialize, NearSchema, Clone)]
+#[serde(crate = "near_sdk::serde")]
+#[abi(json)]
+pub struct Leg {
+    pub receiver_id: AccountId,
+    pub token_id: String,
+    pub amount: U128,
+}
+
 #[derive(PanicOnDefault)]
 #[near(contract_state)]
 pub struct Contract {
@@ -148,6 +158,27 @@ impl Contract {
                 "amounts": amounts.iter().map(|a| a.0.to_string()).collect::<Vec<_>>(), "memo": memo
             }),
         );
+    }
+
+    /// Oja extension: send many (receiver, item, amount) legs from the caller in one call.
+    /// This is how an agent merchant settles its own batch. All-or-nothing.
+    #[payable]
+    pub fn send_many(&mut self, legs: Vec<Leg>) {
+        assert_one_yocto();
+        require!(!legs.is_empty(), "Nothing to send");
+        let sender = env::predecessor_account_id();
+        for l in &legs {
+            self.move_tokens(&sender, &l.receiver_id, &l.token_id, l.amount.0);
+        }
+        for l in &legs {
+            emit(
+                "mt_transfer",
+                json!({
+                    "old_owner_id": sender, "new_owner_id": l.receiver_id,
+                    "token_ids": [l.token_id], "amounts": [l.amount.0.to_string()], "memo": "settle"
+                }),
+            );
+        }
     }
 
     pub fn mt_balance_of(&self, account_id: AccountId, token_id: String) -> U128 {
@@ -266,6 +297,34 @@ mod tests {
         let mut c = fresh();
         ctx("mallory.testnet", NearToken::from_near(0));
         c.batch_mint(vec![MintEntry { account_id: acct("mallory.testnet"), token_id: "iron".into(), amount: U128(1) }]);
+    }
+
+    #[test]
+    fn send_many_moves_from_the_caller_only() {
+        let mut c = fresh();
+        ctx("bisi.testnet", NearToken::from_yoctonear(1));
+        c.send_many(vec![
+            Leg { receiver_id: acct("kemi.testnet"), token_id: "iron".into(), amount: U128(10) },
+            Leg { receiver_id: acct("tunde.testnet"), token_id: "copper wire".into(), amount: U128(4) },
+        ]);
+        assert_eq!(c.mt_balance_of(acct("bisi.testnet"), "iron".into()).0, 90);
+        assert_eq!(c.mt_balance_of(acct("tunde.testnet"), "copper wire".into()).0, 4);
+    }
+
+    #[test]
+    #[should_panic(expected = "Not enough balance")]
+    fn send_many_cannot_spend_what_the_caller_lacks() {
+        let mut c = fresh();
+        ctx("kemi.testnet", NearToken::from_yoctonear(1));
+        c.send_many(vec![Leg { receiver_id: acct("bisi.testnet"), token_id: "iron".into(), amount: U128(1) }]);
+    }
+
+    #[test]
+    #[should_panic(expected = "Requires attached deposit of exactly 1 yoctoNEAR")]
+    fn send_many_needs_one_yocto() {
+        let mut c = fresh();
+        ctx("bisi.testnet", NearToken::from_near(0));
+        c.send_many(vec![Leg { receiver_id: acct("kemi.testnet"), token_id: "iron".into(), amount: U128(1) }]);
     }
 
     #[test]

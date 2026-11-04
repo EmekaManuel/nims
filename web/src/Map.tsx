@@ -200,6 +200,52 @@ function Tree({ x, y, s = 1 }: { x: number; y: number; s?: number }) {
   );
 }
 
+/** What the active shocks look like on the map. Decorative only (the HUD banner and events say it in words). */
+function ShockLayer({ kinds }: { kinds: string[] }) {
+  const rain = kinds.includes('rain');
+  const festive = kinds.includes('festive season');
+  const fuel = kinds.includes('fuel queue');
+  if (!rain && !festive && !fuel) return null;
+  return (
+    <g aria-hidden="true" style={{ pointerEvents: 'none' }}>
+      {rain && (
+        <g className="rain">
+          <rect width="1000" height="680" fill="#2c4a7a" opacity="0.14" />
+          <g className="rain-streaks">
+            {Array.from({ length: 46 }, (_, i) => {
+              const x = (i * 97) % 1040;
+              const y = (i * 53) % 700;
+              return <line key={i} x1={x} y1={y - 700} x2={x - 14} y2={y - 664} />;
+            })}
+            {Array.from({ length: 46 }, (_, i) => {
+              const x = (i * 97) % 1040;
+              const y = (i * 53) % 700;
+              return <line key={`b${i}`} x1={x} y1={y} x2={x - 14} y2={y + 36} />;
+            })}
+          </g>
+        </g>
+      )}
+      {festive && (
+        <g className="festive">
+          {Array.from({ length: 26 }, (_, i) => (
+            <circle key={i} cx={602 + ((i * 53) % 376)} cy={46 + ((i * 37) % 280)} r={2.6 + (i % 3)} fill={['#f2a900', '#d6336c', '#1f4fc4', '#2f8f4e'][i % 4]} style={{ animationDelay: `${(i % 7) * 0.3}s` }} />
+          ))}
+        </g>
+      )}
+      {fuel && (
+        <g className="fuelq">
+          {[0, 1, 2, 3].map((i) => <use key={i} href="#v-keke" x={868} y={338 + i * 22} width={44} height={28} />)}
+          <g transform="translate(922 352)">
+            <rect width="62" height="34" rx="5" fill="#16264a" stroke="#2a1a12" strokeWidth="1.6" />
+            <text x="31" y="14" textAnchor="middle" className="fuel-sign">FUEL</text>
+            <text x="31" y="27" textAnchor="middle" className="fuel-sign">QUEUE</text>
+          </g>
+        </g>
+      )}
+    </g>
+  );
+}
+
 export function DistrictMap({ state, selected, onSelect }: { state: GameState; selected: Selection; onSelect: (s: Selection) => void }) {
   const focus: Focus = state.coach.focus;
   const light = lightAt(state.hour);
@@ -298,7 +344,7 @@ export function DistrictMap({ state, selected, onSelect }: { state: GameState; s
       {focus && (() => {
         // The "NEXT" pill is drawn last so no stall or awning can cover it.
         const at = focus.kind === 'stall'
-          ? (() => { const st = state.stalls.find((x) => x.id === focus.id); const p = st && (STALL_POS[st.id] ?? PLOTS[st.market]); return p ? [p[0], p[1] - STALL_H / 2 - 2] : null; })()
+          ? (() => { const st = state.stalls.find((x) => x.id === focus.id); const p = st && (STALL_POS[st.id] ?? PLOTS[st.market]); return p ? [p[0] + STALL_W / 2 - 40, p[1] - STALL_H / 2 + 16] : null; })()
           : (() => { const p = SOURCE_POS[focus.id as Item]; return p ? [p[0], p[1] - 52] : null; })();
         return at ? (
           <g transform={`translate(${at[0]} ${at[1]})`} className="next-pill" aria-hidden="true">
@@ -307,6 +353,8 @@ export function DistrictMap({ state, selected, onSelect }: { state: GameState; s
           </g>
         ) : null;
       })()}
+
+      <ShockLayer kinds={state.shocks.map((x) => x.kind)} />
 
       <rect width="1000" height="680" fill={light.color} opacity={light.opacity} className="daylight" style={{ pointerEvents: 'none', mixBlendMode: 'multiply' }} />
     </svg>

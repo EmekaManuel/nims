@@ -164,3 +164,44 @@ describe('game routes', () => {
     expect(JSON.stringify([state, got])).not.toMatch(WALLET_WORDS);
   });
 });
+
+
+describe('ownership routes', () => {
+  it('buys shares, opens a stall and dismisses the away summary over HTTP', async () => {
+    const { Game } = await import('./game');
+    server.close();
+    const dir = mkdtempSync(join(tmpdir(), 'oja-api3-'));
+    const game = new Game(3);
+    const a3 = createApp({
+      auth: new Auth(randomHex(32)),
+      store: new AccountStore(join(dir, 'a.json'), 'oja.testnet', randomHex(32)),
+      chain: { createPlayerAccount: async () => {}, transferItem: async () => {}, itemBalance: async () => 0 },
+      mailer: { sendLoginLink: async (_e, link) => void links.push(link) },
+      baseUrl: 'http://localhost:0',
+      merchantParent: 'run.oja.testnet',
+      game,
+      devLinks: true,
+    });
+    server = await a3.listen(0);
+    base = `http://localhost:${(server.address() as { port: number }).port}`;
+    const r = await (await post('/auth/request', { email: 'ada@example.com' })).json();
+    const cookie = (await fetch(r.devLink.replace('http://localhost:0', base))).headers.get('set-cookie')!.split(';')[0];
+    game.playerFor('ada@example.com').cash = 20_000;
+
+    const bought = await (await post('/game/shares/buy', { merchant: 'wale', shares: 5 }, cookie)).json();
+    expect(bought.ok).toBe(true);
+    expect(bought.state.business.shares[0].shares).toBe(5);
+    expect((await post('/game/shares/buy', { merchant: 'wale', shares: 999 }, cookie)).status).toBe(400);
+
+    const opened = await (await post('/game/stall/open', { market: 'fabric' }, cookie)).json();
+    expect(opened.state.business.stall.market).toBe('fabric');
+    const priced = await post('/game/stall/price', { item: 'thread', buy: 90, sell: 130 }, cookie);
+    expect(priced.status).toBe(200);
+    expect((await post('/game/stall/price', { item: 'thread', buy: 1, sell: 130 }, cookie)).status).toBe(400);
+
+    expect((await post('/game/ajo', { merchant: 'wale', amount: 500 }, cookie)).status).toBe(400); // wale is open
+    expect((await post('/game/ack', {}, cookie)).status).toBe(200);
+    expect((await post('/game/nope', {}, cookie)).status).toBe(404);
+    expect(JSON.stringify(opened)).not.toMatch(WALLET_WORDS);
+  });
+});

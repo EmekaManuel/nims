@@ -71,6 +71,8 @@ export interface Player {
   inventory: Partial<Record<Item, number>>;
   /** Market the player last traded in (moving between markets costs a fare). */
   at?: MarketId;
+  /** Fare you couldn't pay up front. It comes out of your next sale, so you can never be stuck holding goods you can't take to market. */
+  fareOwed?: number;
   /** Per-merchant reputation 0..1; grows with trades. */
   reputation: Record<string, number>;
   /** What happened to the player's business: dividends, fund, stall sales. Shown as "while you were away". */

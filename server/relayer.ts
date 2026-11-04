@@ -54,3 +54,15 @@ export function realChain(): ChainPort {
     },
   };
 }
+
+/**
+ * Used when no testnet credentials are configured: the game runs exactly the same, it just doesn't
+ * settle anything to a chain. (Gameplay never depends on the chain, so nothing in the game changes.)
+ */
+export const offlineChain: ChainPort = {
+  async createPlayerAccount() {},
+  async transferItem() {},
+  async itemBalance() {
+    return 0;
+  },
+};

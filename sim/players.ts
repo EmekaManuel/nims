@@ -14,7 +14,7 @@ import {
 const carried = (p: Player) => Object.values(p.inventory).reduce((a, b) => a + (b ?? 0), 0);
 
 export function newPlayer(id: string, strategy: Player['strategy'], cash = 3_000): Player {
-  return { id, strategy, cash, vehicle: 'wheelbarrow', inventory: {}, reputation: {} };
+  return { id, strategy, cash, vehicle: 'wheelbarrow', inventory: {}, reputation: {}, notes: [] };
 }
 
 /** Collect a load from a source. Respects capacity, rain, source stock and the player's cash. */

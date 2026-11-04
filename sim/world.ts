@@ -44,7 +44,21 @@ export interface Merchant {
   memory: MemoryEntry[];
   /** Ajo pool that revives the shop once it is closed. */
   ajo: { pool: number; goal: number; contributors: Record<string, number> };
+  /** Shareholders: player id -> shares. At most MAX_PUBLIC_SHARES in total, so a merchant is never taken over. */
+  shares: Record<string, number>;
+  /** Player ids of the ajo contributors who last reopened this shop. Their names go on the sign. */
+  sign: string[];
+  /** Worth at the start of the current in-game day, to measure the day's profit for dividends. */
+  dayStartWorth?: number;
+  /** Set only on a player-owned stall. Prices are the owner's own choice, not pricing.ts's formula. */
+  owner?: string;
+  ownerName?: string;
+  prices?: Partial<Record<Item, { buy: number; sell: number }>>;
 }
+
+/** Each merchant is split into this many shares; players can hold up to MAX_PUBLIC_SHARES of them in total. */
+export const SHARES_TOTAL = 100;
+export const MAX_PUBLIC_SHARES = 49;
 
 export type Vehicle = 'wheelbarrow' | 'keke' | 'van';
 export const CAPACITY: Record<Vehicle, number> = { wheelbarrow: 20, keke: 60, van: 150 };
@@ -59,6 +73,8 @@ export interface Player {
   at?: MarketId;
   /** Per-merchant reputation 0..1; grows with trades. */
   reputation: Record<string, number>;
+  /** What happened to the player's business: dividends, ajo, stall sales. Shown as "while you were away". */
+  notes: { hour: number; text: string }[];
 }
 
 export interface Source {
@@ -80,7 +96,7 @@ export interface Shock {
 
 export interface WorldEvent {
   hour: number;
-  type: 'shock' | 'state' | 'revived';
+  type: 'shock' | 'state' | 'revived' | 'dividend';
   text: string;
 }
 
@@ -133,6 +149,8 @@ function merchant(
     state: 'open',
     memory: [],
     ajo: { pool: 0, goal: 12_000, contributors: {} },
+    shares: {},
+    sign: [],
   };
 }
 

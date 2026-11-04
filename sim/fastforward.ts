@@ -42,7 +42,8 @@ export function runFastForward(params: FastForwardParams) {
     ...Array.from({ length: params.gatherers }, (_, i) => newPlayer(`gatherer-${i + 1}`, 'gatherer')),
     ...(params.arbitrageur ? [newPlayer('arbitrageur', 'arbitrageur', 8_000)] : []),
     ...(params.investor ? [newPlayer('investor', 'investor', 40_000)] : []),
-    ...(params.flooder ? [newPlayer('flooder', 'flooder')] : []),
+    // The flooder is a bankrolled saboteur: it dumps goods whatever they cost, so it needs deep pockets.
+    ...(params.flooder ? [newPlayer('flooder', 'flooder', 60_000)] : []),
   ];
   const w = createWorld(params.seed, players);
   const hours = params.days * 24;

@@ -11,7 +11,7 @@ export function runWeek(seed = 1, days = 7) {
     newPlayer('gatherer-3', 'gatherer'),
     newPlayer('arbitrageur', 'arbitrageur', 8_000),
     newPlayer('investor', 'investor', 40_000),
-    newPlayer('flooder', 'flooder'),
+    newPlayer('flooder', 'flooder', 60_000),
   ];
   const w = createWorld(seed, players);
   for (let h = 0; h < days * 24; h++) tick(w, act);

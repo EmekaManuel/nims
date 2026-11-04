@@ -420,3 +420,54 @@ describe('fares never strand you', () => {
     expect(r.state(me).you.fareOwed).toBe(123);
   });
 });
+
+describe('delivery orders (intents)', () => {
+  const buyNow = () => g.state(me).stalls.find((s) => s.id === 'ruth')!.offers.find((o) => o.item === 'iron')!.buyPrice;
+
+  it('waits for the price, then delivers the load by itself, sale and fare included', () => {
+    g.state(me);
+    g.gather(me, 'iron');
+    const carried = g.state(me).you.carrying;
+    const high = buyNow() + 10_000; // out of reach for now
+    expect(g.placeOrder(me, 'ruth', 'iron', carried, high).ok).toBe(true);
+    g.tickOnce();
+    expect(g.state(me).orders[0].status).toBe('open');
+    expect(g.state(me).you.carrying).toBe(carried); // nothing moved
+    // Now an order the price meets.
+    expect(g.cancelOrder(me, g.state(me).orders[0].id).ok).toBe(true);
+    const cash = g.state(me).you.cash;
+    expect(g.placeOrder(me, 'ruth', 'iron', carried, 1).ok).toBe(true);
+    g.tickOnce();
+    const s = g.state(me);
+    expect(s.orders[0].status).toBe('filled');
+    expect(s.orders[0].done).toBe(carried);
+    expect(s.you.carrying).toBe(0);
+    expect(s.you.cash).toBeGreaterThan(cash);
+    expect(s.you.at).toBe('scrap');
+  });
+
+  it('lapses after a day if the price never comes, and keeps the goods', () => {
+    g.state(me);
+    g.gather(me, 'iron');
+    const carried = g.state(me).you.carrying;
+    g.placeOrder(me, 'ruth', 'iron', carried, 999_999);
+    for (let i = 0; i < 25; i++) g.tickOnce();
+    expect(g.state(me).orders[0].status).toBe('expired');
+    expect(g.state(me).you.carrying).toBe(carried);
+  });
+
+  it('rejects nonsense, and caps how many are open', () => {
+    expect(g.placeOrder(me, 'ruth', 'tomatoes', 5, 100).ok).toBe(false);
+    expect(g.placeOrder(me, 'ruth', 'iron', 0, 100).ok).toBe(false);
+    expect(g.placeOrder(me, 'ruth', 'iron', 5, 0).ok).toBe(false);
+    for (let i = 0; i < 5; i++) expect(g.placeOrder(me, 'ruth', 'iron', 5, 100).ok).toBe(true);
+    expect(g.placeOrder(me, 'ruth', 'iron', 5, 100).ok).toBe(false);
+  });
+
+  it('survives a save and restore', () => {
+    g.state(me);
+    g.placeOrder(me, 'ruth', 'iron', 5, 100);
+    const back = Game.restore(JSON.parse(JSON.stringify(g.snapshot())));
+    expect(back.state(me).orders).toHaveLength(1);
+  });
+});

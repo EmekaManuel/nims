@@ -211,6 +211,8 @@ export function createApp(d: AppDeps) {
         const units = Number(b.units ?? 1);
         const haggle = b.haggle === true;
         const routes: Record<string, () => ReturnType<typeof g.gather>> = {
+          '/game/order': () => g.placeOrder(email, merchant, item, units, Number(b.minPrice)),
+          '/game/order/cancel': () => g.cancelOrder(email, Number(b.id)),
           '/game/gather': () => g.gather(email, item),
           '/game/sell': () => g.sell(email, merchant, item, units, haggle),
           '/game/buy': () => g.buy(email, merchant, item, units, haggle),

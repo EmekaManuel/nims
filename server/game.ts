@@ -63,6 +63,30 @@ export function displayName(email: string): string {
   return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
 }
 
+/**
+ * A delivery order, the game's version of an intent: the player says what they want to end up with
+ * ("20 iron sold at Hardware Hal's for at least 280 coins each"), not how to do it. The town's carriers
+ * (the game, on every tick) work out the how: they wait until the price is right, take the load there,
+ * sell it through the normal sale, and take the fare out of it. If the price never comes, the order lapses.
+ */
+export interface Order {
+  id: number;
+  item: Item;
+  units: number;
+  merchantId: string;
+  /** Lowest price per unit the player will accept. */
+  minPrice: number;
+  placedHour: number;
+  expiresHour: number;
+  status: 'open' | 'filled' | 'expired' | 'cancelled';
+  /** Units delivered so far. */
+  done: number;
+  /** Coins received so far, before the fare. */
+  earned: number;
+}
+export const ORDER_HOURS = 24;
+export const MAX_OPEN_ORDERS = 5;
+
 export interface ActionResult {
   ok: boolean;
   /** Plain-English line to show the player. */
@@ -78,6 +102,9 @@ export class Game {
   /** player id -> merchant id -> hour of the last haggle (one haggle per merchant per hour). */
   private haggled = new Map<string, number>();
   private progress = new Map<string, Progress>();
+  /** email -> delivery orders (open ones, and recent finished ones for display). */
+  private orders = new Map<string, Order[]>();
+  private nextOrderId = 1;
   /** player id -> the name shown on signs and stalls. */
   private names = new Map<string, string>([['npc-investor', 'The Community Fund']]);
 
@@ -118,6 +145,8 @@ export class Game {
       progress: [...this.progress].map(([email, pr]) => [email, { ...pr, marketsSold: [...pr.marketsSold] }] as [string, unknown]),
       names: [...this.names],
       haggled: [...this.haggled],
+      orders: [...this.orders],
+      nextOrderId: this.nextOrderId,
     };
   }
 
@@ -140,6 +169,9 @@ export class Game {
     g.progress = new Map((snap.progress as [string, Progress & { marketsSold: MarketId[] }][]).map(([email, pr]) => [email, { ...pr, marketsSold: new Set(pr.marketsSold) }]));
     g.names = new Map(snap.names);
     g.haggled = new Map(snap.haggled);
+    const o = snap as { orders?: [string, Order[]][]; nextOrderId?: number };
+    g.orders = new Map(o.orders ?? []);
+    g.nextOrderId = o.nextOrderId ?? 1;
     return g;
   }
 
@@ -182,11 +214,66 @@ export class Game {
     // A live game runs for days: keep only the recent past so memory and save files stay small.
     if (this.w.history.length > HISTORY_KEEP) this.w.history.splice(0, this.w.history.length - HISTORY_KEEP);
     this.trimLedger();
+    this.fillOrders();
     if (this.w.events.length > 200) this.w.events.splice(0, this.w.events.length - 200);
     const anyClosed = this.w.merchants.some((m) => m.state === 'closed');
     for (const [email, pr] of this.progress) {
       if (pr.kind === 'district' && !pr.done) pr.streak = anyClosed ? 0 : pr.streak + 1;
       this.checkDone(email);
+    }
+  }
+
+  // ---- delivery orders (intents) ---------------------------------------------------------------
+
+  /** Say where you want a load to end up and the least you'll take. The carriers do the rest. */
+  placeOrder(email: string, merchantId: string, item: Item, units: number, minPrice: number): ActionResult {
+    const p = this.playerFor(email);
+    const m = this.w.merchants.find((x) => x.id === merchantId);
+    if (!m || !(item in BASE_PRICE) || !merchantItems(m).includes(item)) return fail('That stall does not trade that.');
+    if (m.owner === p.id) return fail('That is your own stall.');
+    if (!Number.isInteger(units) || units < 1) return fail('Pick a whole number of units.');
+    if (!Number.isFinite(minPrice) || minPrice < 1) return fail('Say the lowest price you will accept per unit.');
+    const mine = this.orders.get(email) ?? [];
+    if (mine.filter((o) => o.status === 'open').length >= MAX_OPEN_ORDERS) return fail(`You can have ${MAX_OPEN_ORDERS} open orders at a time. Cancel one first.`);
+    const o: Order = { id: this.nextOrderId++, item, units, merchantId, minPrice: Math.round(minPrice), placedHour: this.w.hour, expiresHour: this.w.hour + ORDER_HOURS, status: 'open', done: 0, earned: 0 };
+    this.orders.set(email, [...mine.filter((x) => x.status === 'open' || this.w.hour - x.placedHour < 72), o]);
+    return ok(`Order placed: sell ${units} ${item} at ${m.name} for at least ${o.minPrice} coins each. The carriers will take it as soon as the price is right (up to ${ORDER_HOURS} hours).`);
+  }
+
+  cancelOrder(email: string, id: number): ActionResult {
+    const o = (this.orders.get(email) ?? []).find((x) => x.id === id && x.status === 'open');
+    if (!o) return fail('That order is not open.');
+    o.status = 'cancelled';
+    return ok('Order cancelled. Your goods stay with you.');
+  }
+
+  /** Every hour: for each open order, deliver if the stall will pay the limit price now, or let it lapse. */
+  private fillOrders() {
+    for (const [email, list] of this.orders) {
+      const p = this.humans.get(email);
+      if (!p) continue;
+      for (const o of list) {
+        if (o.status !== 'open') continue;
+        const m = this.w.merchants.find((x) => x.id === o.merchantId);
+        const left = o.units - o.done;
+        const lapse = (why: string) => { o.status = 'expired'; addNote(this.w, p, `Your order for ${o.units} ${o.item} lapsed: ${why}`); };
+        if (this.w.hour >= o.expiresHour) { lapse(`the price never reached ${o.minPrice} coins.`); continue; }
+        if (!m || m.state === 'closed') continue; // wait: a closed stall may be revived
+        const have = p.inventory[o.item] ?? 0;
+        if (have < 1) continue; // wait for the player to collect some goods
+        const q = quoteFor(this.w, m, o.item, p);
+        if (!q.willBuy || q.buyPrice < o.minPrice) continue;
+        const before = p.cash;
+        const r = this.sell(email, o.merchantId, o.item, Math.min(left, have));
+        if (!r.ok) continue;
+        const sold = have - (p.inventory[o.item] ?? 0);
+        o.done += sold;
+        o.earned += Math.round(p.cash - before);
+        if (o.done >= o.units) {
+          o.status = 'filled';
+          addNote(this.w, p, `Order filled: ${o.done} ${o.item} delivered to ${m.name}. ${r.message}`);
+        }
+      }
     }
   }
 
@@ -656,6 +743,7 @@ export class Game {
       goals: (Object.keys(GOALS) as GoalKind[]).map((k) => ({ kind: k, ...GOALS[k] })),
       coach: this.coach(email, p, raw, deals),
       deals,
+      orders: (this.orders.get(email) ?? []).slice().reverse().slice(0, 8),
       hour: w.hour,
       day: Math.floor(w.hour / 24) + 1,
       shocks: w.shocks.filter((s) => w.hour >= s.startHour && w.hour < s.endHour).map((s) => ({ kind: s.kind, hoursLeft: s.endHour - w.hour })),

@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { useState } from 'react';
+import userEvent from '@testing-library/user-event';
 import fixture from './ff-fixture.json';
 import type { FastForward } from './api';
 import { CashChart, DataTable, PriceChart, priceTable, Sync } from './Charts';
@@ -117,6 +118,69 @@ describe('the fast-forward page', () => {
     fireEvent.click(screen.getByRole('button', { name: /Fast-forward a week/ }));
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
     expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toMatchObject({ flooder: false, gatherers: 1, arbitrageur: true });
+  });
+
+  it('picks the length from a dropdown and runs for that many days', async () => {
+    const user = userEvent.setup();
+    render(<FastForwardPage />);
+    await waitFor(() => screen.getByText('What stood out'));
+    await user.click(screen.getByRole('combobox', { name: 'Days' }));
+    await user.click(await screen.findByRole('option', { name: '14' }));
+    await user.click(screen.getByRole('button', { name: /Fast-forward 14 days/ }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toMatchObject({ days: 14 });
+  });
+
+  it('lets you clear the gatherers field and type a new number, and keeps it within 0 to 6', async () => {
+    const user = userEvent.setup();
+    render(<FastForwardPage />);
+    await waitFor(() => screen.getByText('What stood out'));
+    const g = screen.getByLabelText('Gatherers') as HTMLInputElement;
+    await user.click(g);
+    await user.keyboard('{Backspace}');
+    expect(g.value).toBe('');
+    await user.keyboard('9');
+    await user.tab(); // leave the field: 9 is above the maximum
+    expect(g.value).toBe('6');
+    await user.click(screen.getByRole('button', { name: /Fast-forward a week/ }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toMatchObject({ gatherers: 6 });
+  });
+
+  it('toggles who takes part with real checkboxes you can also reach by label', async () => {
+    const user = userEvent.setup();
+    render(<FastForwardPage />);
+    await waitFor(() => screen.getByText('What stood out'));
+    const inv = screen.getByRole('checkbox', { name: 'Investor' });
+    expect(inv.getAttribute('aria-checked')).toBe('true');
+    await user.click(within(document.querySelector('.ffbar') as HTMLElement).getByText('Investor')); // the label, not the trader in the table
+    expect(inv.getAttribute('aria-checked')).toBe('false');
+    await user.click(screen.getByRole('button', { name: /Fast-forward a week/ }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toMatchObject({ investor: false, flooder: true });
+  });
+
+  it('has a time slider that says the time in words and scrubs the charts', async () => {
+    const user = userEvent.setup();
+    render(<FastForwardPage />);
+    await waitFor(() => screen.getByText('What stood out'));
+    const slider = screen.getByRole('slider', { name: 'Time' });
+    expect(slider.getAttribute('aria-valuetext')).toBe('Day 7, 23:00');
+    slider.focus();
+    await user.keyboard('{Home}');
+    expect(slider.getAttribute('aria-valuetext')).toBe('Day 1, 00:00');
+    expect(document.querySelector('.clock')!.textContent).toBe('Day 1, 00:00');
+    await user.keyboard('{ArrowRight}');
+    expect(document.querySelector('.clock')!.textContent).toBe('Day 1, 01:00');
+  });
+
+  it('changes the playback speed from a dropdown', async () => {
+    const user = userEvent.setup();
+    render(<FastForwardPage />);
+    await waitFor(() => screen.getByText('What stood out'));
+    await user.click(screen.getByRole('combobox', { name: 'Speed' }));
+    await user.click(await screen.findByRole('option', { name: '4×' }));
+    expect(screen.getByRole('combobox', { name: 'Speed' }).textContent).toContain('4×');
   });
 
   it('keeps the previous charts on screen while it reloads, and says what went wrong if it fails', async () => {

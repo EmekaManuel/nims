@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import fixture from './fixture.json';
 import type { GameState } from './api';
-import { DistrictMap, STALL_H, STALL_POS, STALL_W, ZONES } from './Map';
+import { crateCount, DistrictMap, lightAt, STALL_H, STALL_POS, STALL_W, ZONES } from './Map';
 import { Deals, Mission } from './Mission';
 import { GoalPicker, HowToPlay } from './Modals';
 import { Hud } from './Hud';
@@ -13,6 +13,7 @@ import { StallPanel, SourcePanel, Actions } from './Panels';
 afterEach(cleanup);
 const state = fixture as unknown as GameState;
 const act = (): Actions => ({ sell: vi.fn(), buy: vi.fn(), gather: vi.fn(), upgrade: vi.fn() });
+const empty = { ...state, you: { ...state.you, carrying: 0, inventory: [] } };
 const withInv = { ...state, you: { ...state.you, carrying: 5, inventory: [{ item: 'iron' as const, units: 5 }] } };
 
 describe('map', () => {
@@ -58,7 +59,7 @@ describe('stall panel', () => {
   });
 
   it("can't sell what you don't carry", () => {
-    render(<StallPanel stall={stall} state={state} act={act()} />);
+    render(<StallPanel stall={stall} state={empty} act={act()} />);
     const row = screen.getByText('iron').closest('tr')!;
     expect((within(row).getByText('Sell') as HTMLButtonElement).disabled).toBe(true);
   });
@@ -80,7 +81,7 @@ describe('stall panel', () => {
 describe('source panel, board and hud', () => {
   it('collects from a source and disables when the vehicle is full', () => {
     const a = act();
-    const { rerender } = render(<SourcePanel item="iron" state={state} act={a} />);
+    const { rerender } = render(<SourcePanel item="iron" state={empty} act={a} />);
     fireEvent.click(screen.getByText('Collect iron'));
     expect(a.gather).toHaveBeenCalledWith('iron');
     rerender(<SourcePanel item="iron" state={{ ...state, you: { ...state.you, carrying: 20 } }} act={a} />);
@@ -122,7 +123,7 @@ describe('map layout', () => {
       const z = ZONES[s.market];
       expect(x - STALL_W / 2, s.id).toBeGreaterThanOrEqual(z.x);
       expect(x + STALL_W / 2, s.id).toBeLessThanOrEqual(z.x + z.w);
-      expect(y - STALL_H / 2, s.id).toBeGreaterThanOrEqual(z.y + 44); // below the label
+      expect(y - STALL_H / 2, s.id).toBeGreaterThanOrEqual(z.y + 52); // below the label plate
       expect(y + STALL_H / 2, s.id).toBeLessThanOrEqual(z.y + z.h);
     }
   });
@@ -183,5 +184,48 @@ describe('goal, next step and deals', () => {
     expect(screen.getAllByRole('button').filter((b) => b.className.includes('goalopt'))).toHaveLength(3);
     fireEvent.click(screen.getByText('Keep the district alive'));
     expect(onPick).toHaveBeenCalledWith('district');
+  });
+});
+
+
+describe('illustrated map', () => {
+  it('draws more crates the more a stall holds, so a flooded stall visibly overflows', () => {
+    expect(crateCount(0, 60)).toBe(0);
+    expect(crateCount(10, 60)).toBe(1);
+    expect(crateCount(40, 60)).toBe(2);
+    expect(crateCount(60, 60)).toBe(3);
+    expect(crateCount(140, 60)).toBe(4);
+    const counts = [0, 10, 40, 60, 140].map((s) => crateCount(s, 60));
+    expect(counts).toEqual([...counts].sort((a, b) => a - b));
+  });
+
+  it('is bright by day, dark at night, and warm at dawn and dusk', () => {
+    expect(lightAt(12).opacity).toBe(0);
+    expect(lightAt(2).opacity).toBeGreaterThanOrEqual(0.4);
+    expect(lightAt(18).opacity).toBeGreaterThan(0);
+    expect(lightAt(18).opacity).toBeLessThan(lightAt(2).opacity);
+    expect(lightAt(36)).toEqual(lightAt(12)); // wraps around the day
+    for (let h = 0; h < 24; h++) expect(() => lightAt(h)).not.toThrow();
+  });
+
+  it('puts the shutters down on a closed stall and says so in words', () => {
+    const s = { ...state, stalls: state.stalls.map((x) => (x.id === 'chidi' ? { ...x, state: 'closed' as const } : x)) };
+    const { container } = render(<DistrictMap state={s} selected={null} onSelect={() => {}} />);
+    expect(screen.getByLabelText(/Chidi Iron Works, Closed/)).toBeTruthy();
+    expect(container.textContent).toContain('✕ Closed');
+  });
+
+  it('shows a low-cash badge and wording on a struggling stall', () => {
+    const s = { ...state, stalls: state.stalls.map((x) => (x.id === 'wale' ? { ...x, state: 'struggling' as const } : x)) };
+    const { container } = render(<DistrictMap state={s} selected={null} onSelect={() => {}} />);
+    expect(container.textContent).toContain('Low on cash');
+  });
+
+  it('lets the merchant speak in a bubble that names them', () => {
+    const stall = state.stalls.find((x) => x.id === 'chidi')!;
+    render(<StallPanel stall={stall} state={withInv} act={act()} />);
+    const price = document.querySelector('.offers .price:not(.off)')!;
+    fireEvent.focus(price.closest('.tipwrap')!);
+    expect(screen.getByRole('tooltip').textContent).toContain('Chidi Iron Works says');
   });
 });

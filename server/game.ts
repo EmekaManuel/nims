@@ -254,7 +254,7 @@ export class Game {
       const d = deals[0];
       return say(
         d.from.kind === 'source'
-          ? `Collect ${d.item} at the ${d.from.label.toLowerCase()}${d.from.cost ? ` (₦${d.from.cost} each)` : ' (free)'}, then sell it to ${d.to.stall} for ₦${d.to.price} each.`
+          ? `Collect ${d.item} at the ${d.from.label.replace(/ \(.*\)$/, '').toLowerCase()}${d.from.cost ? ` (₦${d.from.cost} each)` : ' (free)'}, then sell it to ${d.to.stall} for ₦${d.to.price} each.`
           : `Buy ${d.item} from ${d.from.label} at ₦${d.from.cost}, then sell it to ${d.to.stall} for ₦${d.to.price}.`,
         { kind: d.from.kind, id: d.from.id },
       );

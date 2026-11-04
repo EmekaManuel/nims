@@ -16,11 +16,11 @@ import {
 } from '../sim/engine';
 import { clampPlayerPrice, MAX_MULT, MIN_MULT } from '../merchants/pricing';
 import { gather } from '../sim/players';
-import { BASE_PRICE, CAPACITY, createWorld, Item, MARKETS, MarketId, Merchant, Player, Vehicle, World } from '../sim/world';
+import { BASE_PRICE, CAPACITY, CARRY_VALUE, createWorld, Item, MARKETS, MarketId, Merchant, Player, Vehicle, World } from '../sim/world';
 
 export const UPGRADE_COST: Record<Exclude<Vehicle, 'wheelbarrow'>, number> = { pickup: 5_000, van: 18_000 };
 const SOURCE_LABEL: Record<string, string> = {};
-const START_CASH = 3_000;
+const START_CASH = 4_000;
 /** Away for this many in-game hours (about 1.5 minutes of real time) and you get a summary on return. */
 const AWAY_HOURS = 24;
 const HISTORY_KEEP = 24 * 7;
@@ -28,16 +28,17 @@ const LEDGER_KEEP = 20_000;
 /** Version 2: the Nims renaming (merchants, goods, vehicles). Older saves hold names and items that no longer exist. */
 export const SNAPSHOT_VERSION = 2;
 
+const FORTUNE_TARGET = 12_000;
+
 export type GoalKind = 'fortune' | 'reach' | 'stake' | 'district';
 
 /** The session goals a player can pick (DESIGN.md §2). Shown in the UI with a progress bar. */
 export const GOALS: Record<GoalKind, { title: string; blurb: string }> = {
-  fortune: { title: 'Build a fortune', blurb: `Grow your net worth to ${(25_000).toLocaleString('en-US')} coins. Buy low, carry it, sell high.` },
+  fortune: { title: 'Build a fortune', blurb: `Grow your net worth to ${FORTUNE_TARGET.toLocaleString('en-US')} coins. Buy low, carry it, sell high.` },
   reach: { title: 'Trade everywhere', blurb: 'Sell in all three markets and buy a van. Learn where each good is dear.' },
   stake: { title: 'A stake in every market', blurb: 'Own shares in a merchant in each of the three markets. Your money works while you sleep.' },
   district: { title: 'Keep the district alive', blurb: 'Keep every stall open for 3 days in a row. Flood a stall with goods and it can go broke.' },
 };
-const FORTUNE_TARGET = 25_000;
 const DISTRICT_HOURS = 72;
 
 interface Progress {
@@ -81,6 +82,8 @@ export class Game {
     this.w = createWorld(seed, [
       newPlayer('npc-gatherer-1', 'gatherer'),
       newPlayer('npc-gatherer-2', 'gatherer'),
+      newPlayer('npc-gatherer-3', 'gatherer'),
+      newPlayer('npc-gatherer-4', 'gatherer'),
       newPlayer('npc-arbitrageur', 'arbitrageur', 8_000),
       newPlayer('npc-investor', 'investor', 40_000),
     ]);
@@ -190,7 +193,7 @@ export class Game {
 
   /** Cash, what you carry, your shares at today's price, and your stall's till and stock. */
   private netWorth(p: Player) {
-    let worth = p.cash + Object.entries(p.inventory).reduce((a, [i, n]) => a + (n ?? 0) * BASE_PRICE[i as Item], 0);
+    let worth = p.cash + Object.entries(p.inventory).reduce((a, [i, n]) => a + (n ?? 0) * BASE_PRICE[i as Item] * CARRY_VALUE, 0);
     for (const m of this.w.merchants) {
       if (m.shares[p.id]) worth += m.shares[p.id] * sharePrice(m);
       if (m.owner === p.id) worth += m.cash + Object.entries(m.stock).reduce((a, [i, n]) => a + (n ?? 0) * BASE_PRICE[i as Item], 0);

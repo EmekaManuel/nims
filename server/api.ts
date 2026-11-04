@@ -156,6 +156,7 @@ export function createApp(d: AppDeps) {
           : url.pathname === '/game/sell' ? g.sell(email, merchant, item, units, haggle)
           : url.pathname === '/game/buy' ? g.buy(email, merchant, item, units, haggle)
           : url.pathname === '/game/upgrade' ? g.upgrade(email, String(b.to ?? ''))
+          : url.pathname === '/game/goal' ? g.chooseGoal(email, String(b.kind ?? ''))
           : null;
         if (result) return send(res, result.ok ? 200 : 400, { ...result, state: g.state(email) });
       }

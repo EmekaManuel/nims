@@ -1,6 +1,6 @@
 # Judge walk-through (about 5 minutes)
 
-A 90-second recording of the whole loop is in [nims-demo.mp4](nims-demo.mp4).
+An 85-second recording (sign-in, a first sale, a delivery order, prices, shares and the one-week fast-forward) of the whole loop is in [nims-demo.mp4](nims-demo.mp4).
 
 **Judging targets:** a tight, readable loop where the economy *is* the gameplay; and a player who never notices the chain.
 

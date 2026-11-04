@@ -12,7 +12,7 @@ import { tick } from '../sim/engine';
 import { createWorld } from '../sim/world';
 import { agentChain } from './agent-chain';
 import { buildAgentBatches, SignedCall } from './rounds';
-import { applyBatch, Balances, genesisLedger, MintCall } from './settle';
+import { applyBatch, Balances, MintCall } from './settle';
 import { WalletStore } from './wallets';
 
 const HOURS = Number(process.argv[2] ?? 12);
@@ -30,7 +30,7 @@ const players = [
 ];
 const w = createWorld(21, players);
 for (let h = 0; h < HOURS; h++) tick(w, act);
-const batches = buildAgentBatches([...genesisLedger(), ...w.ledger], parent, 4);
+const batches = buildAgentBatches(w.ledger, parent, 4);
 
 // 2. Dry run on the books: every merchant agent reviews its own legs before anything touches the chain.
 type Step = { kind: 'mint'; mints: MintCall[] } | { kind: 'send'; call: SignedCall };

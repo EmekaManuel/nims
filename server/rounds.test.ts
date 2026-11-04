@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { applyBatch, Balances, accountFor, genesisLedger } from './settle';
+import { applyBatch, Balances, accountFor } from './settle';
 import { buildAgentBatches, planRounds } from './rounds';
 import { runWeek } from '../sim/run';
 
@@ -39,7 +39,7 @@ describe('round scheduler', () => {
 
   it('a whole sim week settles with every signer paying its own legs, in ANY order within a round', () => {
     const w = runWeek(11);
-    const batches = buildAgentBatches([...genesisLedger(), ...w.ledger], P);
+    const batches = buildAgentBatches(w.ledger, P);
     const bal: Balances = new Map();
     for (const b of batches) {
       applyBatch(bal, { mints: b.mints, transfers: [] });
@@ -55,5 +55,7 @@ describe('round scheduler', () => {
       for (const [item, units] of Object.entries(m.stock)) expect(bal.get(`${accountFor(m.id, P)}|${item}`) ?? 0, `${m.id} ${item}`).toBe(units);
     for (const p of w.players)
       for (const [item, units] of Object.entries(p.inventory)) expect(bal.get(`${accountFor(p.id, P)}|${item}`) ?? 0, `${p.id} ${item}`).toBe(units);
+    for (const m of w.merchants) expect(bal.get(`${accountFor(m.id, P)}|coins`) ?? 0, `${m.id} coins`).toBe(m.cash);
+    for (const p of w.players) expect(bal.get(`${accountFor(p.id, P)}|coins`) ?? 0, `${p.id} coins`).toBe(p.cash);
   });
 });

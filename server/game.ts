@@ -12,11 +12,11 @@ import { makeRng } from '../sim/rng';
 import { act, newPlayer } from '../sim/players';
 import {
   activeShock, addNote, buyFromMerchant, buyShares, carryCost, contributeToFund, gatherRate, merchantItems, openOwnerStall, ownerStallOf,
-  publicSharesLeft, quoteFor, refreshState, sellShares, sellToMerchant, sharePrice, STALL_COST, STALL_MARKETS, tick,
+  publicSharesLeft, quoteFor, refreshState, sellShares, sellToMerchant, sharePrice, STALL_COST, STALL_MARKETS, tick, transferCoins,
 } from '../sim/engine';
 import { clampPlayerPrice, MAX_MULT, MIN_MULT } from '../merchants/pricing';
 import { gather } from '../sim/players';
-import { BASE_PRICE, CAPACITY, CARRY_VALUE, createWorld, Item, MARKETS, MarketId, Merchant, Player, Vehicle, World } from '../sim/world';
+import { addPlayer, BASE_PRICE, CAPACITY, CARRY_VALUE, createWorld, Item, MARKETS, MarketId, Merchant, Player, Vehicle, World } from '../sim/world';
 
 export const UPGRADE_COST: Record<Exclude<Vehicle, 'wheelbarrow'>, number> = { pickup: 5_000, van: 18_000 };
 const SOURCE_LABEL: Record<string, string> = {};
@@ -216,7 +216,7 @@ export class Game {
     const id = 'h-' + createHash('sha256').update(email).digest('hex').slice(0, 10);
     const p = newPlayer(id, 'human', START_CASH);
     p.at = 'produce';
-    this.w.players.push(p);
+    addPlayer(this.w, p); // records the starting cash, so the ledger explains every coin
     this.humans.set(email, p);
     this.names.set(id, displayName(email));
     return p;
@@ -239,7 +239,7 @@ export class Game {
     if (fare === 0) return null;
     if (p.cash < fare && !payOnDelivery) return fail(`You can't afford the fare to ${MARKETS[market].name} (${fare} coins). Sell what you're carrying nearby first.`);
     const now = Math.min(p.cash, fare);
-    p.cash -= now;
+    transferCoins(this.w, p, 'town', now);
     p.fareOwed = (p.fareOwed ?? 0) + (fare - now);
     p.at = market;
     return null;
@@ -250,7 +250,7 @@ export class Game {
     const owed = p.fareOwed ?? 0;
     if (owed <= 0) return 0;
     const pay = Math.min(owed, p.cash);
-    p.cash -= pay;
+    transferCoins(this.w, p, 'town', pay);
     p.fareOwed = owed - pay;
     return pay;
   }
@@ -375,7 +375,7 @@ export class Game {
     if (this.myStall(email)) return fail('You already have a stall.');
     if (!STALL_MARKETS.includes(market as MarketId)) return fail('There is no free plot in that market. Try the Produce or Fabric Market.');
     if (p.cash < STALL_COST) return fail(`A stall costs ${STALL_COST.toLocaleString('en-US')} coins.`);
-    p.cash -= STALL_COST;
+    transferCoins(this.w, p, 'town', STALL_COST);
     const stall = openOwnerStall(this.w, p, market as MarketId, this.names.get(p.id) ?? 'Your');
     addNote(this.w, p, `You opened ${stall.name} in the ${MARKETS[market as MarketId].name}.`);
     return ok(`Your stall is open in the ${MARKETS[market as MarketId].name}. Stock the shelves and set your prices.`);
@@ -430,13 +430,11 @@ export class Game {
     if (!Number.isInteger(amount) || amount < 1) return fail('Pick a whole number of coins.');
     if (direction === 'deposit') {
       if (p.cash < amount) return fail('You do not have that much cash.');
-      p.cash -= amount;
-      st.cash += amount;
+      transferCoins(this.w, p, st, amount);
       return ok(`Put ${amount} coins in your till.`);
     }
     if (st.cash < amount) return fail(`Your till only holds ${Math.round(st.cash)} coins.`);
-    st.cash -= amount;
-    p.cash += amount;
+    transferCoins(this.w, st, p, amount);
     return ok(`Took ${amount} coins out of your till.`);
   }
 
@@ -453,7 +451,7 @@ export class Game {
     if (order.indexOf(to) <= order.indexOf(p.vehicle)) return fail(`You already have a ${p.vehicle}.`);
     if (order.indexOf(to) > order.indexOf(p.vehicle) + 1) return fail('Buy a pickup first.');
     if (p.cash < UPGRADE_COST[to]) return fail(`A ${to} costs ${UPGRADE_COST[to]} coins.`);
-    p.cash -= UPGRADE_COST[to];
+    transferCoins(this.w, p, 'town', UPGRADE_COST[to]);
     p.vehicle = to;
     this.checkDone(email);
     return ok(`You bought a ${to}. It carries ${CAPACITY[to]}.`);

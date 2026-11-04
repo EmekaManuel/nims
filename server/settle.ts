@@ -5,7 +5,7 @@
  * submits the batches. Gameplay never waits on this (CLAUDE.md): trades are
  * applied to game state instantly and settled a chunk at a time afterwards.
  */
-import { createMerchants, LedgerEntry } from '../sim/world';
+import { LedgerEntry } from '../sim/world';
 
 /** Max transfer legs per `settle` call, to stay well inside gas limits. */
 export const MAX_LEGS = 100;
@@ -29,15 +29,6 @@ export interface Batch {
 
 /** Sim id -> NEAR account, e.g. "mira" -> "mira.oja.testnet". */
 export const accountFor = (simId: string, parent: string) => `${simId}.${parent}`;
-
-/** Merchants start the game holding stock, so mint it first. */
-export function genesisLedger(): LedgerEntry[] {
-  return createMerchants().flatMap((m) =>
-    (Object.entries(m.stock) as [LedgerEntry['item'], number][])
-      .filter(([, units]) => units > 0)
-      .map(([item, units]) => ({ hour: 0, kind: 'mint' as const, to: m.id, item, units })),
-  );
-}
 
 /**
  * Group the ledger into batches of at most `chunkHours` in-game hours and `MAX_LEGS` transfers.

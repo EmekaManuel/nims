@@ -6,7 +6,7 @@
  *   npx tsx server/run-settle.ts settle     # settle a week and verify
  */
 import { runWeek } from '../sim/run';
-import { accountFor, buildBatches, genesisLedger } from './settle';
+import { accountFor, buildBatches } from './settle';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { balanceOf, callsOf, deploy, loadEnv, submitCall, upgrade } from './chain';
 
@@ -25,7 +25,7 @@ if (cmd === 'deploy') {
 } else if (cmd === 'settle') {
   const { parent } = loadEnv();
   const w = runWeek(1);
-  const batches = buildBatches([...genesisLedger(), ...w.ledger], parent);
+  const batches = buildBatches(w.ledger, parent);
   const calls = batches.flatMap(callsOf);
   const key = `${parent}|seed1`;
   let done = loadDone(key);

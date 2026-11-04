@@ -1,5 +1,6 @@
 import type { Deal, Focus, GameState } from './api';
 import { naira } from './api';
+import { ItemIcon } from './icons';
 
 /** Always-visible answer to "what am I playing for, and what should I do now?" */
 export function Mission({ state, onFocus, onPickGoal }: { state: GameState; onFocus: (f: Focus) => void; onPickGoal: () => void }) {
@@ -10,8 +11,10 @@ export function Mission({ state, onFocus, onPickGoal }: { state: GameState; onFo
         <span className="k">Your goal</span>
         {g ? (
           <>
-            <h2>{g.done ? '🎉 ' : ''}{g.title}</h2>
-            <progress max={1} value={g.progress} aria-label={`${Math.round(g.progress * 100)}% of the way`} />
+            <h2>{g.title}</h2>
+            <div className="meter" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(g.progress * 100)} aria-label="Progress towards your goal">
+              <i style={{ width: `${Math.max(2, g.progress * 100)}%` }} />
+            </div>
             <div className="goalrow">
               <span>{g.done ? 'Goal reached!' : g.label}</span>
               <button className="link" onClick={onPickGoal}>{g.done ? 'Pick a new goal' : 'Change'}</button>
@@ -36,7 +39,6 @@ export function Mission({ state, onFocus, onPickGoal }: { state: GameState; onFo
 /** "Scrap spot (iron)" -> "scrap spot" */
 const place = (label: string) => label.replace(/ \(.*\)$/, '').toLowerCase();
 
-const ICON: Record<string, string> = { tomatoes: '🍅', pepper: '🌶️', garri: '🥣', ankara: '🧵', lace: '🪡', thread: '🧶', iron: '🔩', 'copper wire': '➰' };
 
 export function Deals({ deals, onFocus }: { deals: Deal[]; onFocus: (f: Focus) => void }) {
   return (
@@ -49,7 +51,7 @@ export function Deals({ deals, onFocus }: { deals: Deal[]; onFocus: (f: Focus) =
           {deals.map((d) => (
             <li key={d.item}>
               <div>
-                <b>{ICON[d.item] ?? ''} {d.item}</b>
+                <b className="itemcell"><ItemIcon item={d.item} size={26} /> {d.item}</b>
                 <span className="profit">+{naira(d.profit)} each</span>
               </div>
               <p className="muted small">

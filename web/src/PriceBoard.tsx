@@ -1,13 +1,15 @@
 import type { GameState, Item, MarketId } from './api';
 import { naira } from './api';
+import { ItemIcon } from './icons';
 
 /** Each item's price in every market, against its usual price. Arrows and words back up the colour. */
 export function PriceBoard({ state }: { state: GameState }) {
   const items = [...new Set(state.board.map((b) => b.item))] as Item[];
   const cell = (market: MarketId, item: Item) => state.board.find((b) => b.market === market && b.item === item);
   return (
-    <section className="panel" aria-labelledby="board-h">
+    <section className="chalk" aria-labelledby="board-h">
       <h2 id="board-h">Price board</h2>
+      <div className="tablewrap">
       <table className="board">
         <thead>
           <tr><th></th>{state.markets.map((m) => <th key={m.id}>{m.name}</th>)}</tr>
@@ -15,7 +17,7 @@ export function PriceBoard({ state }: { state: GameState }) {
         <tbody>
           {items.map((item) => (
             <tr key={item}>
-              <th scope="row">{item}</th>
+              <th scope="row"><span className="itemcell"><ItemIcon item={item} size={22} /> {item}</span></th>
               {state.markets.map((m) => {
                 const c = cell(m.id, item);
                 if (!c) return <td key={m.id} className="na">—</td>;
@@ -34,8 +36,9 @@ export function PriceBoard({ state }: { state: GameState }) {
           ))}
         </tbody>
       </table>
+      </div>
       <p className="legend">
-        <span className="chip high">▲ dear — sell here</span> <span className="chip low">▼ cheap — buy here</span> <span className="chip fair">• about usual</span>
+        <span className="chip high">▲ dear: sell here</span> <span className="chip low">▼ cheap: buy here</span> <span className="chip fair">• about usual</span>
       </p>
     </section>
   );

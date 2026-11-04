@@ -6,6 +6,7 @@ import { Deals, Mission } from './Mission';
 import { GoalPicker, HowToPlay } from './Modals';
 import { Hud } from './Hud';
 import { PriceBoard } from './PriceBoard';
+import { IconSprite } from './icons';
 
 function Login({ onIn }: { onIn: () => void }) {
   const [email, setEmail] = useState('');
@@ -49,6 +50,15 @@ function Login({ onIn }: { onIn: () => void }) {
 }
 
 export function App() {
+  return (
+    <>
+      <IconSprite />
+      <Game />
+    </>
+  );
+}
+
+function Game() {
   const [state, setState] = useState<GameState | null>(null);
   const [checked, setChecked] = useState(false);
   const [selected, setSelected] = useState<Selection>(null);
@@ -130,7 +140,7 @@ export function App() {
       {toast && <div className={`toast ${toast.ok ? 'good' : 'bad'}`}>{toast.text}</div>}
       <div className="layout">
         <div className="mapcol">
-          <DistrictMap state={state} selected={selected} onSelect={setSelected} />
+          <div className="mapscroll"><DistrictMap state={state} selected={selected} onSelect={setSelected} /></div>
           <section className="panel feed" aria-label="What's happening">
             <h2>Around town</h2>
             {state.events.length === 0 ? <p className="muted">All quiet so far.</p> : (

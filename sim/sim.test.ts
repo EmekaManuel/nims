@@ -6,7 +6,7 @@ import { createWorld } from './world';
 
 describe('Milestone 1 exit test', () => {
   it('flooding iron makes iron cheap', () => {
-    const w = createWorld(7, [newPlayer('flooder', 'flooder')]);
+    const w = createWorld(7, [newPlayer('flooder', 'flooder', 60_000)]);
     const start = quoteFor(w, w.merchants.find((m) => m.id === 'ruth')!, 'iron').mid;
     for (let h = 0; h < 48; h++) tick(w, act);
     const end = quoteFor(w, w.merchants.find((m) => m.id === 'ruth')!, 'iron').mid;
@@ -14,7 +14,7 @@ describe('Milestone 1 exit test', () => {
   });
 
   it('flooding iron leaves other markets alone', () => {
-    const w = createWorld(7, [newPlayer('flooder', 'flooder')]);
+    const w = createWorld(7, [newPlayer('flooder', 'flooder', 60_000)]);
     const tomato0 = quoteFor(w, w.merchants.find((m) => m.id === 'tomas')!, 'tomatoes').mid;
     for (let h = 0; h < 48; h++) tick(w, act);
     const tomato1 = quoteFor(w, w.merchants.find((m) => m.id === 'tomas')!, 'tomatoes').mid;

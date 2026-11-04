@@ -88,6 +88,7 @@ describe('dividends', () => {
     m.shares.ada = 40;
     m.dayStartWorth = merchantWorth(m) - 100_000;
     m.cash = m.cashFloor; // right at the floor: nothing spare
+    m.stock = {}; // and nothing on the shelf for customers to buy, so no cash arrives during the day
     const before = p.cash;
     endOfDay(w);
     expect(p.cash).toBe(before);

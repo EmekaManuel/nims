@@ -11,7 +11,7 @@ beforeEach(() => {
 describe('game', () => {
   it('starts a new player with a wheelbarrow and a little cash', () => {
     const s = g.state(me);
-    expect(s.you.cash).toBe(3000);
+    expect(s.you.cash).toBe(4000);
     expect(s.you.vehicle).toBe('wheelbarrow');
     expect(s.you.capacity).toBe(20);
     expect(s.stalls).toHaveLength(8);
@@ -122,8 +122,8 @@ describe('goals, coach and deals', () => {
     g.chooseGoal(me, 'fortune');
     const s = g.state(me);
     expect(s.goal!.title).toBe('Build a fortune');
-    expect(s.goal!.progress).toBeCloseTo(3000 / 25000, 2);
-    expect(s.goal!.label).toContain('25,000');
+    expect(s.goal!.progress).toBeCloseTo(4000 / 12000, 2);
+    expect(s.goal!.label).toContain('12,000');
     g.w.players.find((p) => p.strategy === 'human')!.cash = 30_000;
     g.tickOnce();
     expect(g.state(me).goal!.done).toBe(true);

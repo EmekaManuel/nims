@@ -328,3 +328,95 @@ describe('ownership', () => {
     expect(JSON.stringify([g.state(me), g.stallCash(me, 'deposit', 100)])).not.toMatch(/seed|mnemonic|private key|wallet|\bgas\b|yocto|\.testnet|signature/i);
   });
 });
+
+describe('fares never strand you', () => {
+  const human = (g: Game) => g.w.players.find((p) => p.strategy === 'human')!;
+  /** Broke, carrying 20 things, standing in the Produce Market: the exact situation that used to soft-lock. */
+  function stuck() {
+    g.state(me);
+    const p = human(g);
+    p.cash = 280;
+    p.inventory = { iron: 16, cotton: 4 };
+    p.at = 'produce';
+    g.w.shocks = []; // no fuel queue: the fare is exactly 20 a unit
+    return p;
+  }
+
+  it('lets you sell in another market even when you cannot afford the whole fare', () => {
+    const p = stuck();
+    expect(g.state(me).faresPerUnit).toBe(20);
+    const r = g.sell(me, 'anil', 'iron', 16);
+    expect(r.ok).toBe(true);
+    expect(r.message).toContain('came out of the sale');
+    expect(p.at).toBe('scrap'); // you made the trip
+    expect(g.state(me).you.fareOwed).toBe(0); // and the debt is paid off from the sale
+    expect(p.cash).toBeGreaterThan(0); // with money left over
+  });
+
+  it('takes the fare out of the sale: you pay what you have now and the rest from the proceeds', () => {
+    const p = stuck();
+    const before = p.cash;
+    const fare = 20 * 20; // 20 things carried, 20 coins each
+    g.sell(me, 'anil', 'iron', 16);
+    const proceeds = p.cash - before + fare; // what the sale earned, since the fare was paid in full overall
+    expect(proceeds).toBeGreaterThan(0);
+    expect(p.cash).toBe(before + proceeds - fare);
+  });
+
+  it('keeps owing if the sale is smaller than the fare, and says so', () => {
+    const p = stuck();
+    p.cash = 0;
+    const r = g.sell(me, 'anil', 'iron', 1); // one iron pays far less than a 400-coin fare
+    expect(r.ok).toBe(true);
+    expect(r.message).toMatch(/You still owe \d+ coins for the trip/);
+    expect(p.fareOwed).toBeGreaterThan(0);
+    expect(p.cash).toBe(0); // everything earned went to the fare
+    expect(g.state(me).you.fareOwed).toBe(p.fareOwed);
+  });
+
+  it('counts what you owe against your net worth', () => {
+    const p = stuck();
+    const clean = g.state(me).you.netWorth;
+    p.fareOwed = 300;
+    expect(g.state(me).you.netWorth).toBe(clean - 300);
+  });
+
+  it('is only for selling: buying in another market still needs the fare in hand, and does not move you', () => {
+    const p = stuck();
+    p.cash = 100;
+    p.inventory = { iron: 15 }; // room for 5 more, and a 300-coin fare to carry 15 to the fabric market
+    const r = g.buy(me, 'lena', 'thread', 1);
+    expect(r.ok).toBe(false);
+    expect(r.message).toMatch(/can't afford the fare/);
+    expect(p.at).toBe('produce');
+    expect(p.cash).toBe(100);
+    expect(p.fareOwed ?? 0).toBe(0);
+  });
+
+  it('does not move you or charge a fare when a haggle is refused', () => {
+    const p = stuck();
+    expect(g.sell(me, 'anil', 'iron', 2, true).ok).toBe(true); // haggle once this hour: you travel
+    p.at = 'produce';
+    const cash = p.cash;
+    const r = g.sell(me, 'anil', 'iron', 2, true); // a second haggle in the same hour is refused
+    expect(r.ok).toBe(false);
+    expect(r.message).toMatch(/already haggled/);
+    expect(p.at).toBe('produce');
+    expect(p.cash).toBe(cash);
+  });
+
+  it('the coach no longer sends you somewhere you cannot afford without saying how it works', () => {
+    stuck();
+    g.chooseGoal(me, 'fortune');
+    const text = g.state(me).coach.text;
+    expect(text).toMatch(/^Sell your/);
+    expect(text).toMatch(/comes out of your sale/);
+  });
+
+  it('is remembered across a restart', () => {
+    const p = stuck();
+    p.fareOwed = 123;
+    const r = Game.restore(JSON.parse(JSON.stringify(g.snapshot())));
+    expect(r.state(me).you.fareOwed).toBe(123);
+  });
+});

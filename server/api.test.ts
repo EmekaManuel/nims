@@ -258,3 +258,41 @@ describe('fast-forward route', () => {
     expect((await post('/sim/fastforward', { days: 2, seed: 1 })).status).toBe(200); // a cached one is free
   });
 });
+
+describe('selling when you cannot afford the fare (over HTTP)', () => {
+  it('lets a broke player carrying a full load sell in another market, and shows what happened', async () => {
+    const { Game } = await import('./game');
+    server.close();
+    const dir = mkdtempSync(join(tmpdir(), 'nims-api6-'));
+    const game = new Game(3);
+    const a6 = createApp({
+      auth: new Auth(randomHex(32)),
+      store: new AccountStore(join(dir, 'a.json'), 'oja.testnet', randomHex(32)),
+      chain: { createPlayerAccount: async () => {}, transferItem: async () => {}, itemBalance: async () => 0 },
+      mailer: { sendLoginLink: async (_e, link) => void links.push(link) },
+      baseUrl: 'http://localhost:0',
+      merchantParent: 'run.oja.testnet',
+      game,
+      devLinks: true,
+    });
+    server = await a6.listen(0);
+    base = `http://localhost:${(server.address() as { port: number }).port}`;
+    const r = await (await post('/auth/request', { email: 'ada@example.com' })).json();
+    const cookie = (await fetch(r.devLink.replace('http://localhost:0', base))).headers.get('set-cookie')!.split(';')[0];
+
+    const p = game.playerFor('ada@example.com');
+    game.w.shocks = [];
+    p.cash = 280; // the numbers from a real stuck game: 280 coins, 20 things carried, a 400-coin fare
+    p.inventory = { iron: 16, cotton: 4 };
+    p.at = 'produce';
+
+    const res = await post('/game/sell', { merchant: 'anil', item: 'iron', units: 16 }, cookie);
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.ok).toBe(true);
+    expect(body.message).toContain('came out of the sale');
+    expect(body.state.you.fareOwed).toBe(0);
+    expect(body.state.you.cash).toBeGreaterThan(0);
+    expect(body.state.you.at).toBe('scrap');
+  });
+});

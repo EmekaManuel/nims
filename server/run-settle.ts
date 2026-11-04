@@ -7,7 +7,13 @@
  */
 import { runWeek } from '../sim/run';
 import { accountFor, buildBatches, genesisLedger } from './settle';
-import { balanceOf, deploy, loadEnv, submitBatch } from './chain';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { balanceOf, callsOf, deploy, loadEnv, submitCall } from './chain';
+
+// Progress is saved after every successful call, so a crash or rate limit resumes instead of double-minting.
+const PROGRESS = 'sim/out/settle-progress.json';
+const loadDone = (key: string) => (existsSync(PROGRESS) && JSON.parse(readFileSync(PROGRESS, 'utf8')).key === key ? JSON.parse(readFileSync(PROGRESS, 'utf8')).done : 0);
+const saveDone = (key: string, done: number) => (mkdirSync('sim/out', { recursive: true }), writeFileSync(PROGRESS, JSON.stringify({ key, done })));
 
 const cmd = process.argv[2];
 
@@ -17,11 +23,14 @@ if (cmd === 'deploy') {
   const { parent } = loadEnv();
   const w = runWeek(1);
   const batches = buildBatches([...genesisLedger(), ...w.ledger], parent);
-  console.log(`Submitting ${batches.length} batches...`);
-  let n = 0;
-  for (const b of batches) {
-    await submitBatch(b);
-    if (++n % 10 === 0) console.log(`  ${n}/${batches.length}`);
+  const calls = batches.flatMap(callsOf);
+  const key = `${parent}|seed1`;
+  let done = loadDone(key);
+  console.log(`${calls.length} chain calls (${batches.length} batches); resuming at ${done}`);
+  for (; done < calls.length; done++) {
+    await submitCall(calls[done]);
+    saveDone(key, done + 1);
+    if ((done + 1) % 25 === 0) console.log(`  ${done + 1}/${calls.length}`);
   }
   let bad = 0;
   for (const m of w.merchants) {

@@ -54,36 +54,55 @@ export async function deploy(wasmPath = 'contracts/items/target/wasm32-unknown-u
   return env.contractId;
 }
 
-/** Submit one batch: mints first, then a single atomic `settle` call. */
-export async function submitBatch(b: Batch) {
+/** Retry on RPC rate limits (429) with exponential backoff; the free endpoints are strict. */
+async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await fn();
+    } catch (e) {
+      const limited = String((e as Error)?.message ?? e).includes('429') || (e as { cause?: unknown })?.cause === 429;
+      if (!limited || attempt >= 8) throw e;
+      await new Promise((r) => setTimeout(r, Math.min(30_000, 1_000 * 2 ** attempt)));
+    }
+  }
+}
+
+/** One unit of chain work. A batch is its mints followed by one atomic `settle`. */
+export type Call = { kind: 'mint'; account: string; tokenId: string; amount: number } | { kind: 'settle'; transfers: Batch['transfers'] };
+
+export const callsOf = (b: Batch): Call[] => [
+  ...b.mints.map((m) => ({ kind: 'mint' as const, ...m })),
+  ...(b.transfers.length ? [{ kind: 'settle' as const, transfers: b.transfers }] : []),
+];
+
+export async function submitCall(c: Call) {
   const { env, account } = connect();
-  for (const m of b.mints) {
-    await account.callFunction({
-      contractId: env.contractId,
-      methodName: 'mint',
-      args: { account_id: m.account, token_id: m.tokenId, amount: String(m.amount) },
-      gas: GAS,
-    });
-  }
-  if (b.transfers.length) {
-    await account.callFunction({
-      contractId: env.contractId,
-      methodName: 'settle',
-      args: {
-        transfers: b.transfers.map((t) => ({ from: t.from, to: t.to, token_id: t.tokenId, amount: String(t.amount) })),
-      },
-      gas: GAS,
-    });
-  }
+  await withRetry(() =>
+    c.kind === 'mint'
+      ? account.callFunction({
+          contractId: env.contractId,
+          methodName: 'mint',
+          args: { account_id: c.account, token_id: c.tokenId, amount: String(c.amount) },
+          gas: GAS,
+        })
+      : account.callFunction({
+          contractId: env.contractId,
+          methodName: 'settle',
+          args: { transfers: c.transfers.map((t) => ({ from: t.from, to: t.to, token_id: t.tokenId, amount: String(t.amount) })) },
+          gas: GAS,
+        }),
+  );
 }
 
 export async function balanceOf(accountId: string, tokenId: string): Promise<number> {
   const { env, account } = connect();
-  const r = await account.provider.callFunction<string>({
-    contractId: env.contractId,
-    method: 'mt_balance_of',
-    args: { account_id: accountId, token_id: tokenId },
-  });
+  const r = await withRetry(() =>
+    account.provider.callFunction<string>({
+      contractId: env.contractId,
+      method: 'mt_balance_of',
+      args: { account_id: accountId, token_id: tokenId },
+    }),
+  );
   return Number(r ?? 0);
 }
 

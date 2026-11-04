@@ -9,6 +9,7 @@ import { createServer, IncomingMessage, Server, ServerResponse } from 'node:http
 import { AccountStore } from './accounts';
 import { Auth, looksLikeEmail, normaliseEmail } from './auth';
 import { ChainPort } from './relayer';
+import { Game } from './game';
 import { BASE_PRICE, createMerchants } from '../sim/world';
 
 export interface Mailer {
@@ -24,6 +25,10 @@ export interface AppDeps {
   baseUrl: string;
   /** Parent account for merchant NEAR accounts (see server/settle.ts accountFor). */
   merchantParent: string;
+  /** The live game. Optional so the account/relayer API can be tested alone. */
+  game?: Game;
+  /** Dev only: return the login link in the response instead of emailing it. Never enable in production. */
+  devLinks?: boolean;
 }
 
 interface Pending {
@@ -102,9 +107,10 @@ export function createApp(d: AppDeps) {
     if (req.method === 'POST' && url.pathname === '/auth/request') {
       const email = normaliseEmail(String((await readJson(req)).email ?? ''));
       if (!looksLikeEmail(email)) return send(res, 400, { error: 'Enter a valid email address.' });
-      await d.mailer.sendLoginLink(email, `${d.baseUrl}/auth/verify?token=${d.auth.magicToken(email)}`);
+      const link = `${d.baseUrl}/auth/verify?token=${d.auth.magicToken(email)}`;
+      await d.mailer.sendLoginLink(email, link);
       // Same answer whether or not we've seen this email before.
-      return send(res, 200, { ok: true });
+      return send(res, 200, d.devLinks ? { ok: true, devLink: link } : { ok: true });
     }
 
     if (req.method === 'GET' && url.pathname === '/auth/verify') {
@@ -134,6 +140,25 @@ export function createApp(d: AppDeps) {
       if (!Number.isInteger(units) || units < 1 || units > 1000) return send(res, 400, { error: 'Pick 1 to 1000 units.' });
       queue.push({ email, to, item, units });
       return send(res, 202, { queued: true }); // answered instantly; settles in the background
+    }
+
+    if (d.game && url.pathname.startsWith('/game/')) {
+      const g = d.game;
+      if (req.method === 'GET' && url.pathname === '/game/state') return send(res, 200, g.state(email));
+      if (req.method === 'POST') {
+        const b = await readJson(req);
+        const units = Number(b.units ?? 1);
+        const haggle = b.haggle === true;
+        const item = String(b.item ?? '') as never;
+        const merchant = String(b.merchant ?? '');
+        const result =
+          url.pathname === '/game/gather' ? g.gather(email, item)
+          : url.pathname === '/game/sell' ? g.sell(email, merchant, item, units, haggle)
+          : url.pathname === '/game/buy' ? g.buy(email, merchant, item, units, haggle)
+          : url.pathname === '/game/upgrade' ? g.upgrade(email, String(b.to ?? ''))
+          : null;
+        if (result) return send(res, result.ok ? 200 : 400, { ...result, state: g.state(email) });
+      }
     }
 
     return send(res, 404, { error: 'Not found.' });

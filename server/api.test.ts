@@ -128,3 +128,39 @@ describe('api', () => {
     for (const b of bodies) expect(b).not.toMatch(WALLET_WORDS);
   });
 });
+
+describe('game routes', () => {
+  it('serves state and applies actions for a logged-in player, and rejects strangers', async () => {
+    const { Game } = await import('./game');
+    server.close();
+    const dir = mkdtempSync(join(tmpdir(), 'oja-api2-'));
+    const master = randomHex(32);
+    const a2 = createApp({
+      auth: new Auth(randomHex(32)),
+      store: new AccountStore(join(dir, 'a.json'), 'oja.testnet', master),
+      chain: { createPlayerAccount: async () => {}, transferItem: async () => {}, itemBalance: async () => 0 },
+      mailer: { sendLoginLink: async (_e, link) => void links.push(link) },
+      baseUrl: 'http://localhost:0',
+      merchantParent: 'run.oja.testnet',
+      game: new Game(3),
+      devLinks: true,
+    });
+    server = await a2.listen(0);
+    base = `http://localhost:${(server.address() as { port: number }).port}`;
+
+    expect((await fetch(base + '/game/state')).status).toBe(401);
+    const r = await (await post('/auth/request', { email: 'ada@example.com' })).json();
+    expect(r.devLink).toContain('/auth/verify?token=');
+    const login = await fetch(r.devLink.replace('http://localhost:0', base));
+    const cookie = login.headers.get('set-cookie')!.split(';')[0];
+
+    const state = await (await fetch(base + '/game/state', { headers: { cookie } })).json();
+    expect(state.stalls).toHaveLength(8);
+    const got = await (await post('/game/gather', { item: 'iron' }, cookie)).json();
+    expect(got.ok).toBe(true);
+    expect(got.state.you.carrying).toBeGreaterThan(0);
+    const bad = await post('/game/sell', { merchant: 'bisi', item: 'iron', units: 1 }, cookie);
+    expect(bad.status).toBe(400);
+    expect(JSON.stringify([state, got])).not.toMatch(WALLET_WORDS);
+  });
+});

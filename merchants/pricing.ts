@@ -163,3 +163,50 @@ export function merchantState(cash: number, cashFloor: number, totalStockUnits: 
   if (cash < cashFloor) return 'struggling';
   return 'open';
 }
+
+// ---------------------------------------------------------------------------------------------
+// Player-owned stalls
+//
+// A player sets their own buy and sell prices, so there is no formula to run: the price IS the
+// player's choice. It still produces the same Quote shape (and a tooltip line) so every other part
+// of the game treats a player's stall like any merchant's. Prices stay inside the same band that
+// the merchants' own mid price must respect, so nobody can post an absurd number.
+// ---------------------------------------------------------------------------------------------
+
+/** A player's price must sit inside [basePrice*MIN_MULT, basePrice*MAX_MULT]. */
+export function clampPlayerPrice(price: number, basePrice: number): number {
+  return Math.round(clamp(price, basePrice * MIN_MULT, basePrice * MAX_MULT));
+}
+
+export interface PlayerQuoteInput {
+  itemName: string;
+  basePrice: number;
+  /** What the owner pays sellers. */
+  buyPrice: number;
+  /** What the owner charges buyers. */
+  sellPrice: number;
+  stock: number;
+  cash: number;
+  ownerName: string;
+}
+
+export function playerQuote(i: PlayerQuoteInput): Quote {
+  const buyPrice = clampPlayerPrice(i.buyPrice, i.basePrice);
+  const sellPrice = Math.max(buyPrice, clampPlayerPrice(i.sellPrice, i.basePrice));
+  const willBuy = i.cash >= buyPrice;
+  const willSell = i.stock > 0;
+  const reasons = [`${i.ownerName} sets these prices by hand.`];
+  if (!willBuy) reasons.push(`The till is down to ${naira(i.cash)}, so ${i.ownerName} can't buy ${i.itemName} right now.`);
+  if (!willSell) reasons.push(`${i.ownerName} is out of ${i.itemName}.`);
+  reasons.push(`Pays ${naira(buyPrice)}, sells at ${naira(sellPrice)} (usual ${naira(i.basePrice)}).`);
+  return {
+    mid: (buyPrice + sellPrice) / 2,
+    buyPrice,
+    sellPrice,
+    willBuy,
+    willSell,
+    maxBuyUnits: willBuy ? Math.floor(i.cash / buyPrice) : 0,
+    reasons,
+    tooltip: reasons.join(' '),
+  };
+}

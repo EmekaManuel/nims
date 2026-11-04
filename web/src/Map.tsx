@@ -1,32 +1,39 @@
-import type { GameState, Item, MarketId } from './api';
+import type { Focus, GameState, Item, MarketId } from './api';
 
 export type Selection = { kind: 'stall'; id: string } | { kind: 'source'; item: Item } | null;
 
-/** Hand-placed layout of the district (viewBox 900 x 560). */
-const ZONES: Record<MarketId, { x: number; y: number; w: number; h: number; label: string }> = {
-  produce: { x: 150, y: 30, w: 330, h: 230, label: 'Produce Market' },
-  fabric: { x: 520, y: 30, w: 330, h: 230, label: 'Fabric Market' },
-  scrap: { x: 300, y: 320, w: 360, h: 210, label: 'Scrap & Hardware' },
+/**
+ * Hand-placed layout (viewBox 1000 x 620). Exported so a test can prove nothing overlaps.
+ * Stalls are centred on these points; every stall is STALL_W x STALL_H.
+ */
+export const STALL_W = 136;
+export const STALL_H = 76;
+
+export const ZONES: Record<MarketId, { x: number; y: number; w: number; h: number; label: string }> = {
+  produce: { x: 170, y: 30, w: 380, h: 262, label: 'Produce Market' },
+  fabric: { x: 600, y: 30, w: 380, h: 262, label: 'Fabric Market' },
+  scrap: { x: 290, y: 340, w: 470, h: 250, label: 'Scrap & Hardware' },
 };
 
-const STALL_POS: Record<string, [number, number]> = {
-  bisi: [225, 125], kemi: [315, 195], tunde: [415, 125],
-  nkechi: [610, 125], sade: [760, 125],
-  chidi: [375, 425], wale: [480, 385], emeka: [585, 425],
+export const STALL_POS: Record<string, [number, number]> = {
+  bisi: [260, 130], tunde: [460, 130], kemi: [360, 232],
+  nkechi: [690, 130], sade: [890, 130],
+  chidi: [377, 470], wale: [525, 470], emeka: [673, 470],
 };
 
 const SOURCE_POS: Partial<Record<Item, [number, number, string]>> = {
-  tomatoes: [60, 90, '🍅'],
-  pepper: [60, 190, '🌶️'],
-  iron: [130, 400, '🔩'],
-  'copper wire': [130, 490, '➰'],
-  ankara: [790, 340, '🧵'],
+  tomatoes: [80, 100, '🍅'],
+  pepper: [80, 225, '🌶️'],
+  iron: [130, 440, '🔩'],
+  'copper wire': [130, 545, '➰'],
+  ankara: [880, 420, '🧵'],
 };
 
 const STATE_LABEL = { open: 'Open', struggling: 'Low on cash', closed: 'Closed' } as const;
 const VEHICLE = { wheelbarrow: '🛒', keke: '🛺', van: '🚐' } as const;
 
 export function DistrictMap({ state, selected, onSelect }: { state: GameState; selected: Selection; onSelect: (s: Selection) => void }) {
+  const focus: Focus = state.coach.focus;
   const press = (fn: () => void) => ({
     role: 'button' as const,
     tabIndex: 0,
@@ -35,15 +42,14 @@ export function DistrictMap({ state, selected, onSelect }: { state: GameState; s
   });
 
   return (
-    <svg viewBox="0 0 900 560" className="map" aria-label="Map of the market district">
-      {/* roads */}
+    <svg viewBox="0 0 1000 620" className="map" aria-label="Map of the market district">
       <g className="road">
-        <path d="M110 90 H150 M110 190 H150" />
-        <path d="M480 150 H520" />
-        <path d="M315 260 V320" />
-        <path d="M185 400 H300 M185 490 H300" />
-        <path d="M660 430 H760 V340 H790" />
-        <path d="M690 260 V340" />
+        <path d="M110 100 H170 M110 225 H170" />
+        <path d="M160 440 H290 M160 545 H290" />
+        <path d="M550 160 H600" />
+        <path d="M360 292 V340" />
+        <path d="M760 470 H880 V450" />
+        <path d="M880 292 V390" />
       </g>
 
       {(Object.keys(ZONES) as MarketId[]).map((id) => {
@@ -51,9 +57,9 @@ export function DistrictMap({ state, selected, onSelect }: { state: GameState; s
         const here = state.you.at === id;
         return (
           <g key={id}>
-            <rect x={z.x} y={z.y} width={z.w} height={z.h} rx={18} className={`zone ${here ? 'here' : ''}`} />
-            <text x={z.x + 16} y={z.y + 26} className="zone-label">{z.label}</text>
-            {here && <text x={z.x + z.w - 16} y={z.y + 28} textAnchor="end" className="you-are-here">{VEHICLE[state.you.vehicle]} you are here</text>}
+            <rect x={z.x} y={z.y} width={z.w} height={z.h} rx={20} className={`zone ${here ? 'here' : ''}`} />
+            <text x={z.x + 20} y={z.y + 32} className="zone-label">{z.label}</text>
+            {here && <text x={z.x + z.w - 20} y={z.y + 32} textAnchor="end" className="you-are-here">{VEHICLE[state.you.vehicle]} you are here</text>}
           </g>
         );
       })}
@@ -61,15 +67,18 @@ export function DistrictMap({ state, selected, onSelect }: { state: GameState; s
       {state.stalls.map((s) => {
         const [x, y] = STALL_POS[s.id];
         const on = selected?.kind === 'stall' && selected.id === s.id;
+        const next = focus?.kind === 'stall' && focus.id === s.id;
         return (
-          <g key={s.id} transform={`translate(${x - 56} ${y - 34})`} className={`stall ${s.state} ${on ? 'on' : ''}`} {...press(() => onSelect({ kind: 'stall', id: s.id }))} aria-label={`${s.name}, ${STATE_LABEL[s.state]}`}>
-            <rect width={112} height={68} rx={10} className="stall-body" />
-            <rect width={112} height={14} rx={7} className="awning" />
-            <text x={56} y={36} textAnchor="middle" className="stall-name">{s.name}</text>
-            <text x={56} y={55} textAnchor="middle" className="stall-status">
+          <g key={s.id} transform={`translate(${x - STALL_W / 2} ${y - STALL_H / 2})`} className={`stall ${s.state} ${on ? 'on' : ''}`} {...press(() => onSelect({ kind: 'stall', id: s.id }))} aria-label={`${s.name}, ${STATE_LABEL[s.state]}${next ? ', your next step' : ''}`}>
+            {next && <rect className="pulse" x={-8} y={-8} width={STALL_W + 16} height={STALL_H + 16} rx={16} />}
+            <rect width={STALL_W} height={STALL_H} rx={12} className="stall-body" />
+            <rect width={STALL_W} height={16} rx={8} className="awning" />
+            <text x={STALL_W / 2} y={42} textAnchor="middle" className="stall-name">{s.name}</text>
+            <text x={STALL_W / 2} y={63} textAnchor="middle" className="stall-status">
               {s.state === 'closed' ? '✕ ' : s.state === 'struggling' ? '▼ ' : '● '}
               {STATE_LABEL[s.state]}
             </text>
+            {next && <text x={STALL_W / 2} y={-16} textAnchor="middle" className="next-tag">NEXT</text>}
           </g>
         );
       })}
@@ -79,12 +88,15 @@ export function DistrictMap({ state, selected, onSelect }: { state: GameState; s
         if (!pos) return null;
         const [x, y, icon] = pos;
         const on = selected?.kind === 'source' && selected.item === src.item;
+        const next = focus?.kind === 'source' && focus.id === src.item;
         return (
-          <g key={src.item} transform={`translate(${x} ${y})`} className={`source ${on ? 'on' : ''} ${src.units < 5 ? 'empty' : ''}`} {...press(() => onSelect({ kind: 'source', item: src.item }))} aria-label={`${src.label}, ${src.units} available`}>
-            <circle r={28} />
-            <text y={8} textAnchor="middle" className="source-icon">{icon}</text>
-            <text y={46} textAnchor="middle" className="source-label">{src.item}</text>
-            <text y={60} textAnchor="middle" className="source-units">{src.cost > 0 ? `₦${src.cost} each` : `${src.units} left`}</text>
+          <g key={src.item} transform={`translate(${x} ${y})`} className={`source ${on ? 'on' : ''} ${src.units < 5 ? 'empty' : ''}`} {...press(() => onSelect({ kind: 'source', item: src.item }))} aria-label={`${src.label}, ${src.units} available${next ? ', your next step' : ''}`}>
+            {next && <circle className="pulse" r={42} />}
+            <circle r={32} />
+            <text y={10} textAnchor="middle" className="source-icon">{icon}</text>
+            <text y={54} textAnchor="middle" className="source-label">{src.item}</text>
+            <text y={72} textAnchor="middle" className="source-units">{src.cost > 0 ? `₦${src.cost} each` : `${src.units} free`}</text>
+            {next && <text y={-48} textAnchor="middle" className="next-tag">NEXT</text>}
           </g>
         );
       })}

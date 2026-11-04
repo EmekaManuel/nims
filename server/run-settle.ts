@@ -8,7 +8,7 @@
 import { runWeek } from '../sim/run';
 import { accountFor, buildBatches } from './settle';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { balanceOf, callsOf, deploy, loadEnv, submitCall, upgrade } from './chain';
+import { balanceOf, callsOf, deploy, loadEnv, migrate, submitCall, upgrade } from './chain';
 
 // Progress is saved after every successful call, so a crash or rate limit resumes instead of double-minting.
 const PROGRESS = 'sim/out/settle-progress.json';
@@ -22,6 +22,9 @@ if (cmd === 'deploy') {
 } else if (cmd === 'upgrade') {
   await upgrade();
   console.log('Contract code upgraded (state kept).');
+} else if (cmd === 'migrate') {
+  await migrate();
+  console.log('Contract state migrated.');
 } else if (cmd === 'settle') {
   const { parent } = loadEnv();
   const w = runWeek(1);
@@ -44,5 +47,5 @@ if (cmd === 'deploy') {
   }
   console.log(bad ? `${bad} mismatches` : 'All merchant balances match the sim.');
 } else {
-  console.log('usage: run-settle.ts deploy|settle');
+  console.log('usage: run-settle.ts deploy|upgrade|migrate|settle');
 }

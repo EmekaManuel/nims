@@ -11,7 +11,7 @@
  * middle of a call, a contract rejection), the settler does not try to patch it. It starts a fresh epoch:
  * a new namespace of accounts, minted from the game's current state, and carries on from there.
  */
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { COINS, LedgerEntry } from '../sim/world';
 import type { Game } from './game';
@@ -113,6 +113,8 @@ export function planChunk(entries: LedgerEntry[], ns: string, opening?: Map<stri
 
 export class ChainSync {
   private state: State | null = null;
+  /** The highest epoch used so far, so a fresh one never revisits a namespace. */
+  private lastEpoch = 0;
   private wallets: Wallets | null = null;
   private totalCalls = 0;
   private resets: number[] = [];
@@ -127,6 +129,14 @@ export class ChainSync {
     this.log = o.log ?? (() => {});
     this.sleep = o.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
     this.state = this.load();
+    this.lastEpoch = this.state?.epoch ?? this.lastEpoch;
+    const g = o.game;
+    if (this.state && (this.state.cursor > g.ledgerEnd() || this.state.cursor < g.ledgerBase)) {
+      // The saved game and the chain disagree about how much has happened (e.g. the game was restored from an older save).
+      this.log('Chain: the saved game does not match the chain position. Starting a fresh epoch.');
+      this.state = null;
+      rmSync(o.stateFile, { force: true });
+    }
     if (this.state) {
       this.wallets = o.walletsFor(this.state.ns);
       o.game.markSettled(this.state.cursor);
@@ -140,6 +150,7 @@ export class ChainSync {
     try {
       const s = JSON.parse(readFileSync(this.o.stateFile, 'utf8')) as State;
       if (s.stage === 'genesis') {
+        this.lastEpoch = s.epoch;
         // The opening balances came from the game's state at that moment, which we can no longer reproduce.
         this.log('Chain: the last run stopped while minting opening balances. Starting a fresh epoch.');
         return null;
@@ -197,7 +208,7 @@ export class ChainSync {
   }
 
   private async startEpoch(): Promise<void> {
-    const last = this.state?.epoch ?? this.readEpochHint();
+    const last = this.lastEpoch;
     const now = Date.now();
     this.resets = this.resets.filter((t) => now - t < 10 * 60_000);
     this.resets.push(now);
@@ -221,6 +232,7 @@ export class ChainSync {
       // Capture the position and the opening balances together, with no await between them.
       const cursor = this.o.game.ledgerEnd();
       const mints = this.openingBalances(nsAccount);
+      this.lastEpoch = epoch;
       this.state = { epoch, ns: nsAccount, cursor, stage: 'genesis', callsDone: 0, mintSeq: await this.o.ops.mintSeq(), seqs: {} };
       this.wallets = this.o.walletsFor(nsAccount);
       this.save();
@@ -239,11 +251,6 @@ export class ChainSync {
       return;
     }
     throw new Error('Could not find a free namespace');
-  }
-
-  private readEpochHint(): number {
-    // If the state file is gone but earlier namespaces exist, createAccount tells us (already exists) and we skip ahead.
-    return 0;
   }
 
   // ---- settling ------------------------------------------------------------------------------
@@ -312,6 +319,7 @@ export class ChainSync {
       }
       this.log(`Chain: a call was rejected (${this.lastError.slice(0, 200)}). Starting a fresh epoch from the game's current state.`);
       this.state = null;
+      rmSync(this.o.stateFile, { force: true }); // a restart must not resume an epoch we no longer trust
       return 'reset';
     }
   }

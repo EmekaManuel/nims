@@ -8,6 +8,9 @@ import { loadGame, saveGame } from './store';
 import { loadEnv } from './chain';
 import { ChainPort, offlineChain, realChain } from './relayer';
 import { loadSecrets } from './secrets';
+import { agentChain } from './agent-chain';
+import { ChainSync } from './chainsync';
+import { WalletStore } from './wallets';
 
 const secrets = loadSecrets();
 if (secrets.generated) console.log('No MASTER_KEY/SESSION_SECRET in .env: using generated development secrets (server/data/dev-secrets.json).');
@@ -36,10 +39,28 @@ setInterval(save, 20_000);
 for (const sig of ['SIGINT', 'SIGTERM'] as const) process.on(sig, () => { save(); process.exit(0); });
 // One in-game hour every 4 real seconds: a day passes in about a minute and a half.
 setInterval(() => game.tickOnce(), Number(process.env.TICK_MS ?? 4000));
+// The live settler streams every trade (goods and coins) to the testnet in the background, with each
+// account signing its own transfers. If it is on, it handles every player's account too, so the older
+// per-player relayer is switched off to avoid doing the same work twice.
+let sync: ChainSync | null = null;
+if (chain !== offlineChain && process.env.CHAIN_SYNC !== '0') {
+  sync = new ChainSync({
+    game,
+    ops: agentChain(),
+    contractId,
+    rootWallets: new WalletStore('server/data/chain-roots.json', contractId, secrets.masterKey),
+    walletsFor: (ns) => new WalletStore(`server/data/wallets-${ns}.json`, ns, secrets.masterKey),
+    stateFile: 'server/data/chain-state.json',
+    log: (m) => console.log(m),
+  });
+  void sync.run();
+  console.log('Streaming the game to the chain in the background.');
+}
 const app = createApp({
   auth: new Auth(secrets.sessionSecret),
   store: new AccountStore('server/data/accounts.json', contractId, secrets.masterKey),
-  chain,
+  chain: sync ? offlineChain : chain,
+  chainStatus: sync ? () => sync!.status() : undefined,
   baseUrl: `http://localhost:${port}`,
   merchantParent,
   game,
@@ -51,5 +72,5 @@ const app = createApp({
   },
 });
 await app.listen(port);
-setInterval(() => void app.flush(), 5_000); // batch-settle every few seconds
+if (!sync) setInterval(() => void app.flush(), 5_000); // batch-settle every few seconds
 console.log(`Nims server on http://localhost:${port}`);

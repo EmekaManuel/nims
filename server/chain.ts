@@ -60,6 +60,12 @@ export async function upgrade(wasmPath = 'contracts/items/target/wasm32-unknown-
   await account.deployContract(readFileSync(wasmPath));
 }
 
+/** After an upgrade that changes the stored state, convert the old state to the new layout (contract calls itself). */
+export async function migrate() {
+  const { env, account } = connect();
+  await account.callFunction({ contractId: env.contractId, methodName: 'migrate', args: {}, gas: GAS });
+}
+
 /** Retry on RPC rate limits (429) with exponential backoff; the free endpoints are strict. */
 async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
   for (let attempt = 0; ; attempt++) {

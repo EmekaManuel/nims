@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { existsSync, mkdtempSync, readFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Game } from './game';
@@ -284,14 +284,40 @@ describe('ChainSync', () => {
     expect(logs.some((l) => l.includes('Too many restarts'))).toBe(true);
   });
 
-  it('starts a new epoch rather than guess if it stopped while minting opening balances', async () => {
+  it('starts a new epoch rather than guess if the process died while minting opening balances', async () => {
     const a = setup();
     play(a.game, 6);
-    a.chain.faults.push({ op: 'mint', nth: 1, error: new Error('Smart contract panicked: boom') });
-    expect(await a.sync.step()).toBe('reset'); // dies while minting opening balances
-    expect(JSON.parse(readFileSync(a.stateFile, 'utf8')).stage).toBe('genesis');
+    await a.sync.step(); // epoch 1 is live
+    // Pretend the process was killed half way through minting epoch 1's opening balances.
+    const saved = JSON.parse(readFileSync(a.stateFile, 'utf8'));
+    writeFileSync(a.stateFile, JSON.stringify({ ...saved, stage: 'genesis' }));
     const b = setup({ game: a.game, chain: a.chain, stateFile: a.stateFile, wallets: a.wallets });
     expect(b.sync.status().epoch).toBeNull(); // it won't trust the half-minted epoch
+    await b.sync.step();
+    expect(b.sync.status().epoch).toBe(2);
+    expect((await b.sync.verify()).mismatches).toEqual([]);
+  });
+
+  it('forgets a rejected epoch on disk, so a restart cannot resume it', async () => {
+    const { game, chain, sync, stateFile } = setup();
+    play(game, 6);
+    await sync.step();
+    play(game, 10);
+    chain.faults.push({ op: 'send', nth: 1, error: new Error('Smart contract panicked: nope') });
+    game.w.hour += 200;
+    expect(await sync.step()).toBe('reset');
+    expect(existsSync(stateFile)).toBe(false);
+  });
+
+  it('starts a fresh epoch if the game was restored from an older save than the chain position', async () => {
+    const a = setup();
+    play(a.game, 6);
+    await a.sync.step();
+    play(a.game, 10);
+    await drain(a.game, a.sync);
+    const older = new Game(4); // a game that has seen far less than the chain has
+    const b = setup({ game: older, chain: a.chain, stateFile: a.stateFile, wallets: a.wallets });
+    expect(b.sync.status().epoch).toBeNull();
     await b.sync.step();
     expect(b.sync.status().epoch).toBe(2);
     expect((await b.sync.verify()).mismatches).toEqual([]);

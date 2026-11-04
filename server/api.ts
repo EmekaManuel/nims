@@ -30,6 +30,8 @@ export interface AppDeps {
   game?: Game;
   /** Dev only: return the login link in the response instead of emailing it. Never enable in production. */
   devLinks?: boolean;
+  /** Opt-in proof for the curious: where the game's goods and coins live on the testnet. Nothing in the game needs it. */
+  chainStatus?: () => unknown;
   /** Minimum gap between two different fast-forward runs. Default 500ms; tests set 0. */
   fastForwardGapMs?: number;
 }
@@ -126,6 +128,11 @@ export function createApp(d: AppDeps) {
       return send(res, 200, { ok: true }, {
         'set-cookie': `${COOKIE}=${d.auth.sessionToken(email)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=2592000`,
       });
+    }
+
+    // Public and read-only: how far the background settlement has got. The game never reads this.
+    if (req.method === 'GET' && url.pathname === '/chain/status') {
+      return send(res, 200, d.chainStatus ? d.chainStatus() : { enabled: false });
     }
 
     // Open to everyone, no login: it touches no player data and starts its own fresh world.

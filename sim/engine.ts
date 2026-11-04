@@ -152,7 +152,8 @@ function ambientTrade(w: World) {
     for (const item of merchantItems(m)) {
       // Everyday customers: buy a couple of units if the price is fair.
       const q = quoteFor(w, m, item);
-      const want = w.rng.int(0, 2);
+      // Dearer goods sell less often (lace moves slower than tomatoes).
+      const want = w.rng.next() < Math.min(1, 300 / BASE_PRICE[item]) ? w.rng.int(0, 2) : 0;
       if (q.willSell && q.sellPrice <= BASE_PRICE[item] * 1.6) {
         const n = Math.min(want, m.stock[item] ?? 0);
         m.stock[item] = (m.stock[item] ?? 0) - n;
@@ -160,7 +161,7 @@ function ambientTrade(w: World) {
       }
       // Restock from farms/wholesalers at a discount to base when running low.
       if ((m.stock[item] ?? 0) < (m.target[item] ?? 0) * 0.6) {
-        const unit = Math.round(BASE_PRICE[item] * 0.85);
+        const unit = Math.round(BASE_PRICE[item] * 0.95);
         const n = Math.min(3, Math.floor(m.cash / unit));
         m.stock[item] = (m.stock[item] ?? 0) + n;
         m.cash -= n * unit;

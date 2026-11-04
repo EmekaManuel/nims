@@ -11,27 +11,28 @@ import { createHash } from 'node:crypto';
 import { makeRng } from '../sim/rng';
 import { act, newPlayer } from '../sim/players';
 import {
-  activeShock, addNote, buyFromMerchant, buyShares, carryCost, contributeToAjo, gatherRate, merchantItems, openOwnerStall, ownerStallOf,
+  activeShock, addNote, buyFromMerchant, buyShares, carryCost, contributeToFund, gatherRate, merchantItems, openOwnerStall, ownerStallOf,
   publicSharesLeft, quoteFor, refreshState, sellShares, sellToMerchant, sharePrice, STALL_COST, STALL_MARKETS, tick,
 } from '../sim/engine';
 import { clampPlayerPrice, MAX_MULT, MIN_MULT } from '../merchants/pricing';
 import { gather } from '../sim/players';
 import { BASE_PRICE, CAPACITY, createWorld, Item, MARKETS, MarketId, Merchant, Player, Vehicle, World } from '../sim/world';
 
-export const UPGRADE_COST: Record<Exclude<Vehicle, 'wheelbarrow'>, number> = { keke: 5_000, van: 18_000 };
+export const UPGRADE_COST: Record<Exclude<Vehicle, 'wheelbarrow'>, number> = { pickup: 5_000, van: 18_000 };
 const SOURCE_LABEL: Record<string, string> = {};
 const START_CASH = 3_000;
 /** Away for this many in-game hours (about 1.5 minutes of real time) and you get a summary on return. */
 const AWAY_HOURS = 24;
 const HISTORY_KEEP = 24 * 7;
 const LEDGER_KEEP = 20_000;
-export const SNAPSHOT_VERSION = 1;
+/** Version 2: the Nims renaming (merchants, goods, vehicles). Older saves hold names and items that no longer exist. */
+export const SNAPSHOT_VERSION = 2;
 
 export type GoalKind = 'fortune' | 'reach' | 'stake' | 'district';
 
 /** The session goals a player can pick (DESIGN.md §2). Shown in the UI with a progress bar. */
 export const GOALS: Record<GoalKind, { title: string; blurb: string }> = {
-  fortune: { title: 'Build a fortune', blurb: `Grow your net worth to ₦${(25_000).toLocaleString('en-NG')}. Buy low, carry it, sell high.` },
+  fortune: { title: 'Build a fortune', blurb: `Grow your net worth to ${(25_000).toLocaleString('en-US')} coins. Buy low, carry it, sell high.` },
   reach: { title: 'Trade everywhere', blurb: 'Sell in all three markets and buy a van. Learn where each good is dear.' },
   stake: { title: 'A stake in every market', blurb: 'Own shares in a merchant in each of the three markets. Your money works while you sleep.' },
   district: { title: 'Keep the district alive', blurb: 'Keep every stall open for 3 days in a row. Flood a stall with goods and it can go broke.' },
@@ -73,7 +74,7 @@ export class Game {
   private haggled = new Map<string, number>();
   private progress = new Map<string, Progress>();
   /** player id -> the name shown on signs and stalls. */
-  private names = new Map<string, string>([['npc-investor', 'The Ajo Society']]);
+  private names = new Map<string, string>([['npc-investor', 'The Community Fund']]);
 
   constructor(seed = 1) {
     // A few NPC traders so the town is alive before anyone logs in.
@@ -167,7 +168,7 @@ export class Game {
     const pr = this.prog(email);
     if (!pr.kind) return null;
     const worth = this.netWorth(p);
-    if (pr.kind === 'fortune') return { progress: Math.min(1, worth / FORTUNE_TARGET), label: `₦${worth.toLocaleString('en-NG')} of ₦${FORTUNE_TARGET.toLocaleString('en-NG')}` };
+    if (pr.kind === 'fortune') return { progress: Math.min(1, worth / FORTUNE_TARGET), label: `${worth.toLocaleString('en-US')} coins of ${FORTUNE_TARGET.toLocaleString('en-US')} coins` };
     if (pr.kind === 'reach') {
       const van = p.vehicle === 'van';
       return { progress: (pr.marketsSold.size + (van ? 1 : 0)) / 4, label: `Sold in ${pr.marketsSold.size} of 3 markets · ${van ? 'you have a van' : 'no van yet'}` };
@@ -220,7 +221,7 @@ export class Game {
   private travelTo(p: Player, market: MarketId): ActionResult | null {
     if (p.at === market) return null;
     const fare = this.carried(p) * carryCost(this.w);
-    if (p.cash < fare) return fail(`You can't afford the fare to ${MARKETS[market].name} (₦${fare}).`);
+    if (p.cash < fare) return fail(`You can't afford the fare to ${MARKETS[market].name} (${fare} coins).`);
     p.cash -= fare;
     p.at = market;
     return null;
@@ -231,7 +232,7 @@ export class Game {
     const src = this.w.sources.find((s) => s.item === item);
     if (!src) return fail('Nothing to collect there.');
     if (this.carried(p) >= CAPACITY[p.vehicle]) return fail(`Your ${p.vehicle} is full. Sell something first.`);
-    if (src.cost > 0 && p.cash < src.cost) return fail(`You need ₦${src.cost} per unit here.`);
+    if (src.cost > 0 && p.cash < src.cost) return fail(`You need ${src.cost} coins per unit here.`);
     const n = gather(this.w, p, item);
     if (n === 0) return fail(src.units <= 0 ? 'Someone has already cleared this spot. It refills over time.' : 'You could not carry any more.');
     const rain = activeShock(this.w, 'rain') ? ' Rain slowed you down.' : '';
@@ -297,7 +298,7 @@ export class Game {
     addNote(this.w, owner, dir === 'sell' ? `${who} sold ${units} ${item} to your stall.` : `${who} bought ${units} ${item} from your stall.`);
   }
 
-  // ---- shares and ajo ----------------------------------------------------------------------
+  // ---- shares and fund ----------------------------------------------------------------------
 
   buyShares(email: string, merchantId: string, n: number): ActionResult {
     const p = this.playerFor(email);
@@ -306,7 +307,7 @@ export class Game {
     const r = buyShares(this.w, p, m, n);
     if ('error' in r) return fail(r.error);
     this.checkDone(email);
-    return ok(`You bought ${n} shares in ${m.name} for ₦${r.cost}. You'll share in their profit each evening.`);
+    return ok(`You bought ${n} shares in ${m.name} for ${r.cost} coins. You'll share in their profit each evening.`);
   }
 
   sellShares(email: string, merchantId: string, n: number): ActionResult {
@@ -315,23 +316,23 @@ export class Game {
     if (!m) return fail('No such stall.');
     const r = sellShares(this.w, p, m, n);
     if ('error' in r) return fail(r.error);
-    return ok(`You sold ${n} shares in ${m.name} for ₦${r.proceeds}.`);
+    return ok(`You sold ${n} shares in ${m.name} for ${r.proceeds} coins.`);
   }
 
-  /** Put money into a closed shop's ajo pool. When the pool is full the shop reopens and you co-own it. */
+  /** Put money into a closed shop's community fund. When the pool is full the shop reopens and you co-own it. */
   contribute(email: string, merchantId: string, amount: number): ActionResult {
     const p = this.playerFor(email);
     const m = this.w.merchants.find((x) => x.id === merchantId);
     if (!m || m.owner) return fail('No such shop.');
-    if (m.state !== 'closed') return fail(`${m.name} is open. An ajo pool is for shops that have closed.`);
-    if (!Number.isInteger(amount) || amount < 100) return fail('The smallest contribution is ₦100.');
+    if (m.state !== 'closed') return fail(`${m.name} is open. An community fund is for shops that have closed.`);
+    if (!Number.isInteger(amount) || amount < 100) return fail('The smallest contribution is 100 coins.');
     const was = m.state;
-    const before = m.ajo.pool;
+    const before = m.fund.pool;
     if (p.cash < 1) return fail('You have no cash to put in.');
-    if (!contributeToAjo(this.w, p, m, amount)) return fail('Could not add to the pool.');
+    if (!contributeToFund(this.w, p, m, amount)) return fail('Could not add to the pool.');
     this.checkDone(email);
     if (was === 'closed' && (m.state as string) === 'open') return ok(`The pool is full: ${m.name} is open again, and you co-own it.`);
-    return ok(`You put ₦${Math.round(m.ajo.pool - before)} into ${m.name}'s ajo pool (₦${Math.round(m.ajo.pool)} of ₦${m.ajo.goal}).`);
+    return ok(`You put ${Math.round(m.fund.pool - before)} coins into ${m.name}'s community fund (${Math.round(m.fund.pool)} coins of ${m.fund.goal} coins).`);
   }
 
   // ---- your own stall ----------------------------------------------------------------------
@@ -344,7 +345,7 @@ export class Game {
     const p = this.playerFor(email);
     if (this.myStall(email)) return fail('You already have a stall.');
     if (!STALL_MARKETS.includes(market as MarketId)) return fail('There is no free plot in that market. Try the Produce or Fabric Market.');
-    if (p.cash < STALL_COST) return fail(`A stall costs ₦${STALL_COST.toLocaleString('en-NG')}.`);
+    if (p.cash < STALL_COST) return fail(`A stall costs ${STALL_COST.toLocaleString('en-US')} coins.`);
     p.cash -= STALL_COST;
     const stall = openOwnerStall(this.w, p, market as MarketId, this.names.get(p.id) ?? 'Your');
     addNote(this.w, p, `You opened ${stall.name} in the ${MARKETS[market as MarketId].name}.`);
@@ -383,13 +384,13 @@ export class Game {
     const st = this.myStall(email);
     if (!st) return fail('You do not have a stall yet.');
     if (!(item in st.target)) return fail(`Your stall does not trade ${item}.`);
-    if (![buy, sell].every((n) => Number.isInteger(n))) return fail('Prices are whole naira.');
+    if (![buy, sell].every((n) => Number.isInteger(n))) return fail('Prices are whole coins.');
     const lo = Math.round(BASE_PRICE[item] * MIN_MULT);
     const hi = Math.round(BASE_PRICE[item] * MAX_MULT);
-    if ([buy, sell].some((n) => n < lo || n > hi)) return fail(`Keep ${item} between ₦${lo} and ₦${hi}. The usual price is ₦${BASE_PRICE[item]}.`);
+    if ([buy, sell].some((n) => n < lo || n > hi)) return fail(`Keep ${item} between ${lo} coins and ${hi} coins. The usual price is ${BASE_PRICE[item]} coins.`);
     if (sell < buy) return fail('You would lose money selling for less than you pay.');
     st.prices = { ...st.prices, [item]: { buy: clampPlayerPrice(buy, BASE_PRICE[item]), sell: clampPlayerPrice(sell, BASE_PRICE[item]) } };
-    return ok(`${item}: you pay ₦${buy}, you charge ₦${sell}.`);
+    return ok(`${item}: you pay ${buy} coins, you charge ${sell} coins.`);
   }
 
   /** Move cash between you and your till. The till is what your stall uses to buy. */
@@ -397,17 +398,17 @@ export class Game {
     const p = this.playerFor(email);
     const st = this.myStall(email);
     if (!st) return fail('You do not have a stall yet.');
-    if (!Number.isInteger(amount) || amount < 1) return fail('Pick a whole number of naira.');
+    if (!Number.isInteger(amount) || amount < 1) return fail('Pick a whole number of coins.');
     if (direction === 'deposit') {
       if (p.cash < amount) return fail('You do not have that much cash.');
       p.cash -= amount;
       st.cash += amount;
-      return ok(`Put ₦${amount} in your till.`);
+      return ok(`Put ${amount} coins in your till.`);
     }
-    if (st.cash < amount) return fail(`Your till only holds ₦${Math.round(st.cash)}.`);
+    if (st.cash < amount) return fail(`Your till only holds ${Math.round(st.cash)} coins.`);
     st.cash -= amount;
     p.cash += amount;
-    return ok(`Took ₦${amount} out of your till.`);
+    return ok(`Took ${amount} coins out of your till.`);
   }
 
   /** Dismiss the "while you were away" summary. */
@@ -418,11 +419,11 @@ export class Game {
 
   upgrade(email: string, to: string): ActionResult {
     const p = this.playerFor(email);
-    if (to !== 'keke' && to !== 'van') return fail('Pick keke or van.');
-    const order: Vehicle[] = ['wheelbarrow', 'keke', 'van'];
+    if (to !== 'pickup' && to !== 'van') return fail('Pick pickup or van.');
+    const order: Vehicle[] = ['wheelbarrow', 'pickup', 'van'];
     if (order.indexOf(to) <= order.indexOf(p.vehicle)) return fail(`You already have a ${p.vehicle}.`);
-    if (order.indexOf(to) > order.indexOf(p.vehicle) + 1) return fail('Buy a keke first.');
-    if (p.cash < UPGRADE_COST[to]) return fail(`A ${to} costs ₦${UPGRADE_COST[to]}.`);
+    if (order.indexOf(to) > order.indexOf(p.vehicle) + 1) return fail('Buy a pickup first.');
+    if (p.cash < UPGRADE_COST[to]) return fail(`A ${to} costs ${UPGRADE_COST[to]} coins.`);
     p.cash -= UPGRADE_COST[to];
     p.vehicle = to;
     this.checkDone(email);
@@ -461,14 +462,14 @@ export class Game {
     // Goal-specific nudges first.
     if (pr.kind === 'district') {
       const shut = stalls.find((x) => x.state === 'closed');
-      if (shut) return say(`${shut.name} has closed, which resets your streak. Put money into its ajo pool to reopen it.`, { kind: 'stall', id: shut.id });
+      if (shut) return say(`${shut.name} has closed, which resets your streak. Put money into its community fund to reopen it.`, { kind: 'stall', id: shut.id });
     }
     if (pr.kind === 'stake') {
       const have = this.marketsWithStake(p);
       const missing = (Object.keys(MARKETS) as MarketId[]).find((mk) => !have.has(mk));
       if (missing) {
         const pick = stalls.filter((x) => x.market === missing && x.state !== 'closed' && x.shares).sort((a, b) => a.shares!.price - b.shares!.price)[0];
-        if (pick) return say(`Buy a few shares in ${pick.name} (₦${pick.shares!.price} each) to get a stake in the ${MARKETS[missing].name}.`, { kind: 'stall', id: pick.id });
+        if (pick) return say(`Buy a few shares in ${pick.name} (${pick.shares!.price} coins each) to get a stake in the ${MARKETS[missing].name}.`, { kind: 'stall', id: pick.id });
       }
     }
     const carried = this.carried(p);
@@ -482,7 +483,7 @@ export class Game {
       if (options.length) {
         const top = options[0];
         const here = p.at === top.s.market ? '' : ` It’s in another market, so the trip costs a fare.`;
-        return say(`Sell your ${units} ${item} to ${top.s.name}: they pay ₦${top.o.buyPrice} each, the best in town.${here}`, { kind: 'stall', id: top.s.id });
+        return say(`Sell your ${units} ${item} to ${top.s.name}: they pay ${top.o.buyPrice} coins each, the best in town.${here}`, { kind: 'stall', id: top.s.id });
       }
       return say(`Nobody is buying ${item} right now. Try another market, or wait for prices to recover.`);
     }
@@ -490,8 +491,8 @@ export class Game {
       const d = deals[0];
       return say(
         d.from.kind === 'source'
-          ? `Collect ${d.item} at the ${d.from.label.replace(/ \(.*\)$/, '').toLowerCase()}${d.from.cost ? ` (₦${d.from.cost} each)` : ' (free)'}, then sell it to ${d.to.stall} for ₦${d.to.price} each.`
-          : `Buy ${d.item} from ${d.from.label} at ₦${d.from.cost}, then sell it to ${d.to.stall} for ₦${d.to.price}.`,
+          ? `Collect ${d.item} at the ${d.from.label.replace(/ \(.*\)$/, '').toLowerCase()}${d.from.cost ? ` (${d.from.cost} coins each)` : ' (free)'}, then sell it to ${d.to.stall} for ${d.to.price} coins each.`
+          : `Buy ${d.item} from ${d.from.label} at ${d.from.cost} coins, then sell it to ${d.to.stall} for ${d.to.price} coins.`,
         { kind: d.from.kind, id: d.from.id },
       );
     }
@@ -522,8 +523,8 @@ export class Game {
           why: q.tooltip,
         };
       }),
-      ajo: m.state === 'closed' ? { pool: m.ajo.pool, goal: m.ajo.goal, contributors: Object.entries(m.ajo.contributors).map(([id, put]) => ({ name: this.names.get(id) ?? 'A trader', put })) } : undefined,
-      /** Ajo contributors who reopened this shop. Shown on its sign. */
+      fund: m.state === 'closed' ? { pool: m.fund.pool, goal: m.fund.goal, contributors: Object.entries(m.fund.contributors).map(([id, put]) => ({ name: this.names.get(id) ?? 'A trader', put })) } : undefined,
+      /** Fund contributors who reopened this shop. Shown on its sign. */
       sign: m.sign.map((id) => this.names.get(id) ?? 'A trader'),
       owner: m.owner ? { name: m.ownerName ?? 'A trader', mine: m.owner === p.id } : undefined,
       shares: m.owner ? undefined : { price: sharePrice(m), left: publicSharesLeft(m), yours: m.shares[p.id] ?? 0 },
@@ -610,7 +611,7 @@ export class Game {
         carrying: this.carried(p),
         inventory: Object.entries(p.inventory).filter(([, n]) => (n ?? 0) > 0).map(([item, units]) => ({ item, units })),
         at: p.at,
-        upgrades: (['keke', 'van'] as const).map((v) => ({ vehicle: v, cost: UPGRADE_COST[v], capacity: CAPACITY[v] })),
+        upgrades: (['pickup', 'van'] as const).map((v) => ({ vehicle: v, cost: UPGRADE_COST[v], capacity: CAPACITY[v] })),
       },
     };
   }

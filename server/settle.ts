@@ -27,7 +27,7 @@ export interface Batch {
   transfers: TransferLeg[];
 }
 
-/** Sim id -> NEAR account, e.g. "bisi" -> "bisi.oja.testnet". */
+/** Sim id -> NEAR account, e.g. "mira" -> "mira.oja.testnet". */
 export const accountFor = (simId: string, parent: string) => `${simId}.${parent}`;
 
 /** Merchants start the game holding stock, so mint it first. */

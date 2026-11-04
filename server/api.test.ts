@@ -77,7 +77,7 @@ describe('api', () => {
     const token = new URL(links[0]).searchParams.get('token');
     expect((await fetch(`${base}/auth/verify?token=${token}`)).status).toBe(200);
     expect((await fetch(`${base}/auth/verify?token=${token}`)).status).toBe(400);
-    expect((await fetch(base + '/me', { headers: { cookie: 'oja_session=forged.value' } })).status).toBe(401);
+    expect((await fetch(base + '/me', { headers: { cookie: 'nims_session=forged.value' } })).status).toBe(401);
   });
 
   it('creates the account in the background on first login', async () => {
@@ -89,18 +89,18 @@ describe('api', () => {
   it('answers a trade instantly and settles it later', async () => {
     const cookie = await login();
     await new Promise((r) => setTimeout(r, 20));
-    const r = await post('/trade/send', { to: 'bisi', item: 'iron', units: 5 }, cookie);
+    const r = await post('/trade/send', { to: 'mira', item: 'iron', units: 5 }, cookie);
     expect(r.status).toBe(202);
     expect(transfers).toHaveLength(0); // the chain has not been touched yet
     expect(await app.flush()).toBe(1);
-    expect(transfers[0]).toMatchObject({ to: 'bisi.run.oja.testnet', item: 'iron', units: 5 });
+    expect(transfers[0]).toMatchObject({ to: 'mira.run.oja.testnet', item: 'iron', units: 5 });
   });
 
   it('keeps trades queued, not lost, while the chain is down', async () => {
     const cookie = await login();
     await new Promise((r) => setTimeout(r, 20));
     slowChain = true;
-    await post('/trade/send', { to: 'bisi', item: 'iron', units: 2 }, cookie);
+    await post('/trade/send', { to: 'mira', item: 'iron', units: 2 }, cookie);
     expect(await app.flush()).toBe(0);
     expect(app.queueLength()).toBe(1);
     slowChain = false;
@@ -110,7 +110,7 @@ describe('api', () => {
 
   it('validates trades', async () => {
     const cookie = await login();
-    for (const bad of [{ to: 'nobody', item: 'iron', units: 1 }, { to: 'bisi', item: 'gold', units: 1 }, { to: 'bisi', item: 'iron', units: 0 }, { to: 'bisi', item: 'iron', units: 1.5 }]) {
+    for (const bad of [{ to: 'nobody', item: 'iron', units: 1 }, { to: 'mira', item: 'gold', units: 1 }, { to: 'mira', item: 'iron', units: 0 }, { to: 'mira', item: 'iron', units: 1.5 }]) {
       expect((await post('/trade/send', bad, cookie)).status).toBe(400);
     }
   });
@@ -121,7 +121,7 @@ describe('api', () => {
     const bodies = [
       await (await post('/auth/request', { email: 'ada@example.com' })).text(),
       await (await fetch(base + '/me', { headers: { cookie } })).text(),
-      await (await post('/trade/send', { to: 'bisi', item: 'iron', units: 1 }, cookie)).text(),
+      await (await post('/trade/send', { to: 'mira', item: 'iron', units: 1 }, cookie)).text(),
       await (await post('/trade/send', { to: 'x', item: 'iron', units: 1 }, cookie)).text(),
       await (await fetch(base + '/nope', { headers: { cookie } })).text(),
     ];
@@ -159,7 +159,7 @@ describe('game routes', () => {
     const got = await (await post('/game/gather', { item: 'iron' }, cookie)).json();
     expect(got.ok).toBe(true);
     expect(got.state.you.carrying).toBeGreaterThan(0);
-    const bad = await post('/game/sell', { merchant: 'bisi', item: 'iron', units: 1 }, cookie);
+    const bad = await post('/game/sell', { merchant: 'mira', item: 'iron', units: 1 }, cookie);
     expect(bad.status).toBe(400);
     expect(JSON.stringify([state, got])).not.toMatch(WALLET_WORDS);
   });
@@ -188,10 +188,10 @@ describe('ownership routes', () => {
     const cookie = (await fetch(r.devLink.replace('http://localhost:0', base))).headers.get('set-cookie')!.split(';')[0];
     game.playerFor('ada@example.com').cash = 20_000;
 
-    const bought = await (await post('/game/shares/buy', { merchant: 'wale', shares: 5 }, cookie)).json();
+    const bought = await (await post('/game/shares/buy', { merchant: 'ruth', shares: 5 }, cookie)).json();
     expect(bought.ok).toBe(true);
     expect(bought.state.business.shares[0].shares).toBe(5);
-    expect((await post('/game/shares/buy', { merchant: 'wale', shares: 999 }, cookie)).status).toBe(400);
+    expect((await post('/game/shares/buy', { merchant: 'ruth', shares: 999 }, cookie)).status).toBe(400);
 
     const opened = await (await post('/game/stall/open', { market: 'fabric' }, cookie)).json();
     expect(opened.state.business.stall.market).toBe('fabric');
@@ -199,7 +199,7 @@ describe('ownership routes', () => {
     expect(priced.status).toBe(200);
     expect((await post('/game/stall/price', { item: 'thread', buy: 1, sell: 130 }, cookie)).status).toBe(400);
 
-    expect((await post('/game/ajo', { merchant: 'wale', amount: 500 }, cookie)).status).toBe(400); // wale is open
+    expect((await post('/game/fund', { merchant: 'ruth', amount: 500 }, cookie)).status).toBe(400); // ruth is open
     expect((await post('/game/ack', {}, cookie)).status).toBe(200);
     expect((await post('/game/nope', {}, cookie)).status).toBe(404);
     expect(JSON.stringify(opened)).not.toMatch(WALLET_WORDS);

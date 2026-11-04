@@ -15,7 +15,7 @@ const ONE_YOCTO = 1n;
 export interface ChainEnv {
   accountId: string;
   contractId: string;
-  /** Namespace for sim accounts, e.g. "bisi.<parent>". */
+  /** Namespace for sim accounts, e.g. "mira.<parent>". */
   parent: string;
   rpcUrl: string;
 }
@@ -30,7 +30,7 @@ export function loadEnv(): ChainEnv & { privateKey: string } {
   const contractId = process.env.CONTRACT_ID || accountId;
   const rpcUrl = process.env.NEAR_RPC_URL || 'https://test.rpc.fastnear.com';
   if (!accountId.endsWith('.testnet') || !contractId.endsWith('.testnet') || !TESTNET_RPCS.some((h) => rpcUrl.includes(h))) {
-    throw new Error('Refusing to run: Oja only talks to NEAR testnet.');
+    throw new Error('Refusing to run: Nims only talks to NEAR testnet.');
   }
   return { accountId, contractId, rpcUrl, parent: process.env.ACCOUNT_PARENT || contractId, privateKey: need('NEAR_PRIVATE_KEY') };
 }

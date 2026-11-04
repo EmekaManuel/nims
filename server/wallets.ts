@@ -30,7 +30,7 @@ export class WalletStore {
     writeFileSync(this.file, JSON.stringify(this.data, null, 2), { mode: 0o600 });
   }
 
-  /** e.g. "bisi" -> "bisi.<parent>". Must match accountFor() in settle.ts. */
+  /** e.g. "mira" -> "mira.<parent>". Must match accountFor() in settle.ts. */
   accountIdOf = (id: string) => `${id}.${this.parent}`;
 
   getOrCreate(id: string): Wallet {

@@ -52,4 +52,4 @@ const app = createApp({
 });
 await app.listen(port);
 setInterval(() => void app.flush(), 5_000); // batch-settle every few seconds
-console.log(`Oja server on http://localhost:${port}`);
+console.log(`Nims server on http://localhost:${port}`);

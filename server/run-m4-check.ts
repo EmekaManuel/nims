@@ -19,7 +19,7 @@ const HOURS = Number(process.argv[2] ?? 12);
 // Each run lives in its own namespace account (e.g. v2.oja-items.testnet) so balances from earlier runs never interfere.
 const NS = process.argv[3] ?? 'v2';
 const chain = agentChain();
-const parent = `${NS}.${chain.contractId}`; // merchants live at bisi.v2.oja-items.testnet etc.
+const parent = `${NS}.${chain.contractId}`; // merchants live at mira.v2.oja-items.testnet etc.
 const root = new WalletStore('server/data/wallets.json', chain.contractId, process.env.MASTER_KEY!);
 const wallets = new WalletStore(`server/data/wallets-${NS}.json`, parent, process.env.MASTER_KEY!);
 

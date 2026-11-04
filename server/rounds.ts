@@ -3,7 +3,7 @@
  *
  * Every account (merchant or player) now signs its OWN outgoing transfers, so there is no single
  * ordered `settle` call any more. A leg can only run once its sender holds the items, and those
- * items may be on their way from another signer's leg ("Baba Wale sells on iron he just bought").
+ * items may be on their way from another signer's leg ("Ruth's Salvage sells on iron he just bought").
  *
  * Fix: split each time-chunk into ROUNDS. In a round every signer submits the legs it can already
  * afford; within a round the signers are independent, so they may be submitted in any order or in

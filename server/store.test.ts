@@ -8,7 +8,7 @@ import { refreshState } from '../sim/engine';
 
 const me = 'ada@example.com';
 
-/** A game with some history: goal, shares, a stall, an ajo shop, a haggle, and time passed. */
+/** A game with some history: goal, shares, a stall, an fund shop, a haggle, and time passed. */
 function played(): Game {
   const g = new Game(9);
   g.state(me);
@@ -16,13 +16,13 @@ function played(): Game {
   p.cash = 40_000;
   g.chooseGoal(me, 'stake');
   g.gather(me, 'iron');
-  g.sell(me, 'wale', 'iron', 20, true);
-  g.buyShares(me, 'nkechi', 4);
+  g.sell(me, 'ruth', 'iron', 20, true);
+  g.buyShares(me, 'lena', 4);
   g.openStall(me, 'fabric');
   g.stallCash(me, 'deposit', 2_000);
-  const m = g.w.merchants.find((x) => x.id === 'kemi')!;
+  const m = g.w.merchants.find((x) => x.id === 'tomas')!;
   m.cash = 0; m.stock = {}; refreshState(g.w, m);
-  g.contribute(me, 'kemi', 5_000);
+  g.contribute(me, 'tomas', 5_000);
   for (let i = 0; i < 30; i++) g.tickOnce();
   return g;
 }
@@ -51,10 +51,10 @@ describe('saving and restoring the game', () => {
   it('keeps sets and per-player details intact (markets sold in, haggle cooldown, display names)', () => {
     const g = played();
     g.w.players.find((x) => x.strategy === 'human')!.inventory.iron = 10;
-    expect(g.sell(me, 'wale', 'iron', 5, true).ok).toBe(true); // haggle in the current hour
+    expect(g.sell(me, 'ruth', 'iron', 5, true).ok).toBe(true); // haggle in the current hour
     const r = roundTrip(g);
     // the cooldown survived the restart: a second haggle this hour is still refused
-    expect(r.sell(me, 'wale', 'iron', 5, true).ok).toBe(false);
+    expect(r.sell(me, 'ruth', 'iron', 5, true).ok).toBe(false);
     r.chooseGoal(me, 'reach');
     expect(r.state(me).goal!.label).toContain('1 of 3 markets'); // the Set of markets was restored
     expect(r.state(me).business.stall!.name).toBe("Ada's stall"); // the display name was restored
@@ -75,12 +75,12 @@ describe('saving and restoring the game', () => {
     const dir = mkdtempSync(join(tmpdir(), 'oja-save-'));
     const file = join(dir, 'game.json');
     expect(loadGame(file)).toBeNull();
-    writeFileSync(file, '{"version":1,"world":');
+    writeFileSync(file, '{"version":2,"world":');
     const msgs: string[] = [];
     expect(loadGame(file, (m) => msgs.push(m))).toBeNull();
     expect(msgs[0]).toContain('Starting fresh');
     expect(existsSync(file + '.bad')).toBe(true);
-    expect(readFileSync(file + '.bad', 'utf8')).toBe('{"version":1,"world":');
+    expect(readFileSync(file + '.bad', 'utf8')).toBe('{"version":2,"world":');
     writeFileSync(file, JSON.stringify({ version: 99 }));
     expect(loadGame(file, () => {})).toBeNull();
   });

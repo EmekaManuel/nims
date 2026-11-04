@@ -33,7 +33,7 @@ await owner.callFunction({
   gas: 100_000_000_000_000n,
 });
 
-const merchant = `bisi.${env.parent}`;
+const merchant = `mira.${env.parent}`;
 await chain.transferItem({ accountId: acct.accountId, secretKey: store.secretKeyOf(email) }, merchant, 'iron', 4);
 const after = await chain.itemBalance(acct.accountId, 'iron');
 const expected = pre + 10 - 4;

@@ -42,7 +42,7 @@ interface Pending {
 }
 
 const MERCHANTS = new Set(createMerchants().map((m) => m.id));
-const COOKIE = 'oja_session';
+const COOKIE = 'nims_session';
 
 const readJson = (req: IncomingMessage): Promise<Record<string, unknown>> =>
   new Promise((resolve) => {
@@ -62,7 +62,7 @@ const send = (res: ServerResponse, code: number, body: unknown, headers: Record<
 };
 
 const cookieOf = (req: IncomingMessage) =>
-  /(?:^|;\s*)oja_session=([^;]+)/.exec(req.headers.cookie ?? '')?.[1];
+  /(?:^|;\s*)nims_session=([^;]+)/.exec(req.headers.cookie ?? '')?.[1];
 
 export function createApp(d: AppDeps) {
   const queue: Pending[] = [];
@@ -181,7 +181,7 @@ export function createApp(d: AppDeps) {
           '/game/goal': () => g.chooseGoal(email, String(b.kind ?? '')),
           '/game/shares/buy': () => g.buyShares(email, merchant, Number(b.shares)),
           '/game/shares/sell': () => g.sellShares(email, merchant, Number(b.shares)),
-          '/game/ajo': () => g.contribute(email, merchant, Number(b.amount)),
+          '/game/fund': () => g.contribute(email, merchant, Number(b.amount)),
           '/game/stall/open': () => g.openStall(email, String(b.market ?? '')),
           '/game/stall/stock': () => g.stallStock(email, item, units),
           '/game/stall/take': () => g.stallTake(email, item, units),

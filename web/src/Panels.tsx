@@ -138,7 +138,9 @@ export function SourcePanel({ item, state, act }: { item: Item; state: GameState
     <section className="panel ledger" aria-labelledby="src-h">
       <h2 id="src-h">{src.label}</h2>
       <p className="muted">
-        {src.cost > 0 ? `The wholesaler sells at a fixed ${src.cost} coins a unit — a steady price anchor.` : 'Free to collect. It refills over time, and other traders are collecting too.'}
+        {src.item === 'cotton'
+          ? `The wholesaler sells at a fixed ${src.cost} coins a unit: a steady price anchor.`
+          : `Sold at the wholesale price, ${src.cost} coins a unit. The supply refills slowly, and other traders are buying here too, so the profit is in where you sell it.`}
       </p>
       {state.gatherSpeed < 1 && <p className="note warn">Rain is slowing everyone down: you’ll collect half as much.</p>}
       <p>

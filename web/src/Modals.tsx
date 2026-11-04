@@ -25,7 +25,7 @@ export function HowToPlay({ onClose }: { onClose: () => void }) {
     <Modal title="How Nims works" onClose={onClose}>
       <p className="lede">You’re a trader in a small market town. Eight merchants run their own stalls, each with their own cash and their own mind about prices.</p>
       <ol className="how">
-        <li><b>Buy low, sell high.</b> Collect goods from the farms and scrap spots (free), or buy them from a stall. Carry them to wherever they’re dear and sell.</li>
+        <li><b>Buy low, sell high.</b> Buy goods at wholesale from the farms and scrap spots, or from a stall. Carry them to wherever they’re dear and sell for more. Your starting cash is what limits you, so start small and grow.</li>
         <li><b>Prices move.</b> A stall piled high with iron pays less for more. A stall running short pays more. Dump too much on one stall and its price falls, and it can run out of cash and <b>close</b>.</li>
         <li><b>Hover any price</b> and the merchant tells you why they’re offering it, in their own words.</li>
         <li><b>Pick a goal.</b> A bar at the top tracks it, and a “next step” card always tells you what to do now.</li>

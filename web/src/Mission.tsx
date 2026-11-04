@@ -59,7 +59,7 @@ export function Deals({ deals, onFocus }: { deals: Deal[]; onFocus: (f: Focus) =
                 <span className="profit">+{coins(d.profit)} each</span>
               </div>
               <p className="muted small">
-                {d.from.kind === 'source' ? (d.from.cost ? `Buy at the ${place(d.from.label)} for ${coins(d.from.cost)}` : `Collect free at the ${place(d.from.label)}`) : `Buy from ${d.from.label} for ${coins(d.from.cost)}`}
+                {d.from.kind === 'source' ? `Buy at the ${place(d.from.label)} for ${coins(d.from.cost)}` : `Buy from ${d.from.label} for ${coins(d.from.cost)}`}
                 {' → '}sell to {d.to.stall} for {coins(d.to.price)}
               </p>
               <div className="btns">

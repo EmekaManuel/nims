@@ -1,10 +1,10 @@
 /** A player's rank, from net worth. Gives a sense of progress between goals (like an XP bar). */
 export const RANKS = [
   { min: 0, title: 'Street vendor' },
-  { min: 6_000, title: 'Stall keeper' },
-  { min: 14_000, title: 'Trader' },
-  { min: 30_000, title: 'Merchant' },
-  { min: 70_000, title: 'Tycoon' },
+  { min: 3_000, title: 'Stall keeper' },
+  { min: 7_000, title: 'Trader' },
+  { min: 15_000, title: 'Merchant' },
+  { min: 35_000, title: 'Tycoon' },
 ] as const;
 
 export interface Rank {

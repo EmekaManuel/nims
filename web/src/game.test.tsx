@@ -59,10 +59,10 @@ describe('top bar', () => {
   });
 
   it('rank follows your PEAK net worth, so it never falls when you sell into a flooded market', () => {
-    const low = { ...state, you: { ...state.you, netWorth: 3_000 } };
+    const low = { ...state, you: { ...state.you, netWorth: 1_000 } };
     const { container, rerender } = render(<Hud state={low} act={act()} peakWorth={0} />);
     expect(container.querySelector('.rank-text b')!.textContent).toBe('Street vendor');
-    rerender(<Hud state={low} act={act()} peakWorth={9_000} />);
+    rerender(<Hud state={low} act={act()} peakWorth={4_000} />);
     expect(container.querySelector('.rank-text b')!.textContent).toBe('Stall keeper');
   });
 

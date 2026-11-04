@@ -20,7 +20,10 @@ export function Hud({ state, act, onHelp }: { state: GameState; act: Actions; on
   return (
     <header className="hud">
       <div className="brand">
-        Nims
+        <span className="wordmark">
+          <svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#1d63d6" /><path d="M5 12h22l-2.500 5h-17z" fill="#fff" /><rect x="8" y="17" width="16" height="8" rx="1.500" fill="#fff" opacity=".85" /></svg>
+          Nims
+        </span>
         <small>
           <Glyph name={night ? 'moon' : 'sun'} size={16} /> Day {state.day} · {String(h).padStart(2, '0')}:00
         </small>

@@ -384,3 +384,47 @@ describe('shocks on the map', () => {
     expect(screen.getAllByRole('button')).toHaveLength(state.stalls.length + state.sources.length + (state.business.stallOffer ? 2 : 0));
   });
 });
+
+
+describe('clickable areas', () => {
+  it('every stall and source has a solid hit area over its whole footprint', () => {
+    const { container } = render(<DistrictMap state={state} selected={null} onSelect={() => {}} />);
+    const hits = container.querySelectorAll('.stall > .hit, .source > .hit');
+    expect(hits.length).toBe(state.stalls.length + state.sources.length);
+    for (const h of hits) expect(h.getAttribute('fill')).toBe('transparent');
+  });
+
+  it('shows you, the shopkeepers and, when motion is allowed, the town folk', () => {
+    const still = render(<DistrictMap state={state} selected={null} onSelect={() => {}} moving={false} />);
+    expect(still.container.querySelectorAll('.walker')).toHaveLength(0);
+    expect(still.container.querySelector('.you .you-text')!.textContent).toBe('You');
+    expect(still.container.querySelectorAll('.avatar-initial').length).toBe(state.stalls.length);
+    still.unmount();
+    const lively = render(<DistrictMap state={state} selected={null} onSelect={() => {}} moving />);
+    expect(lively.container.querySelectorAll('.walker').length).toBeGreaterThanOrEqual(6);
+    expect(lively.container.querySelector('.walker animateMotion')).toBeTruthy();
+  });
+
+  it('walks you to the market you are in', () => {
+    const at = (m: 'produce' | 'scrap') => render(<DistrictMap state={{ ...state, you: { ...state.you, at: m } }} selected={null} onSelect={() => {}} />).container.querySelector('.you')!.getAttribute('style');
+    const a = at('produce');
+    cleanup();
+    const b = at('scrap');
+    expect(a).not.toBe(b);
+  });
+
+  it('floats a number where something happened', () => {
+    const { container } = render(<DistrictMap state={state} selected={null} onSelect={() => {}} popups={[{ id: 1, x: 300, y: 200, text: '+420 coins', tone: 'gain' }]} />);
+    const p = container.querySelector('.popup-gain')!;
+    expect(p.textContent).toBe('+420 coins');
+    expect(p.parentElement!.getAttribute('transform')).toBe('translate(300 200)');
+  });
+
+  it('turns the lamps on at night and off by day', () => {
+    const day = render(<DistrictMap state={{ ...state, hour: 12 }} selected={null} onSelect={() => {}} />);
+    expect(day.container.querySelector('.lamps')).toBeNull();
+    day.unmount();
+    const night = render(<DistrictMap state={{ ...state, hour: 23 }} selected={null} onSelect={() => {}} />);
+    expect(night.container.querySelectorAll('.lamps circle').length).toBeGreaterThan(3);
+  });
+});

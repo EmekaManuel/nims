@@ -86,6 +86,7 @@ export const api = {
   /** null means "not logged in". */
   async state(): Promise<GameState | null> {
     const r = await json<GameState>('/game/state');
+    if (r.status >= 500) throw new Error('offline'); // e.g. the dev proxy can't reach the game server
     return r.status === 401 ? null : r.body;
   },
   async requestLogin(email: string) {

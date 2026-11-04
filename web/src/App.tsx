@@ -71,9 +71,14 @@ export function App() {
     if (!needGoal) asked.current = false;
   }, [needGoal]);
 
+  const [offline, setOffline] = useState(false);
   const refresh = useCallback(async () => {
-    const s = await api.state().catch(() => null);
-    setState(s);
+    try {
+      setState(await api.state());
+      setOffline(false);
+    } catch {
+      setOffline(true); // keep whatever we last showed; polling retries every 2s
+    }
     setChecked(true);
   }, []);
 
@@ -103,12 +108,22 @@ export function App() {
   const pickGoal = (k: GoalKind) => { run(api.goal(k)); setGoalOpen(false); };
 
   if (!checked) return <main className="login"><p className="muted">Opening the market…</p></main>;
+  if (offline && !state) {
+    return (
+      <main className="login">
+        <h1>Oja</h1>
+        <p className="note warn" role="alert">The market is closed for now: we can’t reach the game server. It will open automatically as soon as it’s back.</p>
+        <p className="muted small">Running it yourself? Start everything with <code>npm run dev</code>.</p>
+      </main>
+    );
+  }
   if (!state) return <Login onIn={refresh} />;
 
   const stall = selected?.kind === 'stall' ? state.stalls.find((s) => s.id === selected.id) : undefined;
 
   return (
     <div className="game">
+      {offline && <div className="shock" role="alert">Lost touch with the game server. Reconnecting…</div>}
       <Hud state={state} act={act} onHelp={() => setHelp(true)} />
       <Mission state={state} onFocus={focusOn} onPickGoal={() => setGoalOpen(true)} />
       <div className="aria-live" aria-live="polite">{toast?.text}</div>

@@ -86,6 +86,17 @@ describe('top bar', () => {
   });
 });
 
+describe('fare you owe', () => {
+  it('shows what you owe in the top bar, and nothing when you owe nothing', () => {
+    const { container, rerender } = render(<Hud state={state} act={act()} />);
+    expect(container.querySelector('.chip.owe')).toBeNull();
+    rerender(<Hud state={{ ...state, you: { ...state.you, fareOwed: 120 } }} act={act()} />);
+    const chip = container.querySelector('.chip.owe')!;
+    expect(chip.textContent).toBe('Fare owed: 120 coins');
+    expect(chip.getAttribute('title')).toMatch(/comes out of your next sale/);
+  });
+});
+
 describe('guide and mascot', () => {
   it('has Nim give the next step beside the goal, and cheer when the goal is done', () => {
     const { container, rerender } = render(<Mission state={state} onFocus={() => {}} onPickGoal={() => {}} />);

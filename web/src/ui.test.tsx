@@ -75,6 +75,21 @@ describe('stall panel', () => {
     expect(screen.queryByText('Sell')).toBeNull();
   });
 
+  it('tells a player who cannot afford the fare that selling is still fine', () => {
+    const broke = { ...withInv, you: { ...withInv.you, cash: 20, at: 'produce' as const } };
+    render(<StallPanel stall={stall} state={broke} act={act()} />);
+    const note = screen.getByText(/fare/i).textContent!;
+    expect(note).toMatch(/you can still sell here/);
+    expect(note).toMatch(/comes out of your sale/);
+    expect(note).toMatch(/to buy here you.d need the fare in hand/i);
+  });
+
+  it('does not mention any of that when you can afford the fare', () => {
+    const rich = { ...withInv, you: { ...withInv.you, cash: 99_999, at: 'produce' as const } };
+    render(<StallPanel stall={stall} state={rich} act={act()} />);
+    expect(screen.getByText(/fare/i).textContent).not.toMatch(/comes out of your sale/);
+  });
+
   it('warns about the fare for carrying goods to another market', () => {
     const away = { ...withInv, you: { ...withInv.you, at: 'produce' as const } };
     render(<StallPanel stall={stall} state={away} act={act()} />);

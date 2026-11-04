@@ -1,7 +1,7 @@
 import type { Focus, GameState, Item, MarketId, Offer, Stall } from './api';
 import { itemId } from './icons';
 
-export type Selection = { kind: 'stall'; id: string } | { kind: 'source'; item: Item } | null;
+export type Selection = { kind: 'stall'; id: string } | { kind: 'source'; item: Item } | { kind: 'plot'; market: MarketId } | null;
 
 /**
  * The district, drawn. Layout is hand-placed on a 1000 x 680 canvas and exported so a test can prove
@@ -11,9 +11,9 @@ export type Selection = { kind: 'stall'; id: string } | { kind: 'source'; item: 
 /** Art is drawn at 136 x 92 and scaled up so names stay readable on a phone-sized map. */
 const ART_W = 136;
 const ART_H = 92;
-const SCALE = 1.25;
-export const STALL_W = ART_W * SCALE; // 170
-export const STALL_H = ART_H * SCALE; // 115
+const SCALE = 1.2;
+export const STALL_W = ART_W * SCALE; // 163.2
+export const STALL_H = ART_H * SCALE; // 110.4
 
 export const ZONES: Record<MarketId, { x: number; y: number; w: number; h: number; label: string; plate: number }> = {
   produce: { x: 160, y: 30, w: 400, h: 300, label: 'Produce Market', plate: 176 },
@@ -22,10 +22,18 @@ export const ZONES: Record<MarketId, { x: number; y: number; w: number; h: numbe
 };
 
 export const STALL_POS: Record<string, [number, number]> = {
-  bisi: [255, 144], tunde: [465, 144], kemi: [360, 264],
-  nkechi: [685, 144], sade: [895, 144],
+  bisi: [255, 140], tunde: [465, 140], kemi: [255, 270],
+  nkechi: [685, 140], sade: [895, 140],
   chidi: [310, 522], wale: [500, 522], emeka: [690, 522],
 };
+
+/** Free plots where a player can open a stall. Scrap & Hardware is full. */
+export const PLOTS: Partial<Record<MarketId, [number, number]>> = {
+  produce: [465, 270],
+  fabric: [790, 270],
+};
+
+const OWNER_CANOPY: [string, string] = ['#d6336c', '#f2a900'];
 
 const SOURCE_POS: Partial<Record<Item, [number, number]>> = {
   tomatoes: [82, 110], pepper: [82, 250], iron: [100, 470], 'copper wire': [100, 590], ankara: [890, 470],
@@ -60,8 +68,8 @@ export function lightAt(hour: number): { color: string; opacity: number } {
   return { color, opacity };
 }
 
-function Awning({ market, dim }: { market: MarketId; dim: boolean }) {
-  const [a, b] = CANOPY[market];
+function Awning({ colors, dim }: { colors: [string, string]; dim: boolean }) {
+  const [a, b] = colors;
   const n = 8;
   const w = ART_W / n;
   return (
@@ -101,7 +109,7 @@ function StallArt({ s }: { s: Stall }) {
   const low = s.state === 'struggling';
   return (
     <g className="stall-art">
-      <Awning market={s.market} dim={closed} />
+      <Awning colors={s.owner ? OWNER_CANOPY : CANOPY[s.market]} dim={closed} />
       <Goods offers={s.offers} />
       <rect x="0" y="57" width={ART_W} height="7" rx="2" fill="#8a5a34" stroke="#2a1a12" strokeWidth="1.4" />
       {closed && (
@@ -115,6 +123,13 @@ function StallArt({ s }: { s: Stall }) {
       <text x={ART_W / 2} y="89" textAnchor="middle" className={`stall-status ${s.state}`}>
         {closed ? '✕ Closed' : low ? '▼ Low on cash' : '● Open'}
       </text>
+      {(s.shares?.yours ?? 0) > 0 && (
+        <g transform="translate(12 6)">
+          <circle r="11" fill="#f2a900" stroke="#2a1a12" strokeWidth="1.4" />
+          <path d="M0-6l1.8 3.9 4.2.5-3.1 2.9.8 4.2L0 5.4l-3.7 2.1.8-4.2-3.1-2.9 4.2-.5z" fill="#2a1a12" />
+        </g>
+      )}
+      {s.owner?.mine && <text x={ART_W - 8} y="-4" textAnchor="end" className="yours-tag">YOURS</text>}
       {low && (
         <g transform={`translate(${ART_W - 10} 4)`}>
           <circle r="11" fill="#d6336c" stroke="#2a1a12" strokeWidth="1.4" />
@@ -233,8 +248,22 @@ export function DistrictMap({ state, selected, onSelect }: { state: GameState; s
         );
       })}
 
+      {state.business.stallOffer && (Object.keys(PLOTS) as MarketId[]).map((mk) => {
+        const [x, y] = PLOTS[mk]!;
+        const on = selected?.kind === 'plot' && selected.market === mk;
+        return (
+          <g key={mk} transform={`translate(${x - STALL_W / 2} ${y - STALL_H / 2})`} className={`plot ${on ? 'on' : ''}`} {...press(() => onSelect({ kind: 'plot', market: mk }))} aria-label={`Free plot in the ${ZONES[mk].label}. Open your own stall here.`}>
+            <rect className="plot-box" width={STALL_W} height={STALL_H} rx={14} />
+            <text x={STALL_W / 2} y={STALL_H / 2 - 4} textAnchor="middle" className="plot-plus">+</text>
+            <text x={STALL_W / 2} y={STALL_H / 2 + 22} textAnchor="middle" className="plot-label">Free plot</text>
+          </g>
+        );
+      })}
+
       {state.stalls.map((s) => {
-        const [x, y] = STALL_POS[s.id];
+        const pos = STALL_POS[s.id] ?? PLOTS[s.market];
+        if (!pos) return null;
+        const [x, y] = pos;
         const on = selected?.kind === 'stall' && selected.id === s.id;
         const next = focus?.kind === 'stall' && focus.id === s.id;
         return (
@@ -242,7 +271,6 @@ export function DistrictMap({ state, selected, onSelect }: { state: GameState; s
             {next && <rect className="pulse" x={-9} y={-9} width={STALL_W + 18} height={STALL_H + 18} rx={16} />}
             <rect className="chosen" x={-6} y={-6} width={STALL_W + 12} height={STALL_H + 12} rx={14} />
             <g transform={`scale(${SCALE})`}><StallArt s={s} /></g>
-            {next && <text x={STALL_W / 2} y={-16} textAnchor="middle" className="next-tag">NEXT</text>}
           </g>
         );
       })}
@@ -263,10 +291,22 @@ export function DistrictMap({ state, selected, onSelect }: { state: GameState; s
               <text y="43" textAnchor="middle" className="stall-name">{src.item}</text>
               <text y="58" textAnchor="middle" className="stall-status open">{src.cost > 0 ? `₦${src.cost} each` : `${src.units} free`}</text>
             </g>
-            {next && <text y={-56} textAnchor="middle" className="next-tag">NEXT</text>}
           </g>
         );
       })}
+
+      {focus && (() => {
+        // The "NEXT" pill is drawn last so no stall or awning can cover it.
+        const at = focus.kind === 'stall'
+          ? (() => { const st = state.stalls.find((x) => x.id === focus.id); const p = st && (STALL_POS[st.id] ?? PLOTS[st.market]); return p ? [p[0], p[1] - STALL_H / 2 - 2] : null; })()
+          : (() => { const p = SOURCE_POS[focus.id as Item]; return p ? [p[0], p[1] - 52] : null; })();
+        return at ? (
+          <g transform={`translate(${at[0]} ${at[1]})`} className="next-pill" aria-hidden="true">
+            <rect x={-34} y={-11} width={68} height={22} rx={11} />
+            <text y={4} textAnchor="middle">▼ NEXT</text>
+          </g>
+        ) : null;
+      })()}
 
       <rect width="1000" height="680" fill={light.color} opacity={light.opacity} className="daylight" style={{ pointerEvents: 'none', mixBlendMode: 'multiply' }} />
     </svg>

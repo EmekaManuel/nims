@@ -195,7 +195,7 @@ export class Game {
       if (m.shares[p.id]) worth += m.shares[p.id] * sharePrice(m);
       if (m.owner === p.id) worth += m.cash + Object.entries(m.stock).reduce((a, [i, n]) => a + (n ?? 0) * BASE_PRICE[i as Item], 0);
     }
-    return Math.round(worth);
+    return Math.round(worth - (p.fareOwed ?? 0));
   }
 
   private marketsWithStake(p: Player): Set<MarketId> {
@@ -217,14 +217,35 @@ export class Game {
 
   private carried = (p: Player) => Object.values(p.inventory).reduce((a, b) => a + (b ?? 0), 0);
 
-  /** Moving to a stall in another market costs a fare per unit carried (fuel queues double it). */
-  private travelTo(p: Player, market: MarketId): ActionResult | null {
-    if (p.at === market) return null;
-    const fare = this.carried(p) * carryCost(this.w);
-    if (p.cash < fare) return fail(`You can't afford the fare to ${MARKETS[market].name} (${fare} coins).`);
-    p.cash -= fare;
+  /** The fare to carry your load to another market: per unit carried (fuel queues double it). */
+  private fareTo(p: Player, market: MarketId): number {
+    return p.at === market ? 0 : this.carried(p) * carryCost(this.w);
+  }
+
+  /**
+   * Go to another market. When you're SELLING you can always go: you pay what you can now and the rest
+   * comes out of your sale ("pay on delivery"), so being short of cash never strands goods you can't sell.
+   * When you're BUYING you need the fare in hand, because you'd have nothing to buy with otherwise.
+   */
+  private travelTo(p: Player, market: MarketId, payOnDelivery: boolean): ActionResult | null {
+    const fare = this.fareTo(p, market);
+    if (fare === 0) return null;
+    if (p.cash < fare && !payOnDelivery) return fail(`You can't afford the fare to ${MARKETS[market].name} (${fare} coins). Sell what you're carrying nearby first.`);
+    const now = Math.min(p.cash, fare);
+    p.cash -= now;
+    p.fareOwed = (p.fareOwed ?? 0) + (fare - now);
     p.at = market;
     return null;
+  }
+
+  /** Pay off fare you owe from cash you now have. Returns what was paid. */
+  private settleFare(p: Player): number {
+    const owed = p.fareOwed ?? 0;
+    if (owed <= 0) return 0;
+    const pay = Math.min(owed, p.cash);
+    p.cash -= pay;
+    p.fareOwed = owed - pay;
+    return pay;
   }
 
   gather(email: string, item: Item): ActionResult {
@@ -250,16 +271,17 @@ export class Game {
     if (have < 1) return fail(`You are not carrying any ${item}.`);
     const q = quoteFor(this.w, m, item, p);
     if (!q.willBuy) return fail(`${m.name} has stopped buying ${item}. ${q.reasons.find((r) => r.includes('cash')) ?? ''}`.trim());
-    const trip = this.travelTo(p, m.market);
-    if (trip) return trip;
     const mult = haggle ? this.haggleSwing(p, m.id) : 1;
     if (haggle && mult === 1) return fail('You already haggled with them this hour.');
+    const trip = this.travelTo(p, m.market, true);
+    if (trip) return trip;
     const sold = sellToMerchant(this.w, p, m, item, Math.min(units, have), 0, mult);
     if (sold === 0) return fail(`${m.name} could not take any ${item} right now.`);
+    const fareTaken = this.settleFare(p);
     this.prog(email).marketsSold.add(m.market);
     this.checkDone(email);
     this.tellOwner(m, p, `bought ${sold} ${item} from`, `sold you`, sold, item, 'sell');
-    return ok(`Sold ${sold} ${item} to ${m.name}.${haggle ? ` You haggled a ${Math.round((mult - 1) * 100)}% better price.` : ''}`);
+    return ok(`Sold ${sold} ${item} to ${m.name}.${haggle ? ` You haggled a ${Math.round((mult - 1) * 100)}% better price.` : ''}${fareTaken > 0 ? ` The fare for the trip (${fareTaken} coins) came out of the sale.` : ''}${(p.fareOwed ?? 0) > 0 ? ` You still owe ${p.fareOwed} coins for the trip.` : ''}`);
   }
 
   buy(email: string, merchantId: string, item: Item, units: number, haggle = false): ActionResult {
@@ -271,10 +293,10 @@ export class Game {
     if (m.state === 'closed') return fail(`${m.name} is closed.`);
     const room = CAPACITY[p.vehicle] - this.carried(p);
     if (room < 1) return fail(`Your ${p.vehicle} is full.`);
-    const trip = this.travelTo(p, m.market);
-    if (trip) return trip;
     const mult = haggle ? this.haggleSwing(p, m.id) : 1;
     if (haggle && mult === 1) return fail('You already haggled with them this hour.');
+    const trip = this.travelTo(p, m.market, false);
+    if (trip) return trip;
     const bought = buyFromMerchant(this.w, p, m, item, Math.min(units, room), Infinity, mult);
     if (bought === 0) return fail(`You could not buy any ${item} (out of stock, or not enough cash).`);
     this.tellOwner(m, p, '', '', bought, item, 'buy');
@@ -482,7 +504,8 @@ export class Game {
         .sort((a, b) => b.net - a.net);
       if (options.length) {
         const top = options[0];
-        const here = p.at === top.s.market ? '' : ` It’s in another market, so the trip costs a fare.`;
+        const fare = this.fareTo(p, top.s.market);
+        const here = fare === 0 ? '' : fare > p.cash ? ` It’s in another market. The fare (${fare} coins) is more than you have, so it comes out of your sale.` : ` It’s in another market, so the trip costs a fare (${fare} coins).`;
         return say(`Sell your ${units} ${item} to ${top.s.name}: they pay ${top.o.buyPrice} coins each, the best in town.${here}`, { kind: 'stall', id: top.s.id });
       }
       return say(`Nobody is buying ${item} right now. Try another market, or wait for prices to recover.`);
@@ -605,6 +628,7 @@ export class Game {
       events: w.events.slice(-12).reverse(),
       you: {
         cash: Math.round(p.cash),
+        fareOwed: Math.round(p.fareOwed ?? 0),
         netWorth: worth,
         vehicle: p.vehicle,
         capacity: CAPACITY[p.vehicle],

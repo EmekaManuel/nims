@@ -1,0 +1,14 @@
+{
+  "name": "oja",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "sim": "tsx sim/run.ts"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}

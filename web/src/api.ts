@@ -151,3 +151,37 @@ export const api = {
 };
 
 export const naira = (n: number) => `₦${Math.round(n).toLocaleString('en-NG')}`;
+
+// ---- fast-forward (the open dashboard; no login) ----------------------------------------------
+
+export interface FastForwardParams {
+  days: number;
+  seed: number;
+  gatherers: number;
+  arbitrageur: boolean;
+  investor: boolean;
+  flooder: boolean;
+}
+
+export interface FastForward {
+  params: FastForwardParams;
+  hours: number;
+  items: { item: Item; market: MarketId; base: number }[];
+  /** Average price per item per hour, in naira. */
+  prices: Record<string, number[]>;
+  merchants: { id: string; name: string; market: MarketId }[];
+  cash: Record<string, number[]>;
+  shocks: { kind: 'rain' | 'fuel queue' | 'festive season'; start: number; end: number }[];
+  closures: { hour: number; merchant: string; text: string }[];
+  revivals: { hour: number; merchant: string; text: string }[];
+  dividends: { hour: number; merchant: string; amount: number }[];
+  players: { id: string; label: string; strategy: string; start: number; worth: number[] }[];
+  highlights: string[];
+}
+
+export async function fastForward(params: Partial<FastForwardParams>): Promise<FastForward> {
+  const r = await fetch('/sim/fastforward', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(params) });
+  const body = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error((body as { error?: string }).error ?? 'Could not run the simulation.');
+  return body as FastForward;
+}

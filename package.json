@@ -12,10 +12,12 @@
     "chain:settle": "tsx server/run-settle.ts settle",
     "server": "tsx server/main.ts",
     "web": "cd web && vite",
-    "test:web": "cd web && vitest run"
+    "test:web": "cd web && vitest run",
+    "dev": "concurrently -k -n server,web -c blue,green \"OJA_DEV=1 npm run server\" \"npm run web\""
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
+    "concurrently": "^10.0.6",
     "tsx": "^4.19.0",
     "typescript": "^5.6.0",
     "vitest": "^2.1.0"

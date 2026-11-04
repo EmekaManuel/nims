@@ -30,10 +30,16 @@ export interface Stall {
   state: 'open' | 'struggling' | 'closed';
   till: number;
   offers: Offer[];
-  ajo?: { pool: number; goal: number };
+  ajo?: { pool: number; goal: number; contributors: { name: string; put: number }[] };
+  /** Ajo contributors who reopened this shop. Shown on its sign. */
+  sign: string[];
+  /** Present on a stall run by a player. */
+  owner?: { name: string; mine: boolean };
+  /** Present on merchants you can invest in. */
+  shares?: { price: number; left: number; yours: number };
 }
 
-export type GoalKind = 'fortune' | 'reach' | 'district';
+export type GoalKind = 'fortune' | 'reach' | 'stake' | 'district';
 export type Focus = { kind: 'source' | 'stall'; id: string } | null;
 
 export interface Deal {
@@ -44,7 +50,33 @@ export interface Deal {
   profit: number;
 }
 
+export interface StallItem {
+  item: Item;
+  base: number;
+  min: number;
+  max: number;
+  buy: number;
+  sell: number;
+  stock: number;
+  carrying: number;
+}
+
+export interface Business {
+  shares: { id: string; name: string; market: MarketId; shares: number; price: number; value: number; state: 'open' | 'struggling' | 'closed' }[];
+  stall: { id: string; name: string; market: MarketId; till: number; items: StallItem[] } | null;
+  stallOffer: { cost: number; markets: { id: MarketId; name: string; free: boolean }[] } | null;
+  notes: { hour: number; text: string }[];
+}
+
+export interface Away {
+  hours: number;
+  notes: string[];
+  town: string[];
+}
+
 export interface GameState {
+  away: Away | null;
+  business: Business;
   goal: { kind: GoalKind; title: string; blurb: string; progress: number; label: string; done: boolean } | null;
   goals: { kind: GoalKind; title: string; blurb: string }[];
   coach: { text: string; focus: Focus };
@@ -105,6 +137,16 @@ export const api = {
   sell: (merchant: string, item: Item, units: number, haggle: boolean) => post('/game/sell', { merchant, item, units, haggle }).then((r) => r.body),
   buy: (merchant: string, item: Item, units: number, haggle: boolean) => post('/game/buy', { merchant, item, units, haggle }).then((r) => r.body),
   goal: (kind: GoalKind) => post('/game/goal', { kind }).then((r) => r.body),
+  buyShares: (merchant: string, shares: number) => post('/game/shares/buy', { merchant, shares }).then((r) => r.body),
+  sellShares: (merchant: string, shares: number) => post('/game/shares/sell', { merchant, shares }).then((r) => r.body),
+  contribute: (merchant: string, amount: number) => post('/game/ajo', { merchant, amount }).then((r) => r.body),
+  openStall: (market: MarketId) => post('/game/stall/open', { market }).then((r) => r.body),
+  stallStock: (item: Item, units: number) => post('/game/stall/stock', { item, units }).then((r) => r.body),
+  stallTake: (item: Item, units: number) => post('/game/stall/take', { item, units }).then((r) => r.body),
+  stallPrice: (item: Item, buy: number, sell: number) => post('/game/stall/price', { item, buy, sell }).then((r) => r.body),
+  stallDeposit: (amount: number) => post('/game/stall/deposit', { amount }).then((r) => r.body),
+  stallWithdraw: (amount: number) => post('/game/stall/withdraw', { amount }).then((r) => r.body),
+  ack: () => post('/game/ack', {}).then((r) => r.body),
   upgrade: (to: string) => post('/game/upgrade', { to }).then((r) => r.body),
 };
 

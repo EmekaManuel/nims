@@ -1,0 +1,18 @@
+{
+ "title": "Meet Nims: a market town where every trader is an AI agent, with its own cash, its own stock, and its own mind about prices.",
+ "login": "You sign in with just an email. No wallet, no seed phrase, no gas.",
+ "login2": "Behind that email the game quietly makes your account, so there is nothing to install and nothing to sign.",
+ "goal": "Pick a goal, and Nim, your guide, always tells you the next step.",
+ "collect": "Collect goods at wholesale, then carry them to a stall that pays more.",
+ "tooltip": "Hover any price and the merchant explains it in their own words: how much stock they hold, who sold to them this hour, and what they can afford.",
+ "sale": "Sell, and the cash lands instantly. The game never waits on a block.",
+ "order": "Too far to walk? Place a delivery order. Name the goods, and the lowest price you will take.",
+ "order2": "The town's carriers wait until the stall pays it, then take the load over and sell it for you.",
+ "order3": "And there it is. The load is sold, and the cash is in, without a single step.",
+ "prices": "The price board shows every good in every market, coloured against its usual price.",
+ "shares": "You can also own a piece of a merchant, and earn a share of their profit every evening.",
+ "ff": "For judges: fast-forward a whole week of the market in seconds, using the same pricing code as the live game.",
+ "ff2": "Here one trader floods the market, and you can watch the price of iron crash.",
+ "ff3": "One trader's behaviour moves the whole town, with no developer patch. That is the economy as the gameplay.",
+ "outro": "Underneath, every good and coin settles to NEAR testnet in the background, and you never notice."
+}

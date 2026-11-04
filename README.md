@@ -92,3 +92,9 @@ One container serves the game's pages and its API (`Dockerfile`). Any host that 
 2. Mount a volume at `/data`. It holds accounts, wallets and chain progress. The game itself is saved there too.
 3. Run **one** copy only. The game world and the chain settler live in that process.
 4. Keep the settlement account funded: if it runs out of testnet NEAR, the status page says so and settlement pauses (gameplay keeps going).
+
+## Delivery orders (intents-style)
+
+On any stall you can place a **delivery order**: pick the goods, the units and the lowest price you will take. You don't walk anywhere. Each in-game hour the town's carriers check the stall and, once it pays your price, take the load over and sell it, with the trip's cost taken from the sale. Orders lapse after 24 hours; you can cancel any time. The code is `Game.placeOrder` / `fillOrders` in `server/game.ts`.
+
+This is the *shape* of NEAR Intents (state the result, a solver finds the path, a limit price is enforced), implemented inside the game. It is **not** connected to the NEAR Intents protocol or its solver network.

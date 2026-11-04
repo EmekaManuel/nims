@@ -14,6 +14,8 @@ const BLURB = {
 export interface Actions {
   sell: (merchant: string, item: Item, units: number, haggle: boolean) => void;
   buy: (merchant: string, item: Item, units: number, haggle: boolean) => void;
+  order: (merchant: string, item: Item, units: number, minPrice: number) => void;
+  cancelOrder: (id: number) => void;
   gather: (item: Item) => void;
   upgrade: (to: string) => void;
   buyShares: (merchant: string, shares: number) => void;
@@ -64,6 +66,46 @@ function InvestSection({ stall, cash, act }: { stall: Stall; cash: number; act: 
         <button className="primary" disabled={cash < sh.price * n || sh.left < n} onClick={() => act.buyShares(stall.id, n)}>Buy · {coins(sh.price * n)}</button>
         <button disabled={sh.yours < n} onClick={() => act.sellShares(stall.id, n)}>Sell</button>
       </div>
+    </div>
+  );
+}
+
+/** A delivery order: say what you want ("these goods, sold here, for at least this much") and the carriers handle the trip. */
+function OrderSection({ stall, state, act }: { stall: Stall; state: GameState; act: Actions }) {
+  const sellable = stall.offers;
+  const [item, setItem] = useState<Item>(sellable[0]?.item ?? 'iron');
+  const offer = stall.offers.find((o) => o.item === item);
+  const [units, setUnits] = useState(10);
+  const [min, setMin] = useState<number | null>(null);
+  const limit = min ?? Math.round((offer?.buyPrice ?? 100) * 1.15);
+  const mine = (state.orders ?? []).filter((o) => o.status === 'open');
+  const recent = (state.orders ?? []).filter((o) => o.status !== 'open').slice(0, 2);
+  return (
+    <div className="orders">
+      <h3>Send it here when the price is right</h3>
+      <p className="small muted">Name the goods and the lowest price you will take. The town’s carriers wait for {stall.name} to pay that, then take your load over and sell it, with the cost of the trip taken from the sale. You can be anywhere.</p>
+      <div className="controls">
+        <Field label="Goods" htmlFor="order-item">
+          <select id="order-item" value={item} onChange={(e) => { setItem(e.target.value as Item); setMin(null); }}>
+            {sellable.map((o) => <option key={o.item} value={o.item}>{o.item[0].toUpperCase() + o.item.slice(1)}</option>)}
+          </select>
+        </Field>
+        <Field label="Units" htmlFor="order-units"><NumberField id="order-units" aria-label="Units for the order" min={1} max={1000} value={units} onValueChange={setUnits} /></Field>
+        <Field label="Lowest price each" htmlFor="order-min"><NumberField id="order-min" aria-label="Lowest price each" min={1} max={100000} value={limit} onValueChange={setMin} /></Field>
+        <button className="primary" onClick={() => act.order(stall.id, item, units, limit)}>Place order</button>
+      </div>
+      {offer && <p className="small muted">Right now they pay {coins(offer.buyPrice)} each.</p>}
+      {mine.length > 0 && (
+        <ul className="orderlist">
+          {mine.map((o) => (
+            <li key={o.id}>
+              <span>{o.units - o.done} {o.item} → {state.stalls.find((s) => s.id === o.merchantId)?.name ?? o.merchantId} at {coins(o.minPrice)}+ · {Math.max(0, o.expiresHour - state.hour)}h left</span>
+              <button onClick={() => act.cancelOrder(o.id)}>Cancel</button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {recent.map((o) => <p key={o.id} className="small muted">{o.status === 'filled' ? `Delivered ${o.done} ${o.item}, ${coins(o.earned)} before the trip’s cost.` : `Order for ${o.units} ${o.item} ${o.status}.`}</p>)}
     </div>
   );
 }
@@ -124,6 +166,7 @@ export function StallPanel({ stall, state, act }: { stall: Stall; state: GameSta
           </table>
           </div>
           <p className="muted small">Hover, focus or tap a price to hear why they’re offering it.</p>
+          {!stall.owner && <OrderSection stall={stall} state={state} act={act} />}
           {stall.shares && !stall.owner && <InvestSection stall={stall} cash={state.you.cash} act={act} />}
         </>
       )}

@@ -200,6 +200,8 @@ function Game() {
   const act: Actions = {
     sell: (m, i, u, h) => run(api.sell(m, i, u, h), { kind: 'stall', id: m }),
     buy: (m, i, u, h) => run(api.buy(m, i, u, h), { kind: 'stall', id: m }),
+    order: (m, i, u, price) => run(api.order(m, i, u, price), { kind: 'stall', id: m }),
+    cancelOrder: (id) => run(api.cancelOrder(id)),
     gather: (i) => run(api.gather(i), { kind: 'source', id: i }),
     upgrade: (to) => run(api.upgrade(to)),
     buyShares: (m, n) => run(api.buyShares(m, n), { kind: 'stall', id: m }),

@@ -14,7 +14,7 @@ import { StallPanel, SourcePanel, Actions } from './Panels';
 afterEach(cleanup);
 const state = fixture as unknown as GameState;
 const act = (): Actions => ({
-  sell: vi.fn(), buy: vi.fn(), gather: vi.fn(), upgrade: vi.fn(), buyShares: vi.fn(), sellShares: vi.fn(), contribute: vi.fn(),
+  sell: vi.fn(), buy: vi.fn(), order: vi.fn(), cancelOrder: vi.fn(), gather: vi.fn(), upgrade: vi.fn(), buyShares: vi.fn(), sellShares: vi.fn(), contribute: vi.fn(),
   openStall: vi.fn(), stallStock: vi.fn(), stallTake: vi.fn(), stallPrice: vi.fn(), stallDeposit: vi.fn(), stallWithdraw: vi.fn(), ack: vi.fn(),
 });
 const empty = { ...state, you: { ...state.you, carrying: 0, inventory: [] } };
@@ -49,6 +49,17 @@ describe('stall panel', () => {
     expect(tip.textContent).toMatch(/I'll pay \d+ coins and sell at \d+ coins/);
     fireEvent.mouseLeave(pays.closest('.tipwrap')!);
     expect(screen.queryByRole('tooltip')).toBeNull();
+  });
+
+  it('places a delivery order with a lowest price, and lists open ones with a cancel', () => {
+    const a = act();
+    const withOrder = { ...withInv, orders: [{ id: 7, item: 'iron' as const, units: 5, merchantId: 'anil', minPrice: 400, expiresHour: withInv.hour + 10, status: 'open' as const, done: 0, earned: 0 }] };
+    render(<StallPanel stall={stall} state={withOrder} act={a} />);
+    fireEvent.click(screen.getByText('Place order'));
+    expect(a.order).toHaveBeenCalledTimes(1);
+    expect(a.order.mock.calls[0][0]).toBe('anil');
+    fireEvent.click(screen.getByText('Cancel'));
+    expect(a.cancelOrder).toHaveBeenCalledWith(7);
   });
 
   it('sells what you carry, with the quantity and haggle choices', () => {

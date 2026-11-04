@@ -111,7 +111,7 @@ Pricing is a **pure function**: same inputs, same price. The live game and fast-
 | Speed | Trades apply instantly to game state, then **batch-settle** to the chain in the background (time-windowed, merged, every account signing its own). The player never waits on a block. |
 | Exactness | Calls carry per-signer sequence numbers, so a retry after a timeout can never apply twice. If a call is ever rejected, a fresh **epoch** (new namespace, minted from the game's state) starts instead of patching. |
 | Merchants | Each agent owns a NEAR account and signs its own settlements. |
-| Cross-market moves and investments | Expressed as **NEAR Intents**, for example "move 50 iron from Scrap to Hardware for X coins." |
+| Cross-market moves | **Delivery orders**, an intents-style flow: the player states the outcome ("sell 50 iron at Hardware for at least 280 each") and the town's carriers (a solver run by the game, every tick) wait for the price, make the trip and sell it through the normal sale. The result settles to the chain like any trade. This follows the *shape* of NEAR Intents (declare the result, let a solver find the path, enforce the limit). It does **not** call the NEAR Intents protocol or its solver network; wiring a real Intents solver is future work. |
 | Fund pools and shares | A small contract (or contract module) tracks contributions and pays out. |
 
 ---

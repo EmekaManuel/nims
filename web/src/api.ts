@@ -74,7 +74,10 @@ export interface Away {
   town: string[];
 }
 
+export interface DeliveryOrder { id: number; item: Item; units: number; merchantId: string; minPrice: number; expiresHour: number; status: 'open' | 'filled' | 'expired' | 'cancelled'; done: number; earned: number }
+
 export interface GameState {
+  orders?: DeliveryOrder[];
   away: Away | null;
   business: Business;
   goal: { kind: GoalKind; title: string; blurb: string; progress: number; label: string; done: boolean } | null;
@@ -145,6 +148,8 @@ export const api = {
   },
   gather: (item: Item) => post('/game/gather', { item }).then((r) => r.body),
   sell: (merchant: string, item: Item, units: number, haggle: boolean) => post('/game/sell', { merchant, item, units, haggle }).then((r) => r.body),
+  order: (merchant: string, item: Item, units: number, minPrice: number) => post('/game/order', { merchant, item, units, minPrice }).then((r) => r.body),
+  cancelOrder: (id: number) => post('/game/order/cancel', { id }).then((r) => r.body),
   buy: (merchant: string, item: Item, units: number, haggle: boolean) => post('/game/buy', { merchant, item, units, haggle }).then((r) => r.body),
   goal: (kind: GoalKind) => post('/game/goal', { kind }).then((r) => r.body),
   buyShares: (merchant: string, shares: number) => post('/game/shares/buy', { merchant, shares }).then((r) => r.body),

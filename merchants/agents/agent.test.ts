@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { MerchantAgent } from './agent';
 
-const agent = (held: Record<string, number>) => new MerchantAgent('bisi', 'bisi.oja.testnet', (t) => held[t] ?? 0);
+const agent = (held: Record<string, number>) => new MerchantAgent('mira', 'mira.oja.testnet', (t) => held[t] ?? 0);
 
 describe('merchant agent', () => {
   it('approves legs it can cover and tracks what it has already promised', async () => {
@@ -18,7 +18,7 @@ describe('merchant agent', () => {
     const r = await agent({ iron: 10 }).review([
       { to: 'a', tokenId: 'iron', amount: 0 },
       { to: 'a', tokenId: 'iron', amount: 1.5 },
-      { to: 'bisi.oja.testnet', tokenId: 'iron', amount: 1 },
+      { to: 'mira.oja.testnet', tokenId: 'iron', amount: 1 },
       { to: 'a', tokenId: 'lace', amount: 1 },
     ]);
     expect(r.approved).toHaveLength(0);

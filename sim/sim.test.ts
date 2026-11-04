@@ -1,27 +1,27 @@
 import { describe, it, expect } from 'vitest';
 import { act, newPlayer } from './players';
-import { contributeToAjo, quoteFor, refreshState, tick } from './engine';
+import { contributeToFund, quoteFor, refreshState, tick } from './engine';
 import { runWeek } from './run';
 import { createWorld } from './world';
 
 describe('Milestone 1 exit test', () => {
   it('flooding iron makes iron cheap', () => {
     const w = createWorld(7, [newPlayer('flooder', 'flooder')]);
-    const start = quoteFor(w, w.merchants.find((m) => m.id === 'wale')!, 'iron').mid;
+    const start = quoteFor(w, w.merchants.find((m) => m.id === 'ruth')!, 'iron').mid;
     for (let h = 0; h < 48; h++) tick(w, act);
-    const end = quoteFor(w, w.merchants.find((m) => m.id === 'wale')!, 'iron').mid;
+    const end = quoteFor(w, w.merchants.find((m) => m.id === 'ruth')!, 'iron').mid;
     expect(end).toBeLessThan(start * 0.6);
   });
 
   it('flooding iron leaves other markets alone', () => {
     const w = createWorld(7, [newPlayer('flooder', 'flooder')]);
-    const tomato0 = quoteFor(w, w.merchants.find((m) => m.id === 'kemi')!, 'tomatoes').mid;
+    const tomato0 = quoteFor(w, w.merchants.find((m) => m.id === 'tomas')!, 'tomatoes').mid;
     for (let h = 0; h < 48; h++) tick(w, act);
-    const tomato1 = quoteFor(w, w.merchants.find((m) => m.id === 'kemi')!, 'tomatoes').mid;
+    const tomato1 = quoteFor(w, w.merchants.find((m) => m.id === 'tomas')!, 'tomatoes').mid;
     expect(tomato1).toBeGreaterThan(tomato0 * 0.5);
   });
 
-  it('a merchant can go broke and be revived by an ajo pool', () => {
+  it('a merchant can go broke and be revived by an community fund', () => {
     const investor = newPlayer('investor', 'investor', 40_000);
     const w = createWorld(3, [investor]);
     const m = w.merchants[0];
@@ -29,9 +29,9 @@ describe('Milestone 1 exit test', () => {
     m.stock = {};
     refreshState(w, m);
     expect(m.state).toBe('closed');
-    expect(contributeToAjo(w, investor, m, 6_000)).toBe(true);
+    expect(contributeToFund(w, investor, m, 6_000)).toBe(true);
     expect(m.state).toBe('closed'); // pool not full yet
-    contributeToAjo(w, investor, m, 6_000);
+    contributeToFund(w, investor, m, 6_000);
     expect(m.state).toBe('open');
     expect(m.cash).toBeGreaterThan(0);
     expect(w.events.some((e) => e.type === 'revived')).toBe(true);

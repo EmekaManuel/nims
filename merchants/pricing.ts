@@ -1,5 +1,5 @@
 /**
- * Oja merchant pricing — the one readable pricing file (DESIGN.md §3).
+ * Nims merchant pricing — the one readable pricing file (DESIGN.md §3).
  *
  * Rules of this file:
  *  - It is a PURE function: same inputs, same output. No clock, no RNG, no I/O.
@@ -73,9 +73,9 @@ export interface QuoteInput {
 
 export interface Quote {
   mid: number;
-  /** What the merchant pays the player per unit (₦). */
+  /** What the merchant pays the player per unit (coins). */
   buyPrice: number;
-  /** What the merchant charges the player per unit (₦). */
+  /** What the merchant charges the player per unit (coins). */
   sellPrice: number;
   /** False when cash is under the floor or the merchant has no money at all. */
   willBuy: boolean;
@@ -88,7 +88,7 @@ export interface Quote {
   tooltip: string;
 }
 
-const naira = (n: number) => `₦${Math.round(n)}`;
+const coins = (n: number) => `${Math.round(n)} coins`;
 const clamp = (x: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, x));
 
 export function quote(i: QuoteInput): Quote {
@@ -121,8 +121,8 @@ export function quote(i: QuoteInput): Quote {
   const lo = i.basePrice * MIN_MULT;
   const hi = i.basePrice * MAX_MULT;
   const mid = clamp(rawMid, lo, hi);
-  if (rawMid < lo) reasons.push(`I won't go below ${naira(lo)} no matter what.`);
-  if (rawMid > hi) reasons.push(`I won't go above ${naira(hi)} no matter what.`);
+  if (rawMid < lo) reasons.push(`I won't go below ${coins(lo)} no matter what.`);
+  if (rawMid > hi) reasons.push(`I won't go above ${coins(hi)} no matter what.`);
 
   // 4. Margin (reputation shaves it for loyal merchants).
   const rep = clamp(i.reputation ?? 0, 0, 1);
@@ -135,10 +135,10 @@ export function quote(i: QuoteInput): Quote {
   // 5. Cash floor: under it, I stop buying.
   const willBuy = i.cash >= i.cashFloor && i.cash >= buyPrice;
   const willSell = i.stock > 0;
-  if (!willBuy) reasons.push(`My cash is low (${naira(i.cash)}), so I've stopped buying ${i.itemName}.`);
+  if (!willBuy) reasons.push(`My cash is low (${coins(i.cash)}), so I've stopped buying ${i.itemName}.`);
   if (!willSell) reasons.push(`I'm out of ${i.itemName}.`);
 
-  reasons.push(`I'll pay ${naira(buyPrice)} and sell at ${naira(sellPrice)} (usual ${naira(i.basePrice)}).`);
+  reasons.push(`I'll pay ${coins(buyPrice)} and sell at ${coins(sellPrice)} (usual ${coins(i.basePrice)}).`);
 
   return {
     mid,
@@ -154,7 +154,7 @@ export function quote(i: QuoteInput): Quote {
 
 /**
  * Merchant state (DESIGN.md §3):
- *  - cash == 0 and nothing to sell → closed (investable via an ajo pool)
+ *  - cash == 0 and nothing to sell → closed (a community fund can reopen it)
  *  - cash under the floor           → struggling (stops buying)
  *  - otherwise                      → open
  */
@@ -196,9 +196,9 @@ export function playerQuote(i: PlayerQuoteInput): Quote {
   const willBuy = i.cash >= buyPrice;
   const willSell = i.stock > 0;
   const reasons = [`${i.ownerName} sets these prices by hand.`];
-  if (!willBuy) reasons.push(`The till is down to ${naira(i.cash)}, so ${i.ownerName} can't buy ${i.itemName} right now.`);
+  if (!willBuy) reasons.push(`The till is down to ${coins(i.cash)}, so ${i.ownerName} can't buy ${i.itemName} right now.`);
   if (!willSell) reasons.push(`${i.ownerName} is out of ${i.itemName}.`);
-  reasons.push(`Pays ${naira(buyPrice)}, sells at ${naira(sellPrice)} (usual ${naira(i.basePrice)}).`);
+  reasons.push(`Pays ${coins(buyPrice)}, sells at ${coins(sellPrice)} (usual ${coins(i.basePrice)}).`);
   return {
     mid: (buyPrice + sellPrice) / 2,
     buyPrice,

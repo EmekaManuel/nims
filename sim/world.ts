@@ -1,14 +1,14 @@
 import { MerchantState, Personality } from '../merchants/pricing';
 import { makeRng, Rng } from './rng';
 
-export type Item = 'tomatoes' | 'pepper' | 'garri' | 'ankara' | 'lace' | 'thread' | 'iron' | 'copper wire';
+export type Item = 'tomatoes' | 'pepper' | 'flour' | 'cotton' | 'lace' | 'thread' | 'iron' | 'copper wire';
 export type MarketId = 'produce' | 'fabric' | 'scrap';
 
 export const BASE_PRICE: Record<Item, number> = {
   tomatoes: 120,
   pepper: 200,
-  garri: 150,
-  ankara: 800,
+  flour: 150,
+  cotton: 800,
   lace: 1500,
   thread: 100,
   iron: 300,
@@ -16,8 +16,8 @@ export const BASE_PRICE: Record<Item, number> = {
 };
 
 export const MARKETS: Record<MarketId, { name: string; items: Item[] }> = {
-  produce: { name: 'Produce Market', items: ['tomatoes', 'pepper', 'garri'] },
-  fabric: { name: 'Fabric Market', items: ['ankara', 'lace', 'thread'] },
+  produce: { name: 'Produce Market', items: ['tomatoes', 'pepper', 'flour'] },
+  fabric: { name: 'Fabric Market', items: ['cotton', 'lace', 'thread'] },
   scrap: { name: 'Scrap & Hardware', items: ['iron', 'copper wire'] },
 };
 
@@ -42,11 +42,11 @@ export interface Merchant {
   target: Partial<Record<Item, number>>;
   state: MerchantState;
   memory: MemoryEntry[];
-  /** Ajo pool that revives the shop once it is closed. */
-  ajo: { pool: number; goal: number; contributors: Record<string, number> };
+  /** Community fund that revives the shop once it is closed. */
+  fund: { pool: number; goal: number; contributors: Record<string, number> };
   /** Shareholders: player id -> shares. At most MAX_PUBLIC_SHARES in total, so a merchant is never taken over. */
   shares: Record<string, number>;
-  /** Player ids of the ajo contributors who last reopened this shop. Their names go on the sign. */
+  /** Player ids of the fund contributors who last reopened this shop. Their names go on the sign. */
   sign: string[];
   /** Worth at the start of the current in-game day, to measure the day's profit for dividends. */
   dayStartWorth?: number;
@@ -60,8 +60,8 @@ export interface Merchant {
 export const SHARES_TOTAL = 100;
 export const MAX_PUBLIC_SHARES = 49;
 
-export type Vehicle = 'wheelbarrow' | 'keke' | 'van';
-export const CAPACITY: Record<Vehicle, number> = { wheelbarrow: 20, keke: 60, van: 150 };
+export type Vehicle = 'wheelbarrow' | 'pickup' | 'van';
+export const CAPACITY: Record<Vehicle, number> = { wheelbarrow: 20, pickup: 60, van: 150 };
 
 export interface Player {
   id: string;
@@ -73,7 +73,7 @@ export interface Player {
   at?: MarketId;
   /** Per-merchant reputation 0..1; grows with trades. */
   reputation: Record<string, number>;
-  /** What happened to the player's business: dividends, ajo, stall sales. Shown as "while you were away". */
+  /** What happened to the player's business: dividends, fund, stall sales. Shown as "while you were away". */
   notes: { hour: number; text: string }[];
 }
 
@@ -83,7 +83,7 @@ export interface Source {
   units: number;
   max: number;
   respawnPerHour: number;
-  /** ₦ per unit; 0 for free gathering. */
+  /** Coins per unit; 0 for free gathering. */
   cost: number;
 }
 
@@ -102,7 +102,7 @@ export interface WorldEvent {
   merchant?: string;
   /** state events: what the merchant became. dividend events: n/a. */
   to?: MerchantState;
-  /** dividend events: total ₦ paid out. */
+  /** dividend events: total coins paid out. */
   amount?: number;
   /** shock events: which shock and for how long. */
   shock?: ShockKind;
@@ -157,7 +157,7 @@ function merchant(
     target,
     state: 'open',
     memory: [],
-    ajo: { pool: 0, goal: 12_000, contributors: {} },
+    fund: { pool: 0, goal: 12_000, contributors: {} },
     shares: {},
     sign: [],
   };
@@ -166,14 +166,14 @@ function merchant(
 /** 8 merchants across 3 markets (DESIGN.md §1). */
 export function createMerchants(): Merchant[] {
   return [
-    merchant('bisi', 'Mama Bisi', 'produce', 'greedy', { tomatoes: 80, pepper: 60 }),
-    merchant('kemi', 'Iya Kemi', 'produce', 'cautious', { garri: 100, tomatoes: 60 }),
-    merchant('tunde', 'Baba Tunde', 'produce', 'loyal', { pepper: 60, garri: 80 }),
-    merchant('nkechi', 'Madam Nkechi', 'fabric', 'loyal', { ankara: 40, thread: 120 }),
-    merchant('sade', 'Alhaja Sade', 'fabric', 'cautious', { lace: 25, ankara: 40 }),
-    merchant('chidi', 'Chidi Iron Works', 'scrap', 'greedy', { iron: 50, 'copper wire': 30 }),
-    merchant('wale', 'Baba Wale', 'scrap', 'cautious', { iron: 60 }),
-    merchant('emeka', 'Emeka Hardware', 'scrap', 'loyal', { 'copper wire': 40, iron: 40 }),
+    merchant('mira', "Mira's Greens", 'produce', 'greedy', { tomatoes: 80, pepper: 60 }),
+    merchant('tomas', 'Tomas Produce', 'produce', 'cautious', { flour: 100, tomatoes: 60 }),
+    merchant('june', "June's Pantry", 'produce', 'loyal', { pepper: 60, flour: 80 }),
+    merchant('lena', "Lena's Textiles", 'fabric', 'loyal', { cotton: 40, thread: 120 }),
+    merchant('omar', "Omar's Fabrics", 'fabric', 'cautious', { lace: 25, cotton: 40 }),
+    merchant('anil', 'Anil Metals', 'scrap', 'greedy', { iron: 50, 'copper wire': 30 }),
+    merchant('ruth', "Ruth's Salvage", 'scrap', 'cautious', { iron: 60 }),
+    merchant('diego', 'Diego Hardware', 'scrap', 'loyal', { 'copper wire': 40, iron: 40 }),
   ];
 }
 
@@ -184,7 +184,7 @@ export function createSources(): Source[] {
     { item: 'iron', label: 'Scrap spot (iron)', units: 150, max: 150, respawnPerHour: 10, cost: 0 },
     { item: 'copper wire', label: 'Scrap spot (copper wire)', units: 80, max: 80, respawnPerHour: 5, cost: 0 },
     // Wholesaler: fixed price anchor for cloth.
-    { item: 'ankara', label: 'Wholesaler (ankara)', units: 1_000_000, max: 1_000_000, respawnPerHour: 0, cost: 680 },
+    { item: 'cotton', label: 'Wholesaler (cotton)', units: 1_000_000, max: 1_000_000, respawnPerHour: 0, cost: 680 },
   ];
 }
 

@@ -114,35 +114,35 @@ export function refreshState(w: World, m: Merchant) {
   }
 }
 
-/** Put cash into a closed shop's ajo pool. When it fills, the shop reopens with contributors on the sign. */
-export function contributeToAjo(w: World, p: Player, m: Merchant, amount: number): boolean {
+/** Put cash into a closed shop's community fund. When it fills, the shop reopens with contributors on the sign. */
+export function contributeToFund(w: World, p: Player, m: Merchant, amount: number): boolean {
   if (m.state !== 'closed') return false;
-  const give = Math.min(amount, p.cash, m.ajo.goal - m.ajo.pool);
+  const give = Math.min(amount, p.cash, m.fund.goal - m.fund.pool);
   if (give <= 0) return false;
   p.cash -= give;
-  m.ajo.pool += give;
-  m.ajo.contributors[p.id] = (m.ajo.contributors[p.id] ?? 0) + give;
-  if (m.ajo.pool >= m.ajo.goal) {
-    m.cash = m.ajo.pool;
+  m.fund.pool += give;
+  m.fund.contributors[p.id] = (m.fund.contributors[p.id] ?? 0) + give;
+  if (m.fund.pool >= m.fund.goal) {
+    m.cash = m.fund.pool;
     for (const item of merchantItems(m)) {
       const units = Math.floor((m.target[item] ?? 0) / 2);
       m.stock[item] = units;
       if (units) w.ledger.push({ hour: w.hour, kind: 'mint', to: m.id, item, units });
     }
     // Contributors become shareholders in proportion to what they put in.
-    for (const [id, put] of Object.entries(m.ajo.contributors)) {
-      const grant = Math.min(Math.floor((MAX_PUBLIC_SHARES * put) / m.ajo.goal), publicSharesLeft(m));
+    for (const [id, put] of Object.entries(m.fund.contributors)) {
+      const grant = Math.min(Math.floor((MAX_PUBLIC_SHARES * put) / m.fund.goal), publicSharesLeft(m));
       if (grant > 0) m.shares[id] = (m.shares[id] ?? 0) + grant;
       const who = w.players.find((x) => x.id === id);
-      if (who) addNote(w, who, `${m.name} reopened thanks to your ajo contribution${grant > 0 ? `. You now hold ${m.shares[id]} shares` : ''}.`);
+      if (who) addNote(w, who, `${m.name} reopened thanks to your fund contribution${grant > 0 ? `. You now hold ${m.shares[id]} shares` : ''}.`);
     }
-    m.sign = Object.keys(m.ajo.contributors);
-    m.ajo.pool = 0;
-    m.ajo.contributors = {};
+    m.sign = Object.keys(m.fund.contributors);
+    m.fund.pool = 0;
+    m.fund.contributors = {};
     m.memory = [];
     m.state = 'open';
     m.dayStartWorth = merchantWorth(m);
-    w.events.push({ hour: w.hour, type: 'revived', text: `${m.name} reopened thanks to an ajo pool.`, merchant: m.id });
+    w.events.push({ hour: w.hour, type: 'revived', text: `${m.name} reopened thanks to an community fund.`, merchant: m.id });
     refreshState(w, m);
   }
   return true;
@@ -157,7 +157,7 @@ function rollShocks(w: World) {
   w.events.push({ hour: w.hour, type: 'shock', text: `Shock: ${kind} for ${length}h.`, shock: kind, length });
 }
 
-/** ₦ per unit to move goods between markets. Fuel queues double it. */
+/** Coins per unit to move goods between markets. Fuel queues double it. */
 export const carryCost = (w: World) => (activeShock(w, 'fuel queue') ? 40 : 20);
 
 /** Gathering capacity multiplier (rain slows it). */
@@ -221,7 +221,7 @@ export function playerWorth(w: World, p: Player): number {
   return Math.round(worth);
 }
 
-/** One share is 1% of the merchant's worth (never less than ₦1). */
+/** One share is 1% of the merchant's worth (never less than 1 coins). */
 export const sharePrice = (m: Merchant) => Math.max(1, Math.round(merchantWorth(m) / SHARES_TOTAL));
 export const sharesHeld = (m: Merchant) => Object.values(m.shares).reduce((a, b) => a + b, 0);
 export const publicSharesLeft = (m: Merchant) => Math.max(0, MAX_PUBLIC_SHARES - sharesHeld(m));
@@ -229,11 +229,11 @@ export const publicSharesLeft = (m: Merchant) => Math.max(0, MAX_PUBLIC_SHARES -
 /** Buying shares puts your cash into the merchant's till, which can lift a struggling shop. */
 export function buyShares(w: World, p: Player, m: Merchant, n: number): { error: string } | { cost: number } {
   if (m.owner) return { error: "You can't buy shares in a stall run by another player." };
-  if (m.state === 'closed') return { error: `${m.name} is closed. Start an ajo pool to reopen it.` };
+  if (m.state === 'closed') return { error: `${m.name} is closed. Start an community fund to reopen it.` };
   if (!Number.isInteger(n) || n < 1) return { error: 'Pick a whole number of shares.' };
   if (n > publicSharesLeft(m)) return { error: publicSharesLeft(m) === 0 ? `No shares left in ${m.name}. They keep the majority.` : `Only ${publicSharesLeft(m)} shares left in ${m.name}.` };
   const cost = n * sharePrice(m);
-  if (p.cash < cost) return { error: `${n} shares cost ₦${cost}.` };
+  if (p.cash < cost) return { error: `${n} shares cost ${cost} coins.` };
   p.cash -= cost;
   m.cash += cost;
   m.shares[p.id] = (m.shares[p.id] ?? 0) + n;
@@ -279,9 +279,9 @@ function payDividends(w: World) {
         holder.cash += pay;
         m.cash -= pay;
         paid += pay;
-        addNote(w, holder, `${m.name} paid you ₦${pay} in dividends for your ${n} shares.`);
+        addNote(w, holder, `${m.name} paid you ${pay} coins in dividends for your ${n} shares.`);
       }
-      if (paid > 0) w.events.push({ hour: w.hour, type: 'dividend', text: `${m.name} paid ₦${paid} in dividends to its shareholders.`, merchant: m.id, amount: paid });
+      if (paid > 0) w.events.push({ hour: w.hour, type: 'dividend', text: `${m.name} paid ${paid} coins in dividends to its shareholders.`, merchant: m.id, amount: paid });
     }
     m.dayStartWorth = merchantWorth(m); // tomorrow's baseline
   }
@@ -308,7 +308,7 @@ export function openOwnerStall(w: World, p: Player, market: MarketId, ownerName:
     target: Object.fromEntries(items.map((i) => [i, 20])),
     state: 'open',
     memory: [],
-    ajo: { pool: 0, goal: 0, contributors: {} },
+    fund: { pool: 0, goal: 0, contributors: {} },
     shares: {},
     sign: [],
     owner: p.id,
@@ -339,7 +339,7 @@ function agentTrade(w: World) {
             o.cash += n * qo.sellPrice;
             m.memory.push({ hour: w.hour, item, kind: 'sold', units: n });
             w.ledger.push({ hour: w.hour, kind: 'transfer', from: o.id, to: m.id, item, units: n });
-            notifyOwner(w, o, `${m.name} bought ${n} ${item} from your stall for ₦${n * qo.sellPrice}.`);
+            notifyOwner(w, o, `${m.name} bought ${n} ${item} from your stall for ${n * qo.sellPrice} coins.`);
             continue;
           }
         }
@@ -353,7 +353,7 @@ function agentTrade(w: World) {
             o.cash -= n * qo.buyPrice;
             m.memory.push({ hour: w.hour, item, kind: 'bought', units: n });
             w.ledger.push({ hour: w.hour, kind: 'transfer', from: m.id, to: o.id, item, units: n });
-            notifyOwner(w, o, `${m.name} sold ${n} ${item} to your stall for ₦${n * qo.buyPrice}.`);
+            notifyOwner(w, o, `${m.name} sold ${n} ${item} to your stall for ${n * qo.buyPrice} coins.`);
           }
         }
       }

@@ -4,7 +4,7 @@ import {
   buyShares,
   buyFromMerchant,
   carryCost,
-  contributeToAjo,
+  contributeToFund,
   gatherRate,
   merchantItems,
   quoteFor,
@@ -48,8 +48,8 @@ function sellBest(w: World, p: Player, item: Item, floorFraction: number) {
 }
 
 function upgradeVehicle(p: Player) {
-  if (p.vehicle === 'wheelbarrow' && p.cash > 8_000) (p.vehicle = 'keke'), (p.cash -= 5_000);
-  else if (p.vehicle === 'keke' && p.cash > 25_000) (p.vehicle = 'van'), (p.cash -= 18_000);
+  if (p.vehicle === 'wheelbarrow' && p.cash > 8_000) (p.vehicle = 'pickup'), (p.cash -= 5_000);
+  else if (p.vehicle === 'pickup' && p.cash > 25_000) (p.vehicle = 'van'), (p.cash -= 18_000);
 }
 
 const GATHERABLE: Item[] = ['tomatoes', 'pepper', 'iron', 'copper wire'];
@@ -82,9 +82,9 @@ const arbitrageur: Strategy = (w, p) => {
   upgradeVehicle(p);
 };
 
-/** Revives closed shops through ajo, and otherwise holds a stake in each market so dividends keep arriving. */
+/** Revives closed shops through fund, and otherwise holds a stake in each market so dividends keep arriving. */
 const investor: Strategy = (w, p) => {
-  for (const m of w.merchants) if (m.state === 'closed') contributeToAjo(w, p, m, 4_000);
+  for (const m of w.merchants) if (m.state === 'closed') contributeToFund(w, p, m, 4_000);
   const staked = new Set(w.merchants.filter((m) => !m.owner && (m.shares[p.id] ?? 0) > 0).map((m) => m.market));
   for (const market of Object.keys(MARKETS) as MarketId[]) {
     if (staked.has(market) || p.cash < 12_000) continue;

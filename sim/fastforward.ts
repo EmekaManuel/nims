@@ -53,7 +53,7 @@ export function runFastForward(params: FastForwardParams) {
     for (const p of players) worth[p.id].push(playerWorth(w, p));
   }
 
-  // Prices as a share of the usual price (100 = usual), so ₦120 tomatoes and ₦1,500 lace share one axis.
+  // Prices as a share of the usual price (100 = usual), so 120 coins tomatoes and 1,500 coins lace share one axis.
   const items = (Object.keys(MARKETS) as MarketId[]).flatMap((market) => MARKETS[market].items.map((item) => ({ item, market, base: BASE_PRICE[item] })));
   const prices: Record<string, number[]> = {};
   for (const { item, market } of items) {
@@ -77,10 +77,10 @@ export function runFastForward(params: FastForwardParams) {
     })
     .sort((a, b) => a.pct - b.pct)[0];
   if (low && low.pct < 85) highlights.push(`${cap(low.item)} fell to ${low.pct}% of its usual price on day ${Math.floor(low.hour / 24) + 1}.`);
-  if (closures.length) highlights.push(`${closures.length === 1 ? 'A shop' : `${closures.length} shops`} ran out of cash and closed${revivals.length ? `; ${revivals.length} reopened thanks to ajo pools` : ''}.`);
+  if (closures.length) highlights.push(`${closures.length === 1 ? 'A shop' : `${closures.length} shops`} ran out of cash and closed${revivals.length ? `; ${revivals.length} reopened thanks to community funds` : ''}.`);
   else highlights.push('Every shop stayed open all week.');
   const paid = dividends.reduce((a, d) => a + d.amount, 0);
-  if (paid > 0) highlights.push(`Shareholders were paid ₦${paid.toLocaleString('en-NG')} in dividends.`);
+  if (paid > 0) highlights.push(`Shareholders were paid ${paid.toLocaleString('en-US')} coins in dividends.`);
   if (shocks.length) highlights.push(`${shocks.length} shocks hit the district: ${[...new Set(shocks.map((s) => s.kind))].join(', ')}.`);
 
   return {

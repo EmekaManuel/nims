@@ -61,9 +61,6 @@ button.primary { background: linear-gradient(#58b4ff, #2f8cff); border-color: va
 button.gold, button.brass { background: linear-gradient(#ffd95a, #ffb800); border-color: var(--gold-deep); border-bottom-color: #a87000; color: #4a3200; }
 button.link { background: none; border: 0; padding: 0; color: var(--accent-strong); font-family: var(--font); font-weight: 700; text-decoration: underline; text-underline-offset: 2px; filter: none; }
 :focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 60%, transparent); outline-offset: 2px; }
-input[type=number], input[type=email], select { background: var(--surface); border: 2px solid var(--line-strong); border-radius: 12px; padding: .35rem .65rem; }
-input[type=number] { width: 5rem; }
-input[type=checkbox], input[type=range] { accent-color: var(--accent); }
 
 /* ---- the game shell: HUD on top, a full-bleed stage, the dock at the bottom ---- */
 .shell { height: 100dvh; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; background: #dfe5ee; overflow: hidden; }
@@ -250,9 +247,9 @@ th { font-size: .7rem; letter-spacing: .06em; text-transform: uppercase; color: 
 .offer { background: var(--surface-2); border: 1px dashed var(--line-strong); border-radius: 12px; padding: .7rem .9rem; }
 .offer h3 { margin-top: 0; } .mk { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .5rem; }
 .till { display: flex; flex-wrap: wrap; gap: .5rem .8rem; align-items: center; } .till b { font-size: 1.3rem; display: block; }
-.manager input[type=number] { width: 4.9rem; } .till input[type=number] { width: 5.8rem; } .manager td { white-space: normal; } .manager .btns { display: flex; flex-wrap: wrap; gap: .3rem; align-items: center; min-width: 6.5rem; }
+ .manager td { white-space: normal; } .manager .btns { display: flex; flex-wrap: wrap; gap: .3rem; align-items: center; min-width: 6.5rem; }
 .manager td button { padding: .22rem .55rem; font-size: .85rem; margin-left: 0; }
-.manager td > input + button { margin-left: .3rem; }
+.manager td > .numfield + button { margin-left: .3rem; } .manager .numfield-input { width: 4.2rem; }
 .shelfqty { margin: .4rem 0; }
 .notes { list-style: none; margin: 0; padding: 0; display: grid; gap: .35rem; max-height: 14rem; overflow: auto; }
 .notes li { padding-bottom: .3rem; border-bottom: 1px solid var(--line); }
@@ -272,7 +269,7 @@ th { font-size: .7rem; letter-spacing: .06em; text-transform: uppercase; color: 
 .goalopt span { color: var(--ink-3); font-weight: 400; } .goalopt.cur { background: var(--accent-soft); border-color: var(--accent); }
 .login { max-width: 31rem; margin: 9vh auto; padding: 32px 30px 26px; display: grid; gap: .9rem; background: var(--surface); border: 1px solid var(--line); border-radius: 20px; box-shadow: var(--shadow-lg); }
 .login h1 { font-size: 3.2rem; letter-spacing: -.04em; margin: 0; }
-.login form { display: grid; gap: .6rem; } .login label { display: grid; gap: .3rem; font-weight: 600; }
+.login form { display: grid; gap: .8rem; }
 .simlink { font-weight: 600; }
 @media (max-width: 480px) { .login { margin: 4vh 16px; padding: 22px; } }
 
@@ -292,12 +289,11 @@ th { font-size: .7rem; letter-spacing: .06em; text-transform: uppercase; color: 
 .backlink { font-weight: 600; }
 .ffbar { display: flex; flex-wrap: wrap; gap: .6rem 1rem; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: .75rem 1rem; margin-top: 1.1rem; box-shadow: var(--shadow); }
 .ffbar label { display: flex; gap: .4rem; align-items: center; font-weight: 600; }
-.ffbar input[type=number] { width: 4.6rem; }
 .ffbody { transition: opacity .2s; }
 .ff .panel { margin-top: 1.1rem; } .ff .panel h2 { margin-top: 0; }
 .highlights ul { margin: .3rem 0 0; padding-left: 1.2rem; display: grid; gap: .3rem; font-weight: 600; }
 .playbar { display: flex; flex-wrap: wrap; gap: .6rem 1rem; align-items: center; margin-top: 1.1rem; }
-.playbar .grow { flex: 1 1 14rem; display: flex; } .playbar input[type=range] { width: 100%; }
+.playbar .grow { flex: 1 1 14rem; display: flex; }
 .playbar label { font-weight: 600; display: flex; gap: .4rem; align-items: center; }
 .clock { font-weight: 700; min-width: 8.5rem; font-variant-numeric: tabular-nums; color: var(--accent-strong); }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
@@ -395,3 +391,60 @@ th { font-size: .7rem; letter-spacing: .06em; text-transform: uppercase; color: 
   .meter { height: 8px; } .goalrow { font-size: .8rem; }
   .guide-bubble { padding: 8px 12px; } .guide-bubble p { font-size: .86rem; } .guide-bubble::before, .quest-guide .mascot { display: none; }
 }
+
+/* ================= form controls (Radix primitives) =================
+   Behaviour (keyboard, focus, screen readers) comes from Radix; this is only the look. */
+.field { display: inline-flex; gap: .45rem; align-items: center; }
+.rx-label { font-weight: 600; cursor: pointer; user-select: none; }
+.rx-label.strong { font-weight: 700; }
+
+/* text input */
+.textfield { display: grid; gap: .3rem; }
+.rx-input { width: 100%; background: #fff; border: 2px solid var(--line-strong); border-radius: 12px; padding: .55rem .8rem; font: inherit; box-shadow: inset 0 2px 0 rgba(20, 32, 46, .05); }
+.rx-input::placeholder { color: var(--ink-3); }
+.rx-input:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 40%, transparent); outline-offset: 0; border-color: var(--accent); }
+.rx-input.invalid { border-color: var(--bad); }
+.field-error { color: var(--bad); font-weight: 600; margin: 0; font-size: .88rem; }
+
+/* number field: type a number, or step it */
+.numfield { display: inline-flex; align-items: stretch; background: #fff; border: 2px solid var(--line-strong); border-radius: 12px; overflow: hidden; box-shadow: inset 0 2px 0 rgba(20, 32, 46, .05); }
+.numfield:focus-within { border-color: var(--accent); outline: 3px solid color-mix(in srgb, var(--accent) 35%, transparent); }
+.numfield-input { width: 3.6rem; min-width: 0; border: 0; background: transparent; text-align: center; font: 600 1rem var(--font); color: var(--ink); padding: .32rem .2rem; outline: none; }
+.numfield.wide .numfield-input { width: 6rem; }
+.stepper { width: 2rem; padding: 0; border: 0; border-radius: 0; background: var(--surface-2); color: var(--ink-2); font: 700 1.15rem var(--display); box-shadow: none; filter: none; transform: none !important; }
+.stepper:first-child { border-right: 1px solid var(--line); } .stepper:last-child { border-left: 1px solid var(--line); }
+.stepper:hover:not(:disabled) { background: var(--accent-soft); color: var(--accent-strong); filter: none; }
+.stepper:active:not(:disabled) { background: #d3e4ff; }
+.stepper:disabled { opacity: .35; }
+
+/* select */
+.rx-trigger { display: inline-flex; align-items: center; justify-content: space-between; gap: .5rem; min-width: 5.4rem; background: linear-gradient(#ffffff, #eef3fb); color: var(--ink); border: 2px solid var(--line-strong); border-bottom-width: 4px; border-radius: 12px; padding: .28rem .65rem .22rem; font: 600 1rem var(--display); cursor: pointer; }
+.rx-trigger:hover { filter: brightness(1.04); }
+.rx-trigger[data-state=open] { border-color: var(--accent); }
+.rx-trigger:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 50%, transparent); outline-offset: 2px; }
+.rx-chevron { display: inline-flex; color: var(--ink-3); transition: transform .15s; }
+.rx-trigger[data-state=open] .rx-chevron { transform: rotate(180deg); }
+.rx-content { z-index: 100; min-width: var(--radix-select-trigger-width); background: #fff; border: 1px solid var(--line-strong); border-radius: 14px; box-shadow: var(--shadow-lg); overflow: hidden; animation: rxpop .12s ease-out; }
+.rx-viewport { padding: 6px; }
+.rx-item { display: flex; align-items: center; justify-content: space-between; gap: 1.2rem; padding: .42rem .7rem; border-radius: 9px; font: 600 .98rem var(--display); color: var(--ink); cursor: pointer; outline: none; user-select: none; }
+.rx-item[data-highlighted] { background: var(--accent-soft); color: var(--accent-strong); }
+.rx-item[data-state=checked] { font-weight: 700; }
+.rx-tick { display: inline-flex; color: var(--accent-strong); }
+@keyframes rxpop { from { opacity: 0; transform: translateY(-4px) scale(.98); } to { opacity: 1; transform: none; } }
+
+/* checkbox */
+.rx-checkrow { display: inline-flex; gap: .45rem; align-items: center; }
+.rx-checkbox { width: 22px; height: 22px; padding: 0; display: grid; place-items: center; border: 2px solid var(--line-strong); border-bottom-width: 3px; border-radius: 7px; background: #fff; color: #fff; box-shadow: none; filter: none; transform: none !important; }
+.rx-checkbox:hover:not(:disabled) { border-color: var(--accent); filter: none; }
+.rx-checkbox[data-state=checked] { background: linear-gradient(#58b4ff, #2f8cff); border-color: var(--accent-strong); border-bottom-color: var(--accent-deep); }
+.rx-checkbox:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 50%, transparent); outline-offset: 2px; }
+.rx-checkbox-mark { display: inline-flex; }
+
+/* slider */
+.rx-slider { position: relative; display: flex; align-items: center; width: 100%; height: 28px; touch-action: none; user-select: none; }
+.rx-track { position: relative; flex-grow: 1; height: 10px; background: #dfe7f4; border-radius: 999px; box-shadow: inset 0 1px 2px rgba(20, 32, 46, .18); }
+.rx-range { position: absolute; height: 100%; background: linear-gradient(#7cc4ff, #2f8cff); border-radius: 999px; }
+.rx-thumb { display: block; width: 22px; height: 22px; background: linear-gradient(#ffd95a, #ffb800); border: 2px solid var(--gold-deep); border-bottom-width: 3px; border-radius: 50%; box-shadow: var(--shadow-sm); cursor: grab; }
+.rx-thumb:active { cursor: grabbing; }
+.rx-thumb:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 55%, transparent); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .rx-content { animation: none; } .rx-chevron { transition: none; } }

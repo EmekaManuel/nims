@@ -53,6 +53,7 @@ export function Hud({ state, act, onHelp }: { state: GameState; act: Actions; on
       <div className="inv" aria-label="What you are carrying">
         {y.inventory.length === 0 ? <span className="empty">Empty-handed</span> : y.inventory.map((i) => <span key={i.item} className="chip"><ItemIcon item={i.item} size={20} /> {i.units} {i.item}</span>)}
       </div>
+      <a className="hudlink" href="#sim" title="Watch the whole economy run for a week">Fast-forward a week</a>
       {onHelp && <button className="helpbtn" onClick={onHelp} aria-label="How to play">? How to play</button>}
       {state.shocks.map((s) => (
         <div key={s.kind} className="shock" role="status">{SHOCK[s.kind] ?? s.kind} · {s.hoursLeft}h left</div>

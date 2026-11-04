@@ -8,6 +8,7 @@ import { BusinessPanel, StallOffer } from './Business';
 import { Hud } from './Hud';
 import { PriceBoard } from './PriceBoard';
 import { IconSprite } from './icons';
+import { FastForwardPage } from './Fastforward';
 
 function Login({ onIn }: { onIn: () => void }) {
   const [email, setEmail] = useState('');
@@ -46,15 +47,28 @@ function Login({ onIn }: { onIn: () => void }) {
       {devLink && <button onClick={open}>Open my link (development)</button>}
       {msg && <p role="status" className="note">{msg}</p>}
       <p className="muted small">Buy low, carry it, sell high. No password, no wallet — just your email.</p>
+      <a className="simlink" href="#sim">Or watch a week of the market unfold →</a>
     </main>
   );
 }
 
+/** Tiny hash router: "#sim" is the open fast-forward dashboard; anything else is the game. */
+function useHash() {
+  const [hash, setHash] = useState(() => location.hash);
+  useEffect(() => {
+    const on = () => setHash(location.hash);
+    window.addEventListener('hashchange', on);
+    return () => window.removeEventListener('hashchange', on);
+  }, []);
+  return hash;
+}
+
 export function App() {
+  const hash = useHash();
   return (
     <>
       <IconSprite />
-      <Game />
+      {hash === '#sim' ? <FastForwardPage /> : <Game />}
     </>
   );
 }

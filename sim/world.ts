@@ -120,14 +120,26 @@ export interface Snapshot {
   cash: Record<string, number>;
 }
 
-/** Everything that moved items, in order. server/settle.ts turns this into on-chain batches. */
+/** What can be held and moved: any good, or the coins that pay for them. One contract holds every token. */
+export type Token = Item | 'coins';
+export const COINS = 'coins' as const;
+
+/**
+ * Everything that moved goods or coins, in order. server/settle.ts turns this into on-chain batches.
+ * It is self-contained: it starts with what every account was given when the world was made, so replaying it
+ * from the beginning reproduces every balance exactly (a test checks that).
+ *
+ * 'town' is everyone outside the game's accounts: everyday customers, wholesalers, landlords, carriers.
+ * Coins the town pays in are 'mint'; coins paid to the town are a transfer to 'town'.
+ */
 export interface LedgerEntry {
   hour: number;
   kind: 'mint' | 'transfer';
-  /** Sim id of the sender (transfers only). 'town' is the everyday-customer sink. */
+  /** Sim id of the sender (transfers only). */
   from?: string;
   to: string;
-  item: Item;
+  item: Token;
+  /** Units of a good, or an amount of coins. */
   units: number;
 }
 
@@ -202,8 +214,14 @@ export function createSources(): Source[] {
   ];
 }
 
+/** Record that `p` was given its starting cash. Call whenever a player joins a world. */
+export function addPlayer(w: World, p: Player) {
+  w.players.push(p);
+  if (p.cash > 0) w.ledger.push({ hour: w.hour, kind: 'mint', to: p.id, item: COINS, units: p.cash });
+}
+
 export function createWorld(seed = 1, players: Player[] = []): World {
-  return {
+  const w: World = {
     hour: 0,
     rng: makeRng(seed),
     merchants: createMerchants(),
@@ -214,4 +232,11 @@ export function createWorld(seed = 1, players: Player[] = []): World {
     history: [],
     ledger: [],
   };
+  // Genesis: what every account starts with, so the ledger alone explains every balance.
+  for (const m of w.merchants) {
+    w.ledger.push({ hour: 0, kind: 'mint', to: m.id, item: COINS, units: m.cash });
+    for (const [item, units] of Object.entries(m.stock)) if (units) w.ledger.push({ hour: 0, kind: 'mint', to: m.id, item: item as Item, units });
+  }
+  for (const p of w.players) if (p.cash > 0) w.ledger.push({ hour: 0, kind: 'mint', to: p.id, item: COINS, units: p.cash });
+  return w;
 }

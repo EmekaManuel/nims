@@ -4,12 +4,12 @@ import type { Item } from './api';
  * Hand-drawn icon set (one ink outline, flat market colours). The sprite is mounted once in <App/>;
  * <ItemIcon/> and <VehicleIcon/> reference it with <use>, so a stall can draw dozens of crates cheaply.
  */
-const INK = '#2a1a12';
+const INK = '#26364a';
 
 export const itemId = (item: Item | string) => `i-${item.replace(' ', '-')}`;
 
 export function IconSprite() {
-  const o = { stroke: INK, strokeWidth: 1.6, strokeLinejoin: 'round' as const, strokeLinecap: 'round' as const };
+  const o = { stroke: INK, strokeWidth: 1.4, strokeLinejoin: 'round' as const, strokeLinecap: 'round' as const };
   return (
     <svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden="true" focusable="false">
       <defs>
@@ -30,12 +30,10 @@ export function IconSprite() {
           <path d="M11 19c3-2 7-2 10 0" fill="none" stroke="#b99a4a" strokeWidth="1.6" strokeLinecap="round" />
         </symbol>
         <symbol id="i-cotton" viewBox="0 0 32 32">
-          <rect x="4" y="7" width="22" height="18" rx="4" fill="#1f4fc4" {...o} />
-          <ellipse cx="26" cy="16" rx="3" ry="9" fill="#f2a900" {...o} />
-          <circle cx="10" cy="13" r="2.4" fill="#f2a900" />
-          <circle cx="17" cy="17" r="2.4" fill="#d6336c" />
-          <circle cx="11" cy="21" r="1.8" fill="#fff" />
-          <circle cx="20" cy="11" r="1.6" fill="#fff" />
+          <rect x="4" y="7" width="22" height="18" rx="4" fill="#f4f8fe" {...o} />
+          <path d="M9 7v18M14 7v18M19 7v18" stroke="#9dbbea" strokeWidth="2.2" />
+          <ellipse cx="26" cy="16" rx="3" ry="9" fill="#cfdcf0" {...o} />
+          <ellipse cx="26" cy="16" rx="1" ry="4" fill="#9dbbea" />
         </symbol>
         <symbol id="i-lace" viewBox="0 0 32 32">
           <circle cx="16" cy="16" r="11.5" fill="#fffaf0" {...o} />
@@ -63,24 +61,26 @@ export function IconSprite() {
 
         {/* ---- vehicles (56 x 36) ---- */}
         <symbol id="v-wheelbarrow" viewBox="0 0 56 36">
-          <path d="M6 10h26l-4 14H12z" fill="#2f8f4e" {...o} />
+          <path d="M6 10h26l-4 14H12z" fill="#2f9e5f" {...o} />
           <path d="M32 10l14-4M28 24l18 4" fill="none" {...o} />
           <circle cx="12" cy="29" r="5" fill="#3b3b3b" {...o} />
           <circle cx="12" cy="29" r="1.6" fill="#ddd" />
         </symbol>
         <symbol id="v-pickup" viewBox="0 0 56 36">
-          <path d="M8 24V13c0-4 3-7 7-7h19c4 0 7 3 7 7v11z" fill="#f2b705" {...o} />
-          <path d="M8 13c0-4 3-7 7-7h19c4 0 7 3 7 7z" fill="#1d1d1b" {...o} />
-          <rect x="16" y="12" width="12" height="8" rx="2" fill="#bfe3f5" {...o} />
-          <path d="M41 24h8l-2-8h-6" fill="#f2b705" {...o} />
-          <circle cx="14" cy="28" r="5" fill="#3b3b3b" {...o} /><circle cx="43" cy="28" r="5" fill="#3b3b3b" {...o} />
+          <path d="M3 24V15c0-1.5 1-2.5 2.5-2.5H14l5-6h12c1.4 0 2.5 1 2.5 2.5v7H53v9z" fill="#2a6fdb" {...o} />
+          <path d="M33.5 12.5V9c0-1.4-1.1-2.5-2.5-2.500H20.500L16 12.500z" fill="#cfe3fb" {...o} />
+          <path d="M33.5 12.500H53" stroke="#26364a" strokeWidth="1.2" />
+          <rect x="36" y="14" width="15" height="7" rx="1.2" fill="#1d55b0" stroke="none" opacity=".55" />
+          <circle cx="14" cy="28" r="5" fill="#33425a" {...o} /><circle cx="14" cy="28" r="1.7" fill="#dfe6f1" />
+          <circle cx="43" cy="28" r="5" fill="#33425a" {...o} /><circle cx="43" cy="28" r="1.7" fill="#dfe6f1" />
         </symbol>
         <symbol id="v-van" viewBox="0 0 56 36">
-          <path d="M3 25V11c0-2 2-4 4-4h28l10 8v10z" fill="#f2b705" {...o} />
-          <path d="M3 18h42" stroke={INK} strokeWidth="3" />
-          <path d="M35 9l8 6h-8z" fill="#bfe3f5" {...o} />
-          <rect x="9" y="10" width="6" height="5" rx="1" fill="#bfe3f5" {...o} /><rect x="19" y="10" width="6" height="5" rx="1" fill="#bfe3f5" {...o} />
-          <circle cx="14" cy="28" r="5" fill="#3b3b3b" {...o} /><circle cx="38" cy="28" r="5" fill="#3b3b3b" {...o} />
+          <path d="M3 25V10.500c0-2 1.5-3.5 3.5-3.500H34l12 8.500v9.500z" fill="#f4f8fe" {...o} />
+          <path d="M3 19h43" stroke="#2a6fdb" strokeWidth="3.5" />
+          <path d="M35 8.500l8.5 6.500H35z" fill="#cfe3fb" {...o} />
+          <rect x="8" y="10" width="7" height="5.5" rx="1" fill="#cfe3fb" {...o} /><rect x="19" y="10" width="7" height="5.5" rx="1" fill="#cfe3fb" {...o} />
+          <circle cx="14" cy="28" r="5" fill="#33425a" {...o} /><circle cx="14" cy="28" r="1.7" fill="#dfe6f1" />
+          <circle cx="38" cy="28" r="5" fill="#33425a" {...o} /><circle cx="38" cy="28" r="1.7" fill="#dfe6f1" />
         </symbol>
 
         {/* ---- small UI glyphs (24 x 24) ---- */}

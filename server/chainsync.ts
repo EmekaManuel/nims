@@ -397,7 +397,7 @@ export class ChainSync {
   proof(simId: string): { account: string; explorer: string; behind: number } | null {
     const account = this.accountOf(simId);
     if (!account || !this.state) return null;
-    return { account, explorer: `https://explorer.testnet.near.org/accounts/${account}`, behind: this.o.game.ledgerEnd() - this.state.cursor };
+    return { account, explorer: `https://testnet.nearblocks.io/address/${account}`, behind: this.o.game.ledgerEnd() - this.state.cursor };
   }
 
   /** Where to look on a block explorer for one player's goods and coins. */

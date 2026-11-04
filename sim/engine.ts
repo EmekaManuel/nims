@@ -59,6 +59,7 @@ export function sellToMerchant(w: World, p: Player, m: Merchant, item: Item, uni
     p.cash += q.buyPrice;
     p.inventory[item] = (p.inventory[item] ?? 0) - 1;
     m.memory.push({ hour: w.hour, item, kind: 'sold', units: 1 });
+    w.ledger.push({ hour: w.hour, kind: 'transfer', from: p.id, to: m.id, item, units: 1 });
     done++;
   }
   if (done) p.reputation[m.id] = Math.min(1, (p.reputation[m.id] ?? 0) + done * 0.002);
@@ -77,6 +78,7 @@ export function buyFromMerchant(w: World, p: Player, m: Merchant, item: Item, un
     p.cash -= q.sellPrice;
     p.inventory[item] = (p.inventory[item] ?? 0) + 1;
     m.memory.push({ hour: w.hour, item, kind: 'bought', units: 1 });
+    w.ledger.push({ hour: w.hour, kind: 'transfer', from: m.id, to: p.id, item, units: 1 });
     done++;
   }
   if (done) p.reputation[m.id] = Math.min(1, (p.reputation[m.id] ?? 0) + done * 0.002);
@@ -111,7 +113,11 @@ export function contributeToAjo(w: World, p: Player, m: Merchant, amount: number
   m.ajo.contributors[p.id] = (m.ajo.contributors[p.id] ?? 0) + give;
   if (m.ajo.pool >= m.ajo.goal) {
     m.cash = m.ajo.pool;
-    for (const item of merchantItems(m)) m.stock[item] = Math.floor((m.target[item] ?? 0) / 2);
+    for (const item of merchantItems(m)) {
+      const units = Math.floor((m.target[item] ?? 0) / 2);
+      m.stock[item] = units;
+      if (units) w.ledger.push({ hour: w.hour, kind: 'mint', to: m.id, item, units });
+    }
     m.ajo.pool = 0;
     const names = Object.keys(m.ajo.contributors).join(', ');
     m.ajo.contributors = {};
@@ -145,7 +151,11 @@ function ambientTrade(w: World) {
     // Perishables spoil faster in rain.
     for (const item of PERISHABLE) {
       const s = m.stock[item];
-      if (s) m.stock[item] = Math.max(0, s - Math.ceil(s * (rain ? 0.05 : 0.01)));
+      if (s) {
+        const lost = Math.min(s, Math.ceil(s * (rain ? 0.05 : 0.01)));
+        m.stock[item] = s - lost;
+        w.ledger.push({ hour: w.hour, kind: 'transfer', from: m.id, to: 'town', item, units: lost });
+      }
     }
     if (m.state === 'closed') continue;
     m.cash = Math.max(0, m.cash - RENT_PER_HOUR);
@@ -158,6 +168,7 @@ function ambientTrade(w: World) {
         const n = Math.min(want, m.stock[item] ?? 0);
         m.stock[item] = (m.stock[item] ?? 0) - n;
         m.cash += n * q.sellPrice;
+        if (n) w.ledger.push({ hour: w.hour, kind: 'transfer', from: m.id, to: 'town', item, units: n });
       }
       // Restock from farms/wholesalers at a discount to base when running low.
       if ((m.stock[item] ?? 0) < (m.target[item] ?? 0) * 0.6) {
@@ -165,6 +176,7 @@ function ambientTrade(w: World) {
         const n = Math.min(3, Math.floor(m.cash / unit));
         m.stock[item] = (m.stock[item] ?? 0) + n;
         m.cash -= n * unit;
+        if (n) w.ledger.push({ hour: w.hour, kind: 'mint', to: m.id, item, units: n });
       }
     }
     refreshState(w, m);

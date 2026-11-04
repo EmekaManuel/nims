@@ -27,6 +27,7 @@ function gather(w: World, p: Player, item: Item): number {
   src.units -= n;
   p.cash -= n * src.cost;
   p.inventory[item] = (p.inventory[item] ?? 0) + n;
+  if (n) w.ledger.push({ hour: w.hour, kind: 'mint', to: p.id, item, units: n });
   return n;
 }
 

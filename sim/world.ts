@@ -89,6 +89,17 @@ export interface Snapshot {
   cash: Record<string, number>;
 }
 
+/** Everything that moved items, in order. server/settle.ts turns this into on-chain batches. */
+export interface LedgerEntry {
+  hour: number;
+  kind: 'mint' | 'transfer';
+  /** Sim id of the sender (transfers only). 'town' is the everyday-customer sink. */
+  from?: string;
+  to: string;
+  item: Item;
+  units: number;
+}
+
 export interface World {
   hour: number;
   rng: Rng;
@@ -98,6 +109,7 @@ export interface World {
   shocks: Shock[];
   events: WorldEvent[];
   history: Snapshot[];
+  ledger: LedgerEntry[];
 }
 
 function merchant(
@@ -157,5 +169,6 @@ export function createWorld(seed = 1, players: Player[] = []): World {
     shocks: [],
     events: [],
     history: [],
+    ledger: [],
   };
 }

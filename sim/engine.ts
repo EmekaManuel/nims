@@ -134,7 +134,7 @@ export function contributeToFund(w: World, p: Player, m: Merchant, amount: numbe
       const grant = Math.min(Math.floor((MAX_PUBLIC_SHARES * put) / m.fund.goal), publicSharesLeft(m));
       if (grant > 0) m.shares[id] = (m.shares[id] ?? 0) + grant;
       const who = w.players.find((x) => x.id === id);
-      if (who) addNote(w, who, `${m.name} reopened thanks to your fund contribution${grant > 0 ? `. You now hold ${m.shares[id]} shares` : ''}.`);
+      if (who) addNote(w, who, `${m.name} reopened thanks to your community fund contribution${grant > 0 ? `. You now hold ${m.shares[id]} shares` : ''}.`);
     }
     m.sign = Object.keys(m.fund.contributors);
     m.fund.pool = 0;
@@ -142,7 +142,7 @@ export function contributeToFund(w: World, p: Player, m: Merchant, amount: numbe
     m.memory = [];
     m.state = 'open';
     m.dayStartWorth = merchantWorth(m);
-    w.events.push({ hour: w.hour, type: 'revived', text: `${m.name} reopened thanks to an community fund.`, merchant: m.id });
+    w.events.push({ hour: w.hour, type: 'revived', text: `${m.name} reopened thanks to a community fund.`, merchant: m.id });
     refreshState(w, m);
   }
   return true;
@@ -229,7 +229,7 @@ export const publicSharesLeft = (m: Merchant) => Math.max(0, MAX_PUBLIC_SHARES -
 /** Buying shares puts your cash into the merchant's till, which can lift a struggling shop. */
 export function buyShares(w: World, p: Player, m: Merchant, n: number): { error: string } | { cost: number } {
   if (m.owner) return { error: "You can't buy shares in a stall run by another player." };
-  if (m.state === 'closed') return { error: `${m.name} is closed. Start an community fund to reopen it.` };
+  if (m.state === 'closed') return { error: `${m.name} is closed. Start a community fund to reopen it.` };
   if (!Number.isInteger(n) || n < 1) return { error: 'Pick a whole number of shares.' };
   if (n > publicSharesLeft(m)) return { error: publicSharesLeft(m) === 0 ? `No shares left in ${m.name}. They keep the majority.` : `Only ${publicSharesLeft(m)} shares left in ${m.name}.` };
   const cost = n * sharePrice(m);

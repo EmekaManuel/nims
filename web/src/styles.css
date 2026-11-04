@@ -201,3 +201,29 @@ th { font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; color:
   .offers td:first-child { min-width: 8.5rem; }
   .offers .btns { white-space: normal; display: flex; flex-wrap: wrap; gap: .3rem; min-width: 9rem; } .offers .btns button + button { margin-left: 0; }
 }
+
+/* ---- ownership on the map ---- */
+.map .yours-tag { font: 400 12px var(--font-display); fill: var(--hibiscus); paint-order: stroke; stroke: #fff; stroke-width: 3px; letter-spacing: .06em; }
+.map .plot { cursor: pointer; }
+.map .plot-box { fill: rgba(255,255,255,.35); stroke: var(--ink); stroke-width: 2.5; stroke-dasharray: 9 7; }
+.map .plot-plus { font: 400 44px var(--font-display); fill: var(--ink); opacity: .7; }
+.map .plot-label { font: 700 14px var(--font-body); fill: var(--ink); }
+.map .plot:hover .plot-box, .map .plot.on .plot-box, .map .plot:focus-visible .plot-box { stroke: var(--cobalt); fill: rgba(255,255,255,.6); }
+
+/* ---- ajo, shares, my business ---- */
+.ledger h3 { font-family: var(--font-display); font-weight: 400; font-size: 1rem; color: var(--navy); margin: 1rem 0 .3rem; }
+.ajo .meter { margin: .4rem 0; } .ajo p { margin: .3rem 0; }
+.invest { margin-top: .8rem; padding-top: .6rem; border-top: 2px dashed var(--paper-line); }
+.invest h3 { margin-top: 0; }
+.signline { margin: .3rem 0; padding: .3rem .6rem; background: var(--mango-soft); border: 2px solid var(--ink); border-radius: 8px; font-weight: 700; display: inline-block; }
+.offer { background: #fff7dc; border: 2px dashed #c99a1d; border-radius: 10px; padding: .6rem .8rem; }
+.offer h3 { margin-top: 0; } .mk { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .5rem; }
+.till { display: flex; flex-wrap: wrap; gap: .5rem .8rem; align-items: center; } .till b { font-size: 1.3rem; display: block; }
+.manager input[type=number] { width: 5.2rem; } .manager td { white-space: nowrap; } .manager .btns { display: flex; gap: .3rem; align-items: center; }
+.manager td button { padding: .2rem .5rem; font-size: .85rem; box-shadow: 0 2px 0 var(--ink); margin-left: .3rem; }
+.shelfqty { margin: .4rem 0; }
+.notes { list-style: none; margin: 0; padding: 0; display: grid; gap: .35rem; max-height: 14rem; overflow: auto; }
+.notes li { padding-bottom: .3rem; border-bottom: 1px solid var(--paper-line); }
+.modal h3 { font-family: var(--font-display); font-weight: 400; font-size: 1.05rem; margin: .4rem 0 0; color: var(--navy); }
+.map .next-pill rect { fill: var(--cobalt); stroke: var(--ink); stroke-width: 2; }
+.map .next-pill text { font: 700 12px var(--font-display); fill: #fff; letter-spacing: .06em; }

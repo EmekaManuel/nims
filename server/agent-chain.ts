@@ -1,9 +1,11 @@
 /** Chain calls for self-signed settlement: each signer signs; the relayer relays and pays gas. */
 import { Account, actions } from 'near-api-js';
 import { connect } from './chain';
+import { relayChecked } from './relay';
 import type { MintCall, TransferLeg } from './settle';
 
-const GAS = 300_000_000_000_000n;
+const GAS = 300_000_000_000_000n; // owner calls (batch_mint)
+const SEND_GAS = 100_000_000_000_000n; // delegate-wrapped calls: the whole tx is capped at 300 Tgas, so keep headroom
 const STARTING_BALANCE = 20_000_000_000_000_000_000_000n; // 0.02 NEAR
 
 export function agentChain() {
@@ -11,8 +13,10 @@ export function agentChain() {
   return {
     contractId: env.contractId,
 
-    async createAccount(accountId: string, publicKey: string) {
-      await owner.createAccount({ newAccountId: accountId, publicKey, nearToTransfer: STARTING_BALANCE });
+    /** Create an account. Must be a subaccount of `creator` (default: the owner). */
+    async createAccount(accountId: string, publicKey: string, creator?: { accountId: string; secretKey: string }, fund = STARTING_BALANCE) {
+      const parent = creator ? new Account(creator.accountId, env.rpcUrl, creator.secretKey as `ed25519:${string}`) : owner;
+      await parent.createAccount({ newAccountId: accountId, publicKey, nearToTransfer: fund });
     },
 
     /** Items enter the world (owner only). */
@@ -35,12 +39,12 @@ export function agentChain() {
           actions.functionCall(
             'send_many',
             { legs: legs.map((l) => ({ receiver_id: l.to, token_id: l.tokenId, amount: String(l.amount) })) },
-            GAS,
+            SEND_GAS,
             1n,
           ),
         ],
       });
-      await owner.relayMetaTransaction(signedDelegate);
+      await relayChecked(owner, signedDelegate); // throws if the inner call failed
     },
 
     async balanceOf(accountId: string, tokenId: string): Promise<number> {

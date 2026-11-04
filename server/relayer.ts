@@ -8,6 +8,7 @@
  */
 import { Account, actions } from 'near-api-js';
 import { connect } from './chain';
+import { relayChecked } from './relay';
 
 const GAS = 100_000_000_000_000n; // 100 Tgas
 /** Enough for the account to exist and fund thousands of 1-yocto deposits. */
@@ -40,7 +41,7 @@ export function realChain(): ChainPort {
           ),
         ],
       });
-      await relayer.relayMetaTransaction(signedDelegate); // the relayer pays the gas
+      await relayChecked(relayer, signedDelegate); // the relayer pays the gas; throws if the call failed on chain
     },
 
     async itemBalance(accountId, tokenId) {

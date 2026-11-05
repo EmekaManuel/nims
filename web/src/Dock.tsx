@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 
 export type Tab = 'deals' | 'prices' | 'business' | 'news';
 
@@ -47,8 +47,23 @@ export function Confetti() {
 
 /** Slide-in panel. On a phone it becomes a bottom sheet. */
 export function Drawer({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+  const ref = useRef<HTMLElement>(null);
+  const close = useRef(onClose);
+  close.current = onClose;
+  // A press anywhere outside the panel closes it. Things that belong to the panel but are drawn elsewhere
+  // (an open dropdown, a speech bubble), the bottom bar (its tabs toggle the panel themselves) and dialogs don't count.
+  useEffect(() => {
+    const away = (e: PointerEvent) => {
+      const t = e.target as Element | null;
+      if (!t || ref.current?.contains(t)) return;
+      if (t.closest('.rx-content, [data-radix-popper-content-wrapper], .bubble, .dock, [role=dialog], .toast')) return;
+      close.current();
+    };
+    document.addEventListener('pointerdown', away);
+    return () => document.removeEventListener('pointerdown', away);
+  }, []);
   return (
-    <aside className="drawer open" aria-label={title}>
+    <aside className="drawer open" aria-label={title} ref={ref}>
       <button className="drawer-close" onClick={onClose} aria-label={`Close ${title}`}>✕</button>
       <div className="drawer-body">{children}</div>
     </aside>

@@ -8,6 +8,7 @@ import { Deals, Mission } from './Mission';
 import { AwayModal, GoalPicker, HowToPlay } from './Modals';
 import { BusinessPanel, StallOffer } from './Business';
 import { Hud } from './Hud';
+import { Tip } from './Tip';
 import { PriceBoard } from './PriceBoard';
 import { StallPanel, SourcePanel, Actions } from './Panels';
 
@@ -452,5 +453,17 @@ describe('clickable areas', () => {
     day.unmount();
     const night = render(<DistrictMap state={{ ...state, hour: 23 }} selected={null} onSelect={() => {}} />);
     expect(night.container.querySelectorAll('.lamps circle').length).toBeGreaterThan(3);
+  });
+});
+
+describe('price tooltip', () => {
+  afterEach(cleanup);
+  it('is drawn outside the panel so a scrolling drawer cannot cut it off, and keeps its words', () => {
+    render(<div style={{ overflow: 'auto' }}><Tip who="Tomas Produce" text="My flour stock (87) is about where I want it."><b>181 coins</b></Tip></div>);
+    fireEvent.mouseEnter(screen.getByText('181 coins').parentElement!);
+    const bubble = screen.getByRole('tooltip');
+    expect(bubble.parentElement).toBe(document.body);
+    expect(bubble.textContent).toContain('Tomas Produce says');
+    expect(bubble.textContent).toContain('My flour stock (87)');
   });
 });

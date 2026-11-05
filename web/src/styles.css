@@ -172,8 +172,10 @@ th { font-size: .7rem; letter-spacing: .06em; text-transform: uppercase; color: 
 .price.off { color: var(--ink-3); border-bottom-color: var(--line); font-weight: 500; font-size: .92rem; }
 .star { display: block; font-size: .72rem; color: var(--good); font-weight: 700; }
 .tipwrap { position: relative; display: inline-block; }
-.bubble { position: absolute; z-index: 12; left: -6px; top: calc(100% + 12px); width: min(21rem, 72vw); background: var(--surface); border: 1px solid var(--line-strong); border-radius: 12px; padding: .6rem .8rem .7rem; font-size: .92rem; font-weight: 400; line-height: 1.4; box-shadow: var(--shadow-lg); color: var(--ink); }
-.bubble::before { content: ''; position: absolute; top: -7px; left: 18px; width: 12px; height: 12px; background: var(--surface); border-left: 1px solid var(--line-strong); border-top: 1px solid var(--line-strong); transform: rotate(45deg); }
+/* Drawn in a portal at fixed coordinates set by Tip.tsx, so nothing can clip it. */
+.bubble { position: fixed; z-index: 90; pointer-events: none; background: var(--surface); border: 1px solid var(--line-strong); border-radius: 12px; padding: .6rem .8rem .7rem; font-size: .92rem; font-weight: 400; line-height: 1.4; box-shadow: var(--shadow-lg); color: var(--ink); }
+.bubble::before { content: ''; position: absolute; top: -7px; left: var(--arrow, 18px); width: 12px; height: 12px; background: var(--surface); border-left: 1px solid var(--line-strong); border-top: 1px solid var(--line-strong); transform: rotate(45deg); }
+.bubble.above::before { top: auto; bottom: -7px; transform: rotate(225deg); }
 .bubble .who { display: block; font-weight: 700; font-size: .78rem; color: var(--accent); margin-bottom: .15rem; }
 
 .deals { list-style: none; margin: 0; padding: 0; display: grid; gap: .7rem; }

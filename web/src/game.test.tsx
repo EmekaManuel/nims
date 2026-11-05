@@ -42,6 +42,16 @@ describe('dock and drawer', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  it('closes when you press outside it, but not inside it or on the bottom bar', () => {
+    const onClose = vi.fn();
+    render(<><nav className="dock"><button>Prices</button></nav><main data-testid="map">Map</main><Drawer title="Deals" onClose={onClose}><p>Inside</p></Drawer></>);
+    fireEvent.pointerDown(screen.getByText('Inside'));
+    fireEvent.pointerDown(screen.getByText('Prices'));
+    expect(onClose).not.toHaveBeenCalled();
+    fireEvent.pointerDown(screen.getByTestId('map'));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
   it('bursts confetti that is hidden from assistive tech', () => {
     const { container } = render(<Confetti />);
     const c = container.querySelector('.confetti')!;

@@ -3,7 +3,7 @@ import type { GameState, Item, MarketId, Stall } from './api';
 import { coins } from './api';
 import { Tip } from './Tip';
 import { ItemIcon } from './icons';
-import { Checkbox, Field, NumberField } from './ui';
+import { Checkbox, Field, NumberField, Select } from './ui';
 
 const BLURB = {
   cautious: 'Careful with money. Slow to change prices.',
@@ -86,9 +86,7 @@ function OrderSection({ stall, state, act }: { stall: Stall; state: GameState; a
       <p className="small muted">Name the goods and the lowest price you will take. The town’s carriers wait for {stall.name} to pay that, then take your load over and sell it, with the cost of the trip taken from the sale. You can be anywhere.</p>
       <div className="controls">
         <Field label="Goods" htmlFor="order-item">
-          <select id="order-item" value={item} onChange={(e) => { setItem(e.target.value as Item); setMin(null); }}>
-            {sellable.map((o) => <option key={o.item} value={o.item}>{o.item[0].toUpperCase() + o.item.slice(1)}</option>)}
-          </select>
+          <Select id="order-item" aria-label="Goods to send" value={item} onValueChange={(v) => { setItem(v as Item); setMin(null); }} options={sellable.map((o) => ({ value: o.item, label: o.item[0].toUpperCase() + o.item.slice(1) }))} />
         </Field>
         <Field label="Units" htmlFor="order-units"><NumberField id="order-units" aria-label="Units for the order" min={1} max={1000} value={units} onValueChange={setUnits} /></Field>
         <Field label="Lowest price each" htmlFor="order-min"><NumberField id="order-min" aria-label="Lowest price each" min={1} max={100000} value={limit} onValueChange={setMin} /></Field>

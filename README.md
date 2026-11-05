@@ -1,100 +1,147 @@
-# Nims
+<div align="center">
 
-A small market town where every trader is an AI agent with its own wallet and stock. You start with a wheelbarrow, read the market, move goods where they're dear, revive broke shops, and end up a part-owner of half the stalls. The economy keeps moving whether you're online or not.
+<img src="docs/img/banner.png" alt="Nims: a market town run by AI merchants. The economy is the game." width="100%" />
 
-Built for the **Games With Real Economies** track: the economy *is* the gameplay, and the player never notices the chain.
+**A market town where every trader is an AI agent with its own money, its own stock and its own mind about prices.**
+Start with a wheelbarrow. Read the market. End up owning a piece of half the stalls.
 
-## Run it (two minutes, no accounts needed)
+[▶ Watch the 100-second demo](docs/nims-demo-silent.mp4) · [Judge walk-through](docs/DEMO.md) · Contract: `oja-items.testnet`
+
+![NEAR testnet](https://img.shields.io/badge/NEAR-testnet-00ec97) ![NEP-245](https://img.shields.io/badge/items-NEP--245-blue) ![tests](https://img.shields.io/badge/tests-278%20passing-brightgreen) ![TypeScript](https://img.shields.io/badge/TypeScript%20%2B%20Rust-informational)
+
+</div>
+
+Built for the **Games With Real Economies** track on NEAR. The economy *is* the gameplay, and the player never notices the chain.
+
+## The idea in one minute
+
+In most games the economy is a spreadsheet: prices never move and nobody is really trading. In Nims every merchant is an agent that holds real goods and real coins, and changes its prices as the town changes.
+
+- A merchant sitting on too much iron pays less for it. A flood of cotton from one player drops the price for everyone.
+- Hover any price and the merchant explains it in plain words: *"I'm holding 140 iron and I only want 50. Four people sold me iron this hour."*
+- A shop that runs out of cash closes. Neighbours can reopen it through a community fund and put their names on the sign.
+- You can own up to 49% of a merchant and earn a share of its profit every evening.
+
+Underneath, every good and every coin is a token on NEAR testnet. You never see that. You sign in with an email, trade, and the game settles in the background.
+
+<table>
+<tr>
+<td width="50%"><img src="docs/img/stall.jpg" alt="A stall: prices, delivery order, shares" /><br /><sub><b>A stall.</b> Buy, sell, send a delivery order, or buy shares.</sub></td>
+<td width="50%"><img src="docs/img/prices.jpg" alt="The price board" /><br /><sub><b>The price board.</b> Every good in every market, against its usual price.</sub></td>
+</tr>
+<tr>
+<td colspan="2"><img src="docs/img/fastforward.jpg" alt="Fast-forward week: prices and shop cash over seven days" /><br /><sub><b>Fast-forward a week.</b> The same economy, headless, played back as charts: price swings, shocks, shops closing.</sub></td>
+</tr>
+</table>
+
+## Why it fits the track
+
+| What judges look for | Where it is |
+|---|---|
+| **The economy is the gameplay** | Prices come from merchant stock, cash and recent trades, not from a script. Flooding a market really crashes it. [`merchants/pricing.ts`](merchants/pricing.ts) |
+| **Agent NPCs** | Eight merchants, each with its own account and personality (cautious, greedy, loyal). Each reviews its own settlement legs and signs its own transfers. [`merchants/agents/`](merchants/agents/) |
+| **The player never notices the chain** | Email sign-in, no wallet, no seed phrase, no gas prompt. A relayer pays gas through NEP-366 delegate actions. Tests assert that no API response mentions wallets, keys or gas. |
+| **NEP-245 items** | One multi-token contract holds every item type *and* the `coins` token. No per-item contracts. [`contracts/items/`](contracts/items/) |
+| **Intents-style trading** | Delivery orders: say what you want (*sell 10 cotton for at least 1,188 each*), and the town's carriers fill it when the price allows. Not the real Intents network, see [limits](#honest-limits). |
+| **It works end to end** | 278 automated tests, a live-testnet soak that checks every balance on chain equals the game's, and a deployed contract with hundreds of settlement batches. |
+
+## Try it (two minutes, no accounts needed)
 
 ```bash
 npm run setup     # installs the server and the web app
 npm run dev       # starts both; open the address Vite prints (usually http://localhost:5173)
 ```
 
-- Enter any email, press **Send me a link**, then **Open my link (development)**. In development the sign-in link is shown on screen instead of emailed.
-- No `.env` is needed. Without testnet credentials the game runs exactly the same and just doesn't settle to a chain. See [Testnet](#testnet) to switch that on.
-- The page `#sim` (the **Fast-forward a week** link, no login) replays the whole economy as charts.
-- The game saves itself to `server/data/game.json` and resumes after a restart.
+1. Enter any email, press **Send me a link**, then **Open my link (development)**. In development the sign-in link is shown on screen instead of emailed.
+2. Follow Nim, the guide, who always says what to do next. Collect cotton, carry it to a stall that pays more, and hover the price to hear why.
+3. Open **Fast-forward** (or go to `#sim`, no login needed) to watch a whole week of the market in seconds.
 
-**Judges:** [docs/DEMO.md](docs/DEMO.md) is a five-minute walk-through.
+No `.env` is needed. Without testnet credentials the game plays identically and just doesn't settle to a chain. The game saves itself to `server/data/game.json` and resumes after a restart.
 
-## What you can do
+## How it works
+
+```mermaid
+flowchart LR
+  P[Player: email login] --> G[Game state<br/>applies trades instantly]
+  A[8 AI merchants] --> G
+  G -->|same pricing.ts| F[Fast-forward sim]
+  G -->|batches, time-windowed| S[Settler]
+  S -->|NEP-366 delegate actions<br/>relayer pays gas| N[(NEAR testnet<br/>one NEP-245 contract)]
+```
+
+The rules this project holds itself to:
+
+- **One pricing file.** All merchant prices come from `merchants/pricing.ts`, a pure function that returns the price *and* the reasoning lines for the tooltip. Personality changes parameters (`elasticity`, `demandWeight`, `margin`, `loyalty`), never the formula. Read it first: it is short and heavily commented.
+- **Never block gameplay on the chain.** A trade changes game state immediately. Settlement follows within about a minute, in merged batches where every account signs its own transfers.
+- **Exactly once.** Calls carry per-signer sequence numbers, so a retry after a timeout cannot apply twice. If the chain ever rejects a call, a fresh epoch is minted from the game's state instead of patching.
+- **One economy.** Fast-forward calls the same engine as the live game. There is no second copy of the economy logic.
+- **Testnet only.** The chain client refuses to run against anything else. Secrets live in `.env`; only `.env.example` is committed.
+
+```
+merchants/pricing.ts   The one pricing file
+merchants/agents/      Merchant agent: reviews its own settlement legs before signing
+sim/                   Headless economy: engine, world, simulated players, fast-forward
+server/                Game state, login, relayer, batch settlement, HTTP API, saving
+contracts/items/       The NEP-245 contract (Rust, near-sdk)
+web/                   The game and the dashboard (Vite, React, SVG, Radix UI)
+video/                 The demo video, built with Remotion (see video/README.md)
+docs/                  Judge walk-through, voice-over script, demo video, images
+```
+
+The full design and the balance numbers behind the economy are in [DESIGN.md](DESIGN.md).
+
+## What you can do in the game
 
 | | |
 |---|---|
-| **Trade** | Buy goods at wholesale from the farms, scrap spots and the cloth wholesaler, carry them between three markets, and sell where they're dear. Your starting cash is the limit, so you start small and grow. You can haggle once an hour. Hover any price and the merchant explains it in their own words. |
-| **Read the market** | The **Prices** tab shows every good in every market against its usual price, tinted green where it's dear and blue where it's cheap. On the map, each stall draws crates from its real stock, so a flooded stall visibly overflows and a broke one has its shutters down. |
-| **Feel it** | The map is alive: traders walk the roads, a delivery truck drives by, you walk between markets with your vehicle, lamps come on at night, and shocks (rain, fuel queue, festive season) show up on the map. Sales float up as "+420 coins", there are small sound effects (with a mute button), your **rank** climbs from Street vendor to Tycoon, and Nim the guide tells you what to do next. |
-| **Revive** | A shop with no cash and no stock closes. Neighbours reopen it by paying into a **community fund**; contributors become part-owners and their names go on the sign. |
-| **Own** | Buy up to 49% of any merchant and get a share of their profit every evening, or open your own stall, set your own prices and let the merchants trade with you. |
-| **Come back** | The town kept trading. A summary says what your shares paid and what happened around town. |
-| **Watch** | *Fast-forward a week* runs the same economy headless and plays it back: prices, shop cash, shocks, closures. Choose which simulated traders take part (gatherers, an arbitrageur, an investor, a market flooder). |
-
-## How it's put together
-
-```
-merchants/pricing.ts   The one pricing file. Pure: same inputs, same price. Returns the price AND the reasoning.
-merchants/agents/      A merchant agent that reviews its own settlement legs before signing
-sim/                   The headless economy: engine, world, simulated players, fast-forward runner
-server/                Game state, login, relayer, batch settlement, HTTP API, saving
-contracts/items/       One NEP-245 contract holding every item type (Rust, near-sdk)
-web/                   The game and the dashboard (Vite + React + SVG; Radix UI primitives for selects, checkboxes, sliders)
-docs/DEMO.md           The judge walk-through
-```
-
-**The rules this project holds itself to** (from `CLAUDE.md`):
-
-- **Items are NEP-245.** One contract holds every item type. There is no per-item contract.
-- **No wallet UX in the game loop.** Email login, keys held and encrypted by the server, and a relayer that pays gas through NEP-366 delegate actions. No seed phrase, no popup, no gas prompt. Tests check that no response mentions wallets, keys or gas.
-- **All merchant pricing lives in `merchants/pricing.ts`.** Personality only changes parameters (`elasticity`, `demandWeight`, `margin`, `loyalty`), never the formula. A player's own stall prices come through the same file (`playerQuote`).
-- **Never block gameplay on the chain.** Trades apply to game state immediately and settle in batches afterwards.
-- **Fast-forward calls the same engine.** There is no second copy of the economy.
-- **Testnet only.** The chain client refuses to run against anything else. Secrets live in `.env`; `.env.example` is committed.
-
-Read `merchants/pricing.ts` first. It's short and heavily commented.
+| **Trade** | Buy at wholesale from farms, scrap spots and the cloth wholesaler, carry goods between three markets, sell where they are dear. Starting cash is the limit, so you start small. Haggle once an hour. |
+| **Read the market** | The **Prices** tab tints every good green where it is dear and blue where it is cheap. On the map a flooded stall visibly overflows and a broke one has its shutters down. |
+| **Order a delivery** | Name the goods and the lowest price you will take. Carriers watch the stall and sell the load for you when it pays. |
+| **Revive** | A shop with no cash and no stock closes. A community fund reopens it; contributors become part-owners. |
+| **Own** | Buy up to 49% of a merchant for a share of its nightly profit, or open your own stall and set your own prices. |
+| **Come back** | The town kept trading while you were away. A summary says what your shares paid and what happened. |
+| **Watch** | Run a simulated week with a chosen cast: gatherers, an arbitrageur, an investor, a market flooder. |
 
 ## Tests
 
 ```bash
-npm test               # economy, pricing, server, API (about 110 tests)
-npm run test:web       # the UI against real game state (about 57 tests)
-npm run contract:test  # the NEP-245 contract (13 tests; needs Rust)
+npm test               # economy, pricing, server, API       (165 tests)
+npm run test:web       # the UI against real game state      (113 tests)
+npm run contract:test  # the NEP-245 contract                (needs Rust)
 ```
 
-## Testnet
+`sim/economy.test.ts` guards the balance: a calm player reaches the 12,000-coin goal in roughly 12 to 20 minutes, and flooding a good crashes its price.
 
-Everything below is optional and is how the chain side was verified.
+## Run it against the NEAR testnet
+
+Optional. This is how the chain side was verified.
 
 1. Create a testnet account and copy `.env.example` to `.env` (account id and key; the key never leaves `.env`).
-2. `npm run contract:build` then `npm run chain:deploy` deploys the items contract.
-3. `npx tsx server/run-m4-check.ts 12 v2` settles 12 simulated hours where **every merchant and player signs its own transfers** (the relayer only pays gas), then checks each merchant's on-chain stock against the simulation.
-4. `npx tsx server/run-m3-check.ts` makes a brand-new email-only player, creates their account, and moves items on chain with no wallet step.
+2. `npm run contract:build`, then `npm run chain:deploy` deploys the items contract.
+3. `npx tsx server/run-live-check.ts 30` plays 30 game hours, streams them to testnet through the same settler the server uses, and verifies every goods and coin balance on chain equals the game's.
+4. `npx tsx server/run-m4-check.ts 12` settles 12 simulated hours where every merchant and player signs its own transfers (the relayer only pays gas) and checks each merchant's stock against the simulation.
+5. `npx tsx server/run-m3-check.ts` makes a brand-new email-only player, creates their account and moves items on chain with no wallet step.
 
-5. `npx tsx server/run-live-check.ts 30` plays 30 game hours, streams them to testnet through the same settler the server uses, and verifies every goods and coin balance on the chain equals the game's.
-
-With testnet credentials in `.env`, `npm run server` streams the running game to the chain in the background (set `CHAIN_SYNC=0` to turn that off). After changing the contract, run `npx tsx server/run-settle.ts upgrade` then `migrate`. `GET /chain/status` shows how far settlement has got; players get a quiet link to their own account in the news panel.
-
-The deployed contract is `oja-items.testnet`. (That account was created before the game was renamed to Nims; an on-chain account name can't be changed.)
-
-## Known limits (honest list)
-
-- **Shares and the fund rules are game logic, not contract logic.** Goods *and coins* are real tokens on chain (coins are a token id in the same NEP-245 contract), and every contribution, dividend and revival moves real coins. But the rules for who is owed what are enforced by the game server, not by a contract.
-- **The chain follows the game, it does not lead it.** Trades apply instantly; the chain catches up within a minute or so. If the chain ever rejects a call, the settler starts a fresh epoch (a new set of accounts minted from the game's current state) instead of patching, so older epochs stay on the testnet as history.
-- **Login links are shown on screen in development.** A real email provider is one small replacement of the `Mailer` interface.
-- **One server process, state in memory with a JSON save.** Fine for a demo; not horizontally scalable.
-- **Free testnet RPC endpoints rate-limit.** Settlement retries with backoff, but a busy demo wants a paid key.
+With credentials in `.env`, `npm run server` streams the running game to the chain in the background (`CHAIN_SYNC=0` turns that off). `GET /chain/status` shows how far settlement has got. The deployed contract is `oja-items.testnet`; the account was created before the game was renamed, and an on-chain name cannot be changed.
 
 ## Host it
 
-One container serves the game's pages and its API (`Dockerfile`). Any host that runs a container and gives it a persistent volume will do (Fly.io, Railway, Render).
+One container serves the pages and the API ([`Dockerfile`](Dockerfile)); any host that runs a container with a persistent volume works (Fly.io, Railway, Render).
 
-1. Set the variables from `.env.example`: the NEAR testnet ones, plus `PUBLIC_URL` (your https address), `RESEND_API_KEY` and `MAIL_FROM` for real sign-in emails, and `MASTER_KEY` / `SESSION_SECRET` (generate with `openssl rand -hex 32`; without them the server makes throwaway ones and everyone is signed out on each restart).
-2. Mount a volume at `/data`. It holds accounts, wallets and chain progress. The game itself is saved there too.
-3. Run **one** copy only. The game world and the chain settler live in that process.
-4. Keep the settlement account funded: if it runs out of testnet NEAR, the status page says so and settlement pauses (gameplay keeps going).
+1. Set the variables from `.env.example`: the NEAR testnet ones, plus `PUBLIC_URL`, `RESEND_API_KEY` and `MAIL_FROM` for real sign-in emails, and `MASTER_KEY` / `SESSION_SECRET` (`openssl rand -hex 32`).
+2. Mount a volume at `/data` (accounts, wallets, chain progress and the game save).
+3. Run **one** copy only: the game world and the settler live in that process.
+4. Keep the settlement account funded. If it runs out of testnet NEAR, the status page says so and settlement pauses while gameplay continues.
 
-## Delivery orders (intents-style)
+## Honest limits
 
-On any stall you can place a **delivery order**: pick the goods, the units and the lowest price you will take. You don't walk anywhere. Each in-game hour the town's carriers check the stall and, once it pays your price, take the load over and sell it, with the trip's cost taken from the sale. Orders lapse after 24 hours; you can cancel any time. The code is `Game.placeOrder` / `fillOrders` in `server/game.ts`.
+- **Shares and fund rules are game logic.** Goods and coins are real tokens, and every contribution, dividend and revival moves real coins, but who is owed what is enforced by the game server, not by a contract.
+- **The chain follows the game, it does not lead it.** Settlement catches up within about a minute.
+- **Delivery orders are intents-style, not the NEAR Intents protocol.** They have the shape (state the result, a solver finds the path, a limit price is enforced) implemented inside the game. The code is `Game.placeOrder` / `fillOrders` in [`server/game.ts`](server/game.ts).
+- **Sign-in links are shown on screen in development.** A real provider is a small replacement of the `Mailer` interface.
+- **One server process,** state in memory with a JSON save. Fine for a demo, not horizontally scalable.
+- **Free testnet RPC endpoints rate-limit.** Settlement retries with backoff; a busy demo wants a paid key.
 
-This is the *shape* of NEAR Intents (state the result, a solver finds the path, a limit price is enforced), implemented inside the game. It is **not** connected to the NEAR Intents protocol or its solver network.
+## Credits
+
+Built with NEAR (`near-api-js`, `near-sdk`), React, Vite, Radix UI, Vitest and Remotion. The setting is a fictional market town with a fictional currency, so no real-world place is needed to follow the game.

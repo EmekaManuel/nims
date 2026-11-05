@@ -1,6 +1,6 @@
 # Judge walk-through (about 5 minutes)
 
-A 100-second, 1080p video made with Remotion (source in [../video](../video)): a hook, sign-in, a first sale, the merchant explaining its price in its own words, a delivery order, prices, shares, the one-week fast-forward, and a scene with real numbers read from the live NEAR testnet contract. [nims-demo-silent.mp4](nims-demo-silent.mp4) has no narration, for your own voice-over; [VOICEOVER.md](VOICEOVER.md) has the exact time of every line.
+A 100-second, 1080p video made with Remotion (source in [../video](../video)): a hook, sign-in, a first sale, the merchant explaining its price in its own words, a delivery order, prices, shares, the one-week fast-forward, and a scene with real numbers read from the live NEAR testnet contract. [nims-demo.mp4](nims-demo.mp4) is narrated; [VOICEOVER.md](VOICEOVER.md) has the script and the time of every line.
 
 **Judging targets:** a tight, readable loop where the economy *is* the gameplay; and a player who never notices the chain.
 

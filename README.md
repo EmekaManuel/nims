@@ -5,7 +5,7 @@
 **A market town where every trader is an AI agent with its own money, its own stock and its own mind about prices.**
 Start with a wheelbarrow. Read the market. End up owning a piece of half the stalls.
 
-[▶ Watch the 100-second demo](docs/nims-demo-silent.mp4) · [Judge walk-through](docs/DEMO.md) · Contract: `oja-items.testnet`
+[▶ Watch the 100-second demo](docs/nims-demo.mp4) · [Judge walk-through](docs/DEMO.md) · Contract: `oja-items.testnet`
 
 ![NEAR testnet](https://img.shields.io/badge/NEAR-testnet-00ec97) ![NEP-245](https://img.shields.io/badge/items-NEP--245-blue) ![tests](https://img.shields.io/badge/tests-278%20passing-brightgreen) ![TypeScript](https://img.shields.io/badge/TypeScript%20%2B%20Rust-informational)
 

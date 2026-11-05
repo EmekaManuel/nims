@@ -4,7 +4,7 @@
 
 ## Render
 - `npm install`, then `npm run studio` to preview; `npm run render` (voiced) or `npm run render:silent`.
-- The narration is a placeholder computer voice. For a real one: `ELEVENLABS_API_KEY=... node tts.mjs`, or put your own `public/vo/<scene>.mp3` files in place. Then `node measure.mjs` so scene lengths follow the audio.
+- The narration is ElevenLabs (voice id 7IAccZ5Mu2dejWi0Rd6v): `ELEVENLABS_VOICE=<id> node --env-file=../.env tts.mjs`, or put your own `public/vo/<scene>.mp3` files in place. Then `node measure.mjs` so scene lengths follow the audio.
 - `node chain-snapshot.mjs` re-reads the live testnet contract for the chain scene (real settlement count, block height, balance).
 
 ## Re-record the gameplay

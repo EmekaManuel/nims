@@ -110,6 +110,8 @@ video/                 The demo video, built with Remotion (see video/README.md)
 docs/                  Judge walk-through, deploy notes, voice-over script, demo video, images
 ```
 
+The full design (world, game loop, on-chain design, balance numbers) is in [DESIGN.md](DESIGN.md); the project's working rules are in [CLAUDE.md](CLAUDE.md).
+
 ## Fit to the track
 
 | Track asks for | Nims |

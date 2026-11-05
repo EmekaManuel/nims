@@ -1,6 +1,6 @@
 /**
  * Invisible NEAR accounts. Each player gets an account derived from their email and a key
- * the server holds, encrypted at rest. The player never sees either (CLAUDE.md: no wallet UX).
+ * the server holds, encrypted at rest. The player never sees either (no wallet UX in the game loop).
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';

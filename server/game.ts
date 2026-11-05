@@ -2,7 +2,7 @@
  * Live game state. The sim world IS the game: it ticks in real time, NPC traders keep the town
  * moving, and human players act on it through these methods.
  *
- * Gameplay never waits on the chain (CLAUDE.md): every action applies to this in-memory state
+ * Gameplay never waits on the chain: every action applies to this in-memory state
  * immediately. The world's item ledger is what gets batch-settled afterwards.
  *
  * Nothing here knows about wallets, keys or gas, and nothing returned to a player mentions them.

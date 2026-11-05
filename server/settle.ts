@@ -2,7 +2,7 @@
  * Turns the sim's item ledger into batches for the items contract.
  *
  * Pure and chain-free so it can be tested without a network. server/chain.ts
- * submits the batches. Gameplay never waits on this (CLAUDE.md): trades are
+ * submits the batches. Gameplay never waits on this: trades are
  * applied to game state instantly and settled a chunk at a time afterwards.
  */
 import { LedgerEntry } from '../sim/world';

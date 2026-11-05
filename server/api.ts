@@ -1,6 +1,6 @@
 /**
  * Game server HTTP API. Deliberately free of wallet vocabulary: no seed phrases, keys,
- * accounts, gas or signing appear in any request or response (CLAUDE.md hard rule).
+ * accounts, gas or signing appear in any request or response (a hard rule of the project).
  *
  * Gameplay never waits on the chain: /trade/send answers immediately and the transfer is
  * settled in the background by `flush()` (called on a timer by server/main.ts).

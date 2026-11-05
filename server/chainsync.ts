@@ -1,7 +1,7 @@
 /**
  * The live settler: streams the running game's goods and coins to the chain in the background.
  *
- * Gameplay never waits on this (CLAUDE.md). The game applies every trade instantly and appends it to its
+ * Gameplay never waits on this. The game applies every trade instantly and appends it to its
  * ledger; this loop reads the ledger from a remembered position and settles it in time-chunks, with every
  * account signing its own transfers (the relayer only pays gas). If the chain is slow the chunks grow, so
  * it keeps up instead of falling behind. Progress is saved after every call, so a restart picks up exactly

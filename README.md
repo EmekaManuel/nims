@@ -62,6 +62,20 @@ npm run dev       # starts both; open the address Vite prints (usually http://lo
 
 No `.env` is needed. Without testnet credentials the game plays identically and just doesn't settle to a chain. The game saves itself to `server/data/game.json` and resumes after a restart.
 
+## Check it in seven steps
+
+Do each step, then look for the result.
+
+1. Open <https://nims-app.up.railway.app>, enter any email, press **Send me a link**, then **Open my link (development)**. You land on the town map with a goal card and a next-step hint from Nim. No wallet or popup appears.
+2. Click the **Wholesaler (cotton)** and press **Collect cotton**. Your cash drops and the wheelbarrow fills.
+3. Click **Lena's Textiles** and hover a price. The merchant explains the price in plain words (its stock, who sold to it this hour, what it can afford).
+4. Press **Sell**. Your cash rises at once; the game never waits for a block.
+5. In the same stall panel, place a **delivery order** (goods and a lowest price). When the price allows, the carriers sell the load and your cash rises.
+6. Open **Fast-forward** (or add `#sim` to the address). A simulated week plays back as price and shop-cash charts, using the same pricing code as the live game.
+7. Open `/chain/status` on the live address. It shows the NEAR testnet contract (`oja-items.testnet`), the settlement namespace, and how far settlement has got.
+
+To run the tests: `npm test` (165) and `npm run test:web` (113).
+
 ## How it works
 
 ```mermaid
@@ -151,6 +165,14 @@ Always: run **one** copy only (the game world and the settler live in that proce
 - **Shares and funds as contracts.** Move share ownership and community-fund payouts from the game server into an on-chain contract.
 - **Real sign-in email.** Plug a mail provider into the `Mailer` interface (Resend is wired in; it needs a key).
 - **Scale out.** Move game state from one process with a JSON save to a shared store, so several servers can run at once.
+
+## Built at NEAR HACKATHON
+
+- **When:** all code in this repository was written during the NEAR HACKATHON window. The first commit is dated 2026-11-04, so there is no earlier baseline.
+- **Where NEAR is used:** a NEP-245 multi-token contract (`contracts/items/`, deployed as `oja-items.testnet`) holds every good and the coin token; NEP-366 delegate actions let a relayer pay gas; every merchant agent signs its own transfers. NEAR testnet only; no mainnet funds are used.
+- **AI assistance:** the code was written with Claude Code (Anthropic) under the author's direction. The demo narration is a cloned voice made with ElevenLabs, and the demo video is built with Remotion.
+- **Main libraries:** near-api-js, near-sdk (Rust), React, Vite, Radix UI, Vitest, Remotion.
+- **License:** MIT, see [LICENSE](LICENSE).
 
 ## Credits
 

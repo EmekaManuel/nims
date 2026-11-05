@@ -1,33 +1,25 @@
-import { AbsoluteFill, Audio, Easing, OffthreadVideo, Sequence, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig } from 'remotion';
-import { loadFont as loadFredoka } from '@remotion/google-fonts/Fredoka';
-import { loadFont as loadFigtree } from '@remotion/google-fonts/Figtree';
-import { CUES, FPS, OUTRO, TITLE, TOTAL_FRAMES, type Cue } from './timeline';
+import { AbsoluteFill, Audio, OffthreadVideo, Sequence, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig } from 'remotion';
+import { BODY, C, Glass, HEAD, MONO, Words, clamp, ease, fmt } from './ui';
+import { Chain, Hook, Outro } from './cards';
+import { FPS, SCENES, SRC_H, SRC_W, TOTAL_FRAMES, facts, scene, sceneFrameOf, type Focus, type Scene } from './timeline';
 
 export { FPS, TOTAL_FRAMES };
 
-const { fontFamily: HEAD } = loadFredoka('normal', { weights: ['600', '700'] });
-const { fontFamily: BODY } = loadFigtree('normal', { weights: ['500', '600', '700'] });
+// The recording (1920x1080) is shown in a 1440x810 screen, so the picture is sharp even at 1.33x zoom.
+const SCREEN_W = 1440, SCREEN_H = 810, CHROME = 44, S = SCREEN_W / SRC_W;
+const WIN_W = SCREEN_W, WIN_H = SCREEN_H + CHROME, WIN_X = (1920 - WIN_W) / 2, WIN_Y = 40;
+const FIRST = scene('signin'), CHAIN = scene('chain');
 
-const C = { navy: '#081230', deep: '#0d1f4a', blue: '#2f6bff', sky: '#7fb0ff', gold: '#ffc83d', ink: '#f4f7ff', mute: '#a9b8e0' };
-
-// Window geometry (the recording is 1280x720; it is shown at 1.125x inside a 1440x810 screen).
-const S = 1.125, SCREEN_W = 1440, SCREEN_H = 810, CHROME = 44;
-const WIN_W = SCREEN_W, WIN_H = SCREEN_H + CHROME;
-const WIN_X = (1920 - WIN_W) / 2, WIN_Y = 44;
-
-const ease = Easing.bezier(0.65, 0, 0.25, 1);
-
-/** The camera: eases from the previous scene's view to this one's at the start of each line. */
-function useCamera() {
+/** Camera: every scene lists views; ease from the last view to the next over ~0.8 s. */
+const KEYS: { at: number; focus: Focus }[] = SCENES.filter((s) => s.footage).flatMap((s) => s.focus.map(([fr, focus]) => ({ at: s.from + Math.round(fr * s.frames), focus })));
+function useCamera(): Focus {
   const frame = useCurrentFrame();
   let i = 0;
-  for (let k = 0; k < CUES.length; k++) if (frame >= CUES[k].from) i = k;
-  const cur = CUES[i].focus, prev = (CUES[i - 1] ?? CUES[i]).focus;
-  const t = ease(interpolate(frame - CUES[i].from, [0, 24], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }));
+  for (let k = 0; k < KEYS.length; k++) if (frame >= KEYS[k].at) i = k;
+  const cur = KEYS[i], prev = KEYS[i - 1] ?? cur;
+  const t = ease(interpolate(frame - cur.at, [0, 26], [0, 1], clamp));
   const mix = (a: number, b: number) => a + (b - a) * t;
-  // A slow drift on top, so the picture is never perfectly still.
-  const drift = Math.sin(frame / 90) * 0.004;
-  return { x: mix(prev.x, cur.x), y: mix(prev.y, cur.y), zoom: mix(prev.zoom, cur.zoom) * (1 + drift) };
+  return { x: mix(prev.focus.x, cur.focus.x), y: mix(prev.focus.y, cur.focus.y), zoom: mix(prev.focus.zoom, cur.focus.zoom) * (1 + Math.sin(frame / 80) * 0.004) };
 }
 
 const Background: React.FC = () => {
@@ -39,14 +31,111 @@ const Background: React.FC = () => {
   );
 };
 
-const Screen: React.FC = () => {
-  const cam = useCamera();
-  const z = cam.zoom * S;
-  const tx = Math.min(0, Math.max(SCREEN_W - 1280 * z, SCREEN_W / 2 - cam.x * z));
-  const ty = Math.min(0, Math.max(SCREEN_H - 720 * z, SCREEN_H / 2 - cam.y * z));
+/** The footage, retimed to each spoken line: sped up or slowed a little to fit, and held on its last frame if the voice runs on. */
+const Footage: React.FC<{ s: Scene }> = ({ s }) => {
+  const startFrom = Math.round(s.a * FPS);
+  const last = Math.max(0, Math.round(s.b * FPS) - 1);
   return (
-    <div style={{ position: 'absolute', left: 0, top: CHROME, width: SCREEN_W, height: SCREEN_H, overflow: 'hidden', background: '#fff' }}>
-      <OffthreadVideo src={staticFile('raw.mp4')} muted style={{ position: 'absolute', left: 0, top: 0, width: 1280, height: 720, transformOrigin: '0 0', transform: `translate(${tx}px, ${ty}px) scale(${z})` }} />
+    <>
+      <Sequence from={s.from} durationInFrames={Math.max(1, s.playFrames)} layout="none">
+        <OffthreadVideo src={staticFile('raw.mp4')} muted startFrom={startFrom} playbackRate={s.rate} style={{ width: SRC_W, height: SRC_H }} />
+      </Sequence>
+      {s.playFrames < s.frames && (
+        <Sequence from={s.from + s.playFrames} durationInFrames={s.frames - s.playFrames} layout="none">
+          <OffthreadVideo src={staticFile('raw.mp4')} muted startFrom={last} endAt={last + 1} style={{ width: SRC_W, height: SRC_H }} />
+        </Sequence>
+      )}
+    </>
+  );
+};
+
+// ---------- callouts that sit on the screen ----------
+const Pill: React.FC<{ at: number; hold: number; children: React.ReactNode; top?: number }> = ({ at, hold, children, top = 26 }) => {
+  const f = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const inn = spring({ frame: f - at, fps, config: { damping: 15, stiffness: 140 } });
+  const out = interpolate(f, [at + hold, at + hold + 10], [1, 0], clamp);
+  if (f < at) return null;
+  return <div style={{ position: 'absolute', top, left: 0, right: 0, display: 'flex', justifyContent: 'center', opacity: inn * out, transform: `translateY(${(1 - inn) * -30}px) scale(${0.92 + inn * 0.08})` }}>{children}</div>;
+};
+
+const Stat: React.FC<{ label: string; from: number; to: number; at: number; sign?: boolean; gain?: boolean }> = ({ label, from, to, at, sign, gain }) => {
+  const f = useCurrentFrame();
+  const v = from + (to - from) * interpolate(f, [at, at + 34], [0, 1], { ...clamp, easing: (x) => 1 - Math.pow(1 - x, 3) });
+  const delta = to - from;
+  return (
+    <Glass style={{ padding: '16px 34px', display: 'flex', alignItems: 'center', gap: 26 }}>
+      <div style={{ font: `700 20px ${BODY}`, color: C.mute, letterSpacing: 3 }}>{label}</div>
+      {gain
+        ? <div style={{ font: `700 54px/1 ${MONO}`, color: C.green }}>+{fmt(v)} <span style={{ fontSize: 28, color: C.mute }}>coins</span></div>
+        : <><div style={{ font: `700 54px/1 ${MONO}`, color: C.ink }}>{fmt(v)}</div>
+          <div style={{ font: `700 32px ${MONO}`, color: C.green }}>{sign ? '+' : ''}{fmt(delta)}</div></>}
+    </Glass>
+  );
+};
+
+const Quote: React.FC<{ text: string; at: number; hold: number }> = ({ text, at, hold }) => {
+  const f = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const inn = spring({ frame: f - at, fps, config: { damping: 16, stiffness: 100 } });
+  const out = interpolate(f, [at + hold, at + hold + 12], [1, 0], clamp);
+  if (f < at) return null;
+  const words = text.split(' ');
+  return (
+    <div style={{ position: 'absolute', left: 36, bottom: 40, width: 640, opacity: inn * out, transform: `translateY(${(1 - inn) * 40}px)` }}>
+      <Glass style={{ padding: '26px 30px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
+          <div style={{ width: 46, height: 46, borderRadius: 46, background: '#27b36a', display: 'grid', placeItems: 'center', font: `700 24px ${HEAD}`, color: '#fff' }}>L</div>
+          <div><div style={{ font: `700 24px ${BODY}`, color: C.ink }}>Lena's Textiles</div><div style={{ font: `600 15px ${BODY}`, color: C.green, letterSpacing: 2 }}>● AI AGENT, IN ITS OWN WORDS</div></div>
+        </div>
+        <div style={{ font: `500 27px/1.38 ${BODY}`, color: C.ink }}>
+          <span style={{ color: C.gold, font: `700 44px ${HEAD}`, marginRight: 6, verticalAlign: -10 }}>“</span>
+          {words.map((w, i) => { const o = interpolate(f, [at + 10 + i * 2.2, at + 16 + i * 2.2], [0, 1], clamp); return <span key={i} style={{ opacity: 0.15 + o * 0.85 }}>{w} </span>; })}
+          <span style={{ color: C.gold, font: `700 44px ${HEAD}`, verticalAlign: -10 }}>”</span>
+        </div>
+      </Glass>
+    </div>
+  );
+};
+
+const Chips: React.FC<{ s: Scene }> = ({ s }) => {
+  const f = useCurrentFrame();
+  const items = ['No wallet', 'No seed phrase', 'No gas'];
+  return (
+    <div style={{ position: 'absolute', top: 30, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 14 }}>
+      {items.map((t, i) => {
+        const at = s.from + s.delay + s.voiceFrames * (0.52 + i * 0.1);
+        const o = interpolate(f, [at, at + 9], [0, 1], clamp) * interpolate(f, [s.from + s.frames - 24, s.from + s.frames - 8], [1, 0], clamp);
+        return <div key={t} style={{ opacity: o, transform: `translateY(${(1 - o) * -22}px)`, padding: '11px 24px', borderRadius: 99, background: 'rgba(9,18,46,.88)', border: '1.5px solid rgba(59,224,143,.6)', font: `700 26px ${BODY}`, color: C.ink, boxShadow: '0 10px 30px rgba(0,0,0,.4)' }}><span style={{ color: C.green, marginRight: 10 }}>✕</span>{t}</div>;
+      })}
+    </div>
+  );
+};
+
+const Overlays: React.FC = () => {
+  const sale = scene('sale'), order = scene('order'), filled = scene('filled'), tip = scene('tooltip'), sim = scene('sim'), signin = scene('signin');
+  const f = useCurrentFrame();
+  const num = (k: string) => Number(facts[k]);
+  const quote = String(facts.tooltip).replace(/^.*says\s*/, '').replace(/[“”]/g, '');
+  const saleAt = sale.from + sceneFrameOf('sale', num('mSale')) + 8;
+  const orderAt = order.from + sceneFrameOf('order', num('mOrder')) + 4;
+  const fillAt = filled.from + Math.max(2, sceneFrameOf('filled', num('mFill')));
+  return (
+    <div style={{ position: 'absolute', left: 0, top: CHROME, width: SCREEN_W, height: SCREEN_H, overflow: 'hidden', pointerEvents: 'none' }}>
+      <Chips s={signin} />
+      <Quote text={quote} at={tip.from + Math.round(tip.frames * 0.2)} hold={Math.round(tip.frames * 0.7)} />
+      <Pill at={saleAt} hold={sale.from + sale.frames - saleAt - 8}><Stat label="CASH" from={num('cashBefore')} to={num('cashAfterSale')} at={saleAt} sign /></Pill>
+      <Pill at={orderAt} hold={Math.max(40, order.from + order.frames - orderAt - 6)}>
+        <Glass style={{ padding: '16px 34px', display: 'flex', alignItems: 'center', gap: 22 }}>
+          <div style={{ font: `700 20px ${BODY}`, color: C.gold, letterSpacing: 3 }}>ORDER PLACED</div>
+          <div style={{ font: `600 30px ${BODY}`, color: C.ink }}>{String(facts.orderUnits)} cotton, not below <b style={{ fontFamily: MONO }}>{fmt(num('orderMin'))}</b> each</div>
+        </Glass>
+      </Pill>
+      <Pill at={fillAt} hold={filled.from + filled.frames - fillAt - 6}><Stat label="ORDER FILLED" from={0} to={num('cashAfterOrder') - num('cashBeforeOrder')} at={fillAt} gain /></Pill>
+      <Pill at={sim.from + 16} hold={90} top={700}>
+        <Glass style={{ padding: '14px 32px', font: `700 30px ${BODY}`, color: C.ink }}>A whole week of the market, in seconds</Glass>
+      </Pill>
+      <span style={{ display: 'none' }}>{f}</span>
     </div>
   );
 };
@@ -54,49 +143,36 @@ const Screen: React.FC = () => {
 const Window: React.FC = () => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const enterAt = TITLE.from + TITLE.frames - 26;
-  const enter = spring({ frame: frame - enterAt, fps, config: { damping: 18, stiffness: 90, mass: 0.9 } });
-  const exit = interpolate(frame, [OUTRO.from - 6, OUTRO.from + 22], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: ease });
-  const y = (1 - enter) * 1100 + exit * 60;
-  const scale = (0.94 + enter * 0.06) * (1 - exit * 0.06);
+  const cam = useCamera();
+  const enter = spring({ frame: frame - (FIRST.from - 10), fps, config: { damping: 18, stiffness: 90, mass: 0.9 } });
+  const exit = interpolate(frame, [CHAIN.from - 8, CHAIN.from + 18], [0, 1], { ...clamp, easing: ease });
+  if (frame < FIRST.from - 12 || frame > CHAIN.from + 20) return null;
+  const z = cam.zoom * S;
+  const tx = Math.min(0, Math.max(SCREEN_W - SRC_W * z, SCREEN_W / 2 - cam.x * z));
+  const ty = Math.min(0, Math.max(SCREEN_H - SRC_H * z, SCREEN_H / 2 - cam.y * z));
   return (
-    <div style={{ position: 'absolute', left: WIN_X, top: WIN_Y, width: WIN_W, height: WIN_H, transform: `translateY(${y}px) scale(${scale})`, opacity: 1 - exit, borderRadius: 18, overflow: 'hidden', background: '#fff', boxShadow: '0 50px 120px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.14), 0 0 160px rgba(47,107,255,.35)' }}>
+    <div style={{ position: 'absolute', left: WIN_X, top: WIN_Y, width: WIN_W, height: WIN_H, transform: `translateY(${(1 - enter) * 1100 + exit * 60}px) scale(${(0.94 + enter * 0.06) * (1 - exit * 0.06)})`, opacity: 1 - exit, borderRadius: 18, overflow: 'hidden', background: '#fff', boxShadow: '0 50px 120px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.14), 0 0 160px rgba(47,107,255,.35)' }}>
       <div style={{ height: CHROME, background: 'linear-gradient(#1a2547,#131c3a)', display: 'flex', alignItems: 'center', padding: '0 18px', gap: 9 }}>
         {['#ff5f57', '#febc2e', '#28c840'].map((c) => <div key={c} style={{ width: 13, height: 13, borderRadius: 13, background: c }} />)}
-        <div style={{ marginLeft: 22, flex: 1, maxWidth: 520, height: 26, borderRadius: 8, background: 'rgba(255,255,255,.08)', color: C.mute, font: `500 14px ${BODY}`, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
-          <span style={{ opacity: 0.7 }}>🔒</span> nims.game
+        <div style={{ marginLeft: 22, flex: 1, maxWidth: 520, height: 26, borderRadius: 8, background: 'rgba(255,255,255,.08)', color: C.mute, font: `500 14px ${BODY}`, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}><span style={{ opacity: 0.7 }}>🔒</span> nims.game</div>
+      </div>
+      <div style={{ position: 'absolute', left: 0, top: CHROME, width: SCREEN_W, height: SCREEN_H, overflow: 'hidden', background: '#0d1f4a' }}>
+        <div style={{ position: 'absolute', left: 0, top: 0, width: SRC_W, height: SRC_H, transformOrigin: '0 0', transform: `translate(${tx}px, ${ty}px) scale(${z})` }}>
+          {SCENES.filter((s) => s.footage).map((s) => <Footage key={s.key} s={s} />)}
         </div>
       </div>
-      <Screen />
+      <Overlays />
     </div>
   );
 };
 
-const Words: React.FC<{ text: string; frames: number; size: number; color?: string; family?: string; weight?: number; align?: 'center' | 'left'; lead?: number }> = ({ text, frames, size, color = C.ink, family = BODY, weight = 600, align = 'center', lead = 0 }) => {
+const Caption: React.FC<{ s: Scene }> = ({ s }) => {
   const f = useCurrentFrame();
-  const words = text.split(' ');
-  const total = words.reduce((n, w) => n + w.length + 1, 0);
-  let acc = 0;
+  const o = interpolate(f, [0, 8, s.frames - 10, s.frames], [0, 1, 1, 0], clamp);
   return (
-    <div style={{ font: `${weight} ${size}px/1.28 ${family}`, color, textAlign: align, textWrap: 'balance' as never }}>
-      {words.map((w, i) => {
-        // Each word lands when the voice is roughly there: spread over ~85% of the line by letter count.
-        const at = lead + (acc / total) * frames * 0.85;
-        acc += w.length + 1;
-        const o = interpolate(f, [at, at + 7], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
-        return <span key={i} style={{ display: 'inline-block', marginRight: '0.28em', opacity: 0.18 + o * 0.82, transform: `translateY(${(1 - o) * 10}px)`, filter: `blur(${(1 - o) * 4}px)` }}>{w}</span>;
-      })}
-    </div>
-  );
-};
-
-const Caption: React.FC<{ c: Cue }> = ({ c }) => {
-  const f = useCurrentFrame();
-  const dur = c.frames + 8;
-  const o = interpolate(f, [0, 6, dur - 8, dur], [0, 1, 1, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
-  return (
-    <div style={{ position: 'absolute', left: 150, right: 150, top: WIN_Y + WIN_H + 30, height: 150, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, opacity: o }}>
-      <Words text={c.text} frames={c.frames} size={c.text.length > 100 ? 33 : 38} />
+    <div style={{ position: 'absolute', left: 170, right: 170, top: WIN_Y + WIN_H + 14, height: 168, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: o }}>
+      <div style={{ font: `700 19px ${BODY}`, color: C.gold, letterSpacing: 4, textTransform: 'uppercase' }}>{s.chapter}</div>
+      <Words text={s.text} start={s.delay} frames={s.voiceFrames} size={s.text.length > 110 ? 33 : 38} />
     </div>
   );
 };
@@ -106,69 +182,30 @@ const Progress: React.FC = () => {
   return <div style={{ position: 'absolute', left: 0, bottom: 0, height: 5, width: `${(f / TOTAL_FRAMES) * 100}%`, background: `linear-gradient(90deg, ${C.blue}, ${C.gold})` }} />;
 };
 
-const Mark: React.FC<{ size: number }> = ({ size }) => (
-  <div style={{ width: size, height: size, borderRadius: size, background: `radial-gradient(circle at 35% 30%, #ffe08a, ${C.gold} 55%, #e0a100)`, boxShadow: `0 ${size * 0.08}px ${size * 0.4}px rgba(255,200,61,.45), inset 0 -${size * 0.06}px 0 rgba(0,0,0,.15)`, display: 'grid', placeItems: 'center', font: `700 ${size * 0.58}px ${HEAD}`, color: '#6b4500' }}>N</div>
-);
-
-const TitleScene: React.FC = () => {
-  const f = useCurrentFrame();
-  const { fps } = useVideoConfig();
-  const end = TITLE.from + TITLE.frames;
-  const pop = spring({ frame: f - 4, fps, config: { damping: 12, stiffness: 120 } });
-  const out = interpolate(f, [end - 30, end + 4], [1, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: ease });
-  if (out <= 0) return null;
+export const Demo: React.FC<{ voice: boolean }> = ({ voice }) => {
+  const sale = scene('sale'), filled = scene('filled'), order = scene('order');
+  const sfx = (name: string, at: number, volume: number) => <Sequence key={name + at} from={Math.max(0, at)} durationInFrames={FPS * 2}><Audio src={staticFile(`sfx/${name}`)} volume={volume} /></Sequence>;
   return (
-    <AbsoluteFill style={{ alignItems: 'center', justifyContent: 'center', opacity: out, transform: `translateY(${(1 - out) * -80}px) scale(${0.96 + out * 0.04})` }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 36, transform: `scale(${0.7 + pop * 0.3})`, opacity: pop }}>
-        <Mark size={170} />
-        <div style={{ font: `700 210px/1 ${HEAD}`, color: C.ink, letterSpacing: -4 }}>Nims</div>
-      </div>
-      <div style={{ marginTop: 70, width: 1480 }}>
-        <Words text={TITLE.text.replace('Meet Nims: ', '')} frames={TITLE.frames} lead={14} size={42} color={C.mute} />
-      </div>
+    <AbsoluteFill style={{ background: C.navy, fontFamily: BODY }}>
+      <Background />
+      <Window />
+      {SCENES.filter((s) => s.footage || s.key === 'chain').map((s) => (
+        <Sequence key={s.key} from={s.from} durationInFrames={s.frames} layout="none">{s.footage ? <Caption s={s} /> : null}</Sequence>
+      ))}
+      <Sequence from={scene('hook').from} durationInFrames={scene('hook').frames}><Hook /></Sequence>
+      <Sequence from={CHAIN.from} durationInFrames={CHAIN.frames}><Chain /></Sequence>
+      <Sequence from={scene('outro').from} durationInFrames={scene('outro').frames}><Outro /></Sequence>
+      <Progress />
+
+      {/* sound: a quiet bed, a whoosh into each scene, a ping when money lands, a tick when the order is placed */}
+      <Audio src={staticFile('sfx/bed.mp3')} volume={(f) => 0.07 * interpolate(f, [0, 60, TOTAL_FRAMES - 90, TOTAL_FRAMES], [0, 1, 1, 0], clamp)} />
+      {SCENES.map((s) => sfx('whoosh.wav', s.from - 4, 0.16))}
+      {sfx('ping.wav', sale.from + sceneFrameOf('sale', Number(facts.mSale)) + 8, 0.5)}
+      {sfx('tick.wav', order.from + sceneFrameOf('order', Number(facts.mOrder)), 0.6)}
+      {sfx('ping.wav', filled.from + Math.max(2, sceneFrameOf('filled', Number(facts.mFill))), 0.5)}
+      {voice && SCENES.map((s) => (
+        <Sequence key={'v' + s.key} from={s.from + s.delay} durationInFrames={s.voiceFrames + 20}><Audio src={staticFile(`vo/${s.key}.mp3`)} /></Sequence>
+      ))}
     </AbsoluteFill>
   );
 };
-
-const OutroScene: React.FC = () => {
-  const f = useCurrentFrame() - OUTRO.from;
-  const { fps } = useVideoConfig();
-  const a = interpolate(f, [0, 20], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: ease });
-  const pop = spring({ frame: f - 6, fps, config: { damping: 14, stiffness: 110 } });
-  const pills = ['No wallet', 'No seed phrase', 'No gas'];
-  return (
-    <AbsoluteFill style={{ alignItems: 'center', justifyContent: 'center', opacity: a }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 30, transform: `scale(${0.85 + pop * 0.15})` }}>
-        <Mark size={130} />
-        <div style={{ font: `700 170px/1 ${HEAD}`, color: C.ink, letterSpacing: -3 }}>Nims</div>
-      </div>
-      <div style={{ font: `600 46px ${BODY}`, color: C.ink, marginTop: 34 }}>The economy is the game.</div>
-      <div style={{ display: 'flex', gap: 18, marginTop: 40 }}>
-        {pills.map((p, i) => {
-          const o = interpolate(f, [30 + i * 10, 42 + i * 10], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
-          return <div key={p} style={{ opacity: o, transform: `translateY(${(1 - o) * 14}px)`, padding: '12px 26px', borderRadius: 99, border: '1.5px solid rgba(127,176,255,.5)', background: 'rgba(47,107,255,.18)', font: `600 28px ${BODY}`, color: C.ink }}>{p}</div>;
-        })}
-      </div>
-      <div style={{ marginTop: 60, display: 'flex', alignItems: 'center', gap: 14, opacity: interpolate(f, [70, 90], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }), font: `600 26px ${BODY}`, color: C.mute }}>
-        <span style={{ width: 10, height: 10, borderRadius: 10, background: '#3be08f', boxShadow: '0 0 14px #3be08f' }} />
-        Settles to NEAR testnet in the background
-      </div>
-    </AbsoluteFill>
-  );
-};
-
-export const Demo: React.FC<{ voice: boolean }> = ({ voice }) => (
-  <AbsoluteFill style={{ background: C.navy, fontFamily: BODY }}>
-    <Background />
-    <Window />
-    {CUES.filter((c) => c.key !== 'title' && c.key !== 'outro').map((c) => (
-      <Sequence key={c.key} from={c.from} durationInFrames={c.frames + 8} layout="none"><Caption c={c} /></Sequence>
-    ))}
-    <TitleScene />
-    <OutroScene />
-    <Progress />
-    {voice && CUES.map((c) => (
-      <Sequence key={'a' + c.key} from={Math.max(0, c.from)} durationInFrames={c.frames + 15}><Audio src={staticFile(`vo/${c.key}.mp3`)} /></Sequence>
-    ))}
-  </AbsoluteFill>
-);

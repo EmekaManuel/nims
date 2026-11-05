@@ -1,0 +1,60 @@
+{
+ "beats": {
+  "signin": {
+   "start": 3.373,
+   "end": 11.833
+  },
+  "goal": {
+   "start": 11.833,
+   "end": 15.402
+  },
+  "collect": {
+   "start": 15.402,
+   "end": 19.151
+  },
+  "tooltip": {
+   "start": 19.151,
+   "end": 30.457
+  },
+  "sale": {
+   "start": 30.457,
+   "end": 34.452
+  },
+  "order": {
+   "start": 34.452,
+   "end": 48.517
+  },
+  "filled": {
+   "start": 48.517,
+   "end": 51.263
+  },
+  "prices": {
+   "start": 51.263,
+   "end": 56.722
+  },
+  "shares": {
+   "start": 56.722,
+   "end": 62.519
+  },
+  "sim": {
+   "start": 62.519,
+   "end": 79.363
+  }
+ },
+ "facts": {
+  "syncAt": 2.02,
+  "tooltip": "Lena's Textiles says\u201cMy cotton stock (36) is about where I want it (40). Festive season: everyone wants fabric right now. I'll pay 1150 coins and sell at 1406 coins (usual 800 coins).\u201d",
+  "cashBefore": 600,
+  "mSale": 31.845,
+  "cashAfterSale": 5912,
+  "orderMin": 864,
+  "orderUnits": 8,
+  "cashBeforeOrder": 472,
+  "mOrder": 45.714,
+  "mFill": 49.043,
+  "cashAfterOrder": 8011,
+  "mSim": 64.643,
+  "total": 79.363
+ },
+ "offset": -0.047
+}

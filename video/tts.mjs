@@ -7,13 +7,13 @@ const lines = JSON.parse(readFileSync(new URL('./src/data/lines.json', import.me
 const dir = new URL('./public/vo/', import.meta.url).pathname;
 mkdirSync(dir, { recursive: true });
 const key = process.env.ELEVENLABS_API_KEY;
-const voice = process.env.ELEVENLABS_VOICE ?? 'EXAVITQu4vr4xnSDxMaL';
+const voice = process.env.ELEVENLABS_VOICE ?? '7IAccZ5Mu2dejWi0Rd6v';
 for (const [k, text] of Object.entries(lines)) {
   const out = dir + k + '.mp3';
   if (key) {
     const r = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voice}?output_format=mp3_44100_128`, {
       method: 'POST', headers: { 'xi-api-key': key, 'content-type': 'application/json' },
-      body: JSON.stringify({ text, model_id: 'eleven_multilingual_v2', voice_settings: { stability: 0.5, similarity_boost: 0.8, style: 0.25 } }),
+      body: JSON.stringify({ text, model_id: 'eleven_multilingual_v2', voice_settings: { stability: 0.5, similarity_boost: 1, style: 0, use_speaker_boost: true } }),
     });
     if (!r.ok) throw new Error(`ElevenLabs ${r.status}: ${await r.text()}`);
     writeFileSync(out, Buffer.from(await r.arrayBuffer()));

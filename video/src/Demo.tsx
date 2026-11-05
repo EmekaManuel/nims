@@ -5,9 +5,7 @@ import { FPS, SCENES, SRC_H, SRC_W, TOTAL_FRAMES, facts, scene, sceneFrameOf, ty
 
 export { FPS, TOTAL_FRAMES };
 
-// The recording (1920x1080) is shown in a 1440x810 screen, so the picture is sharp even at 1.33x zoom.
-const SCREEN_W = 1440, SCREEN_H = 810, CHROME = 44, S = SCREEN_W / SRC_W;
-const WIN_W = SCREEN_W, WIN_H = SCREEN_H + CHROME, WIN_X = (1920 - WIN_W) / 2, WIN_Y = 40;
+// The recording is full-bleed: the whole app fills the frame, and the camera only zooms in to emphasise.
 const FIRST = scene('signin'), CHAIN = scene('chain');
 
 /** Camera: every scene lists views; ease from the last view to the next over ~0.8 s. */
@@ -82,7 +80,7 @@ const Quote: React.FC<{ text: string; at: number; hold: number }> = ({ text, at,
   if (f < at) return null;
   const words = text.split(' ');
   return (
-    <div style={{ position: 'absolute', left: 36, bottom: 40, width: 640, opacity: inn * out, transform: `translateY(${(1 - inn) * 40}px)` }}>
+    <div style={{ position: 'absolute', left: 36, top: 110, width: 640, opacity: inn * out, transform: `translateY(${(1 - inn) * 40}px)` }}>
       <Glass style={{ padding: '26px 30px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
           <div style={{ width: 46, height: 46, borderRadius: 46, background: '#27b36a', display: 'grid', placeItems: 'center', font: `700 24px ${HEAD}`, color: '#fff' }}>L</div>
@@ -121,7 +119,7 @@ const Overlays: React.FC = () => {
   const orderAt = order.from + sceneFrameOf('order', num('mOrder')) + 4;
   const fillAt = filled.from + Math.max(2, sceneFrameOf('filled', num('mFill')));
   return (
-    <div style={{ position: 'absolute', left: 0, top: CHROME, width: SCREEN_W, height: SCREEN_H, overflow: 'hidden', pointerEvents: 'none' }}>
+    <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
       <Chips s={signin} />
       <Quote text={quote} at={tip.from + Math.round(tip.frames * 0.2)} hold={Math.round(tip.frames * 0.7)} />
       <Pill at={saleAt} hold={sale.from + sale.frames - saleAt - 8}><Stat label="CASH" from={num('cashBefore')} to={num('cashAfterSale')} at={saleAt} sign /></Pill>
@@ -132,7 +130,7 @@ const Overlays: React.FC = () => {
         </Glass>
       </Pill>
       <Pill at={fillAt} hold={filled.from + filled.frames - fillAt - 6}><Stat label="ORDER FILLED" from={0} to={num('cashAfterOrder') - num('cashBeforeOrder')} at={fillAt} gain /></Pill>
-      <Pill at={sim.from + 16} hold={90} top={700}>
+      <Pill at={sim.from + 16} hold={90}>
         <Glass style={{ padding: '14px 32px', font: `700 30px ${BODY}`, color: C.ink }}>A whole week of the market, in seconds</Glass>
       </Pill>
       <span style={{ display: 'none' }}>{f}</span>
@@ -142,37 +140,33 @@ const Overlays: React.FC = () => {
 
 const Window: React.FC = () => {
   const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
   const cam = useCamera();
-  const enter = spring({ frame: frame - (FIRST.from - 10), fps, config: { damping: 18, stiffness: 90, mass: 0.9 } });
+  const enter = ease(interpolate(frame, [FIRST.from - 10, FIRST.from + 14], [0, 1], clamp));
   const exit = interpolate(frame, [CHAIN.from - 8, CHAIN.from + 18], [0, 1], { ...clamp, easing: ease });
   if (frame < FIRST.from - 12 || frame > CHAIN.from + 20) return null;
-  const z = cam.zoom * S;
-  const tx = Math.min(0, Math.max(SCREEN_W - SRC_W * z, SCREEN_W / 2 - cam.x * z));
-  const ty = Math.min(0, Math.max(SCREEN_H - SRC_H * z, SCREEN_H / 2 - cam.y * z));
+  const z = cam.zoom;
+  const tx = Math.min(0, Math.max(SRC_W - SRC_W * z, SRC_W / 2 - cam.x * z));
+  const ty = Math.min(0, Math.max(SRC_H - SRC_H * z, SRC_H / 2 - cam.y * z));
   return (
-    <div style={{ position: 'absolute', left: WIN_X, top: WIN_Y, width: WIN_W, height: WIN_H, transform: `translateY(${(1 - enter) * 1100 + exit * 60}px) scale(${(0.94 + enter * 0.06) * (1 - exit * 0.06)})`, opacity: 1 - exit, borderRadius: 18, overflow: 'hidden', background: '#fff', boxShadow: '0 50px 120px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.14), 0 0 160px rgba(47,107,255,.35)' }}>
-      <div style={{ height: CHROME, background: 'linear-gradient(#1a2547,#131c3a)', display: 'flex', alignItems: 'center', padding: '0 18px', gap: 9 }}>
-        {['#ff5f57', '#febc2e', '#28c840'].map((c) => <div key={c} style={{ width: 13, height: 13, borderRadius: 13, background: c }} />)}
-        <div style={{ marginLeft: 22, flex: 1, maxWidth: 520, height: 26, borderRadius: 8, background: 'rgba(255,255,255,.08)', color: C.mute, font: `500 14px ${BODY}`, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}><span style={{ opacity: 0.7 }}>🔒</span> nims.game</div>
-      </div>
-      <div style={{ position: 'absolute', left: 0, top: CHROME, width: SCREEN_W, height: SCREEN_H, overflow: 'hidden', background: '#0d1f4a' }}>
-        <div style={{ position: 'absolute', left: 0, top: 0, width: SRC_W, height: SRC_H, transformOrigin: '0 0', transform: `translate(${tx}px, ${ty}px) scale(${z})` }}>
-          {SCENES.filter((s) => s.footage).map((s) => <Footage key={s.key} s={s} />)}
-        </div>
+    <AbsoluteFill style={{ opacity: enter * (1 - exit), transform: `scale(${(0.97 + enter * 0.03) * (1 - exit * 0.03)})`, overflow: 'hidden', background: '#0d1f4a' }}>
+      <div style={{ position: 'absolute', left: 0, top: 0, width: SRC_W, height: SRC_H, transformOrigin: '0 0', transform: `translate(${tx}px, ${ty}px) scale(${z})` }}>
+        {SCENES.filter((s) => s.footage).map((s) => <Footage key={s.key} s={s} />)}
       </div>
       <Overlays />
-    </div>
+    </AbsoluteFill>
   );
 };
 
 const Caption: React.FC<{ s: Scene }> = ({ s }) => {
   const f = useCurrentFrame();
   const o = interpolate(f, [0, 8, s.frames - 10, s.frames], [0, 1, 1, 0], clamp);
+  // A small pill that sits above the game's own bottom bar, so the whole app stays visible.
   return (
-    <div style={{ position: 'absolute', left: 170, right: 170, top: WIN_Y + WIN_H + 14, height: 168, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: o }}>
-      <div style={{ font: `700 19px ${BODY}`, color: C.gold, letterSpacing: 4, textTransform: 'uppercase' }}>{s.chapter}</div>
-      <Words text={s.text} start={s.delay} frames={s.voiceFrames} size={s.text.length > 110 ? 33 : 38} />
+    <div style={{ position: 'absolute', left: 0, right: 0, bottom: 96, display: 'flex', justifyContent: 'center', opacity: o, transform: `translateY(${(1 - o) * 14}px)` }}>
+      <Glass style={{ padding: '14px 34px 16px', width: 1280, borderRadius: 20, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+        <div style={{ font: `700 15px ${BODY}`, color: C.gold, letterSpacing: 3, textTransform: 'uppercase' }}>{s.chapter}</div>
+        <Words text={s.text} start={s.delay} frames={s.voiceFrames} size={s.text.length > 110 ? 28 : 31} />
+      </Glass>
     </div>
   );
 };

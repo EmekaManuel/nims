@@ -1,11 +1,10 @@
 import { Easing, interpolate, useCurrentFrame } from 'remotion';
-import { loadFont as loadFredoka } from '@remotion/google-fonts/Fredoka';
-import { loadFont as loadFigtree } from '@remotion/google-fonts/Figtree';
-import { loadFont as loadMono } from '@remotion/google-fonts/JetBrainsMono';
+import { loadFont as loadInter } from '@remotion/google-fonts/Inter';
 
-export const HEAD = loadFredoka('normal', { weights: ['600', '700'] }).fontFamily;
-export const BODY = loadFigtree('normal', { weights: ['500', '600', '700'] }).fontFamily;
-export const MONO = loadMono('normal', { weights: ['500', '700'] }).fontFamily;
+// One plain sans-serif for everything.
+export const BODY = loadInter('normal', { weights: ['500', '600', '700'] }).fontFamily;
+export const HEAD = BODY;
+export const MONO = BODY;
 
 export const C = { navy: '#081230', deep: '#0d1f4a', blue: '#2f6bff', sky: '#7fb0ff', gold: '#ffc83d', ink: '#f4f7ff', mute: '#a9b8e0', green: '#3be08f' };
 export const ease = Easing.bezier(0.65, 0, 0.25, 1);
@@ -27,7 +26,7 @@ export const Words: React.FC<{ text: string; start?: number; frames: number; siz
         const at = start + (acc / total) * frames * 0.85;
         acc += w.length + 1;
         const o = interpolate(f, [at, at + 7], [0, 1], clamp);
-        return <span key={i} style={{ display: 'inline-block', marginRight: '0.27em', opacity: 0.2 + o * 0.8, transform: `translateY(${(1 - o) * 9}px)`, filter: `blur(${(1 - o) * 3}px)` }}>{w}</span>;
+        return <span key={i} style={{ display: 'inline-block', marginRight: '0.27em', opacity: o, transform: `translateY(${(1 - o) * 9}px)`, filter: `blur(${(1 - o) * 3}px)` }}>{w}</span>;
       })}
     </div>
   );

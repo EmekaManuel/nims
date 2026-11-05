@@ -1,6 +1,6 @@
 # Nims demo: voice-over script
 
-Timed to the placeholder voice in `nims-demo.mp4` (99.76666666666667 s). **279 words.** The picture follows the audio: each scene lasts as long as its line plus a short pause, and the footage is sped up or slowed slightly to match, so a different voice (yours, or ElevenLabs) re-times itself. Put your takes in `video/public/vo/<scene>.mp3`, run `node measure.mjs`, and render.
+Timed to the placeholder voice used for `nims-demo-silent.mp4` (99.76666666666667 s). **279 words.** The picture follows the audio: each scene lasts as long as its line plus a short pause, and the footage is sped up or slowed slightly to match, so a different voice (yours, or ElevenLabs) re-times itself. Put your takes in `video/public/vo/<scene>.mp3`, run `node measure.mjs`, and render.
 
 | Start | End | Length | On screen | Say |
 |---|---|---|---|---|

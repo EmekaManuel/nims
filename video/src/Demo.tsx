@@ -1,4 +1,4 @@
-import { AbsoluteFill, Audio, OffthreadVideo, Sequence, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig } from 'remotion';
+import { AbsoluteFill, Audio, Freeze, OffthreadVideo, Sequence, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig } from 'remotion';
 import { BODY, C, Glass, HEAD, MONO, Words, clamp, ease, fmt } from './ui';
 import { Chain, Hook, Outro } from './cards';
 import { FPS, SCENES, SRC_H, SRC_W, TOTAL_FRAMES, facts, scene, sceneFrameOf, type Focus, type Scene } from './timeline';
@@ -19,7 +19,7 @@ function useCamera(): Focus {
   const cur = KEYS[i], prev = KEYS[i - 1] ?? cur;
   const t = ease(interpolate(frame - cur.at, [0, 26], [0, 1], clamp));
   const mix = (a: number, b: number) => a + (b - a) * t;
-  return { x: mix(prev.focus.x, cur.focus.x), y: mix(prev.focus.y, cur.focus.y), zoom: mix(prev.focus.zoom, cur.focus.zoom) * (1 + Math.sin(frame / 80) * 0.004) };
+  return { x: mix(prev.focus.x, cur.focus.x), y: mix(prev.focus.y, cur.focus.y), zoom: Math.min(1.5, mix(prev.focus.zoom, cur.focus.zoom)) * (1 + Math.sin(frame / 80) * 0.004) }; // never past 1.5x: beyond that the 1080p footage starts to soften
 }
 
 const Background: React.FC = () => {
@@ -42,7 +42,7 @@ const Footage: React.FC<{ s: Scene }> = ({ s }) => {
       </Sequence>
       {s.playFrames < s.frames && (
         <Sequence from={s.from + s.playFrames} durationInFrames={s.frames - s.playFrames} layout="none">
-          <OffthreadVideo src={staticFile('raw.mp4')} muted startFrom={last} endAt={last + 1} style={{ width: SRC_W, height: SRC_H }} />
+          <Freeze frame={0}><OffthreadVideo src={staticFile('raw.mp4')} muted startFrom={last} style={{ width: SRC_W, height: SRC_H }} /></Freeze>
         </Sequence>
       )}
     </>

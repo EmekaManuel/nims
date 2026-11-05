@@ -58,7 +58,7 @@ export const Hook: React.FC = () => {
       {/* Phase B: Nims, with living merchants */}
       <AbsoluteFill style={{ alignItems: 'center', justifyContent: 'center', opacity: interpolate(f, [phaseB, phaseB + 10], [0, 1], clamp) }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 34, transform: `scale(${0.72 + pop * 0.28})`, marginBottom: 56 }}>
-          <Mark size={150} />
+          <Mark size={205} />
           <div style={{ font: `700 190px/1 ${HEAD}`, color: C.ink, letterSpacing: -4 }}>Nims</div>
         </div>
         <div style={{ display: 'flex', gap: 28 }}>
@@ -160,7 +160,7 @@ export const Outro: React.FC = () => {
   return (
     <AbsoluteFill style={{ alignItems: 'center', justifyContent: 'center', opacity: a * out }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 30, transform: `scale(${0.85 + pop * 0.15})` }}>
-        <Mark size={140} />
+        <Mark size={190} />
         <div style={{ font: `700 190px/1 ${HEAD}`, color: C.ink, letterSpacing: -3 }}>Nims</div>
       </div>
       <div style={{ font: `600 52px ${BODY}`, color: C.ink, marginTop: 30 }}>The economy is the game.</div>

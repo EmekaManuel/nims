@@ -48,7 +48,7 @@ export const SCENES: Scene[] = DEFS.map((d) => {
   const a = beat ? videoTime(beat.start) - 0.12 : 0;
   const b = beat ? videoTime(beat.end) : 0;
   const n = b - a;
-  const rate = beat ? Math.min(1.75, Math.max(0.8, n / ((frames / FPS) - 0.2))) : 1;
+  const rate = beat ? Math.min(1.9, Math.max(0.8, n / ((frames / FPS) - 0.2))) : 1;
   const playFrames = beat ? Math.min(frames, Math.round((n / rate) * FPS)) : 0;
   const s: Scene = { key: d.key, chapter: d.chapter, text: lines[d.key], from: cursor, frames, delay: Math.round(d.delay * FPS), voiceFrames: Math.round(voice * FPS), footage: !!beat, focus: d.focus, a, b, rate, playFrames };
   cursor += frames;

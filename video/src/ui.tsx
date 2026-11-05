@@ -33,9 +33,27 @@ export const Words: React.FC<{ text: string; start?: number; frames: number; siz
   );
 };
 
-export const Mark: React.FC<{ size: number }> = ({ size }) => (
-  <div style={{ width: size, height: size, borderRadius: size, background: `radial-gradient(circle at 35% 30%, #ffe08a, ${C.gold} 55%, #e0a100)`, boxShadow: `0 ${size * 0.08}px ${size * 0.4}px rgba(255,200,61,.45), inset 0 -${size * 0.06}px 0 rgba(0,0,0,.15)`, display: 'grid', placeItems: 'center', font: `700 ${size * 0.58}px ${HEAD}`, color: '#6b4500' }}>N</div>
-);
+/** The game's own mascot, Nim (same drawing as web/src/Mascot.tsx), floating gently: the logo mark everywhere in the video. */
+export const Mark: React.FC<{ size: number }> = ({ size }) => {
+  const f = useCurrentFrame();
+  const bob = Math.sin(f / 14) * size * 0.025;
+  return (
+    <svg width={size} height={size} viewBox="0 0 64 64" style={{ transform: `translateY(${bob}px)`, filter: 'drop-shadow(0 14px 30px rgba(59,157,255,.45))', overflow: 'visible' }}>
+      <ellipse cx="32" cy="58" rx="16" ry="3.5" fill="#000" opacity=".25" />
+      <circle cx="32" cy="35" r="23" fill="#3b9dff" />
+      <circle cx="32" cy="35" r="23" fill="none" stroke="#1f6fd6" strokeWidth="2" />
+      <ellipse cx="24" cy="24" rx="8" ry="5" fill="#8cc8ff" opacity=".7" transform="rotate(-25 24 24)" />
+      <circle cx="24.5" cy="34" r="5.6" fill="#fff" /><circle cx="39.5" cy="34" r="5.6" fill="#fff" />
+      <circle cx="25.5" cy="34.5" r="2.8" fill="#14253d" /><circle cx="38.5" cy="34.5" r="2.8" fill="#14253d" />
+      <circle cx="26.3" cy="33.5" r="1" fill="#fff" /><circle cx="39.3" cy="33.5" r="1" fill="#fff" />
+      <circle cx="17.5" cy="42" r="3.2" fill="#ff8fa8" opacity=".75" /><circle cx="46.5" cy="42" r="3.2" fill="#ff8fa8" opacity=".75" />
+      <path d="M25 44c2 5 12 5 14 0z" fill="#14253d" />
+      <circle cx="32" cy="9.5" r="7" fill="#ffc21a" stroke="#c98700" strokeWidth="1.6" />
+      <circle cx="32" cy="9.5" r="4.2" fill="none" stroke="#e8a300" strokeWidth="1.2" />
+      <path d="M30 12V7l4 5V7" fill="none" stroke="#a86f00" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+};
 
 export const Glass: React.FC<{ style?: React.CSSProperties; children: React.ReactNode }> = ({ style, children }) => (
   <div style={{ background: 'rgba(9,18,46,.86)', border: '1.5px solid rgba(127,176,255,.35)', borderRadius: 22, boxShadow: '0 24px 70px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.04) inset', backdropFilter: 'blur(14px)', ...style }}>{children}</div>

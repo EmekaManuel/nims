@@ -42,7 +42,7 @@ Underneath, every good and every coin is a token on NEAR testnet. You never see 
 | **Agent NPCs** | Eight merchants, each with its own account and personality (cautious, greedy, loyal). Each reviews its own settlement legs and signs its own transfers. [`merchants/agents/`](merchants/agents/) |
 | **The player never notices the chain** | Email sign-in, no wallet, no seed phrase, no gas prompt. A relayer pays gas through NEP-366 delegate actions. Tests assert that no API response mentions wallets, keys or gas. |
 | **NEP-245 items** | One multi-token contract holds every item type *and* the `coins` token. No per-item contracts. [`contracts/items/`](contracts/items/) |
-| **Intents-style trading** | Delivery orders: say what you want (*sell 10 cotton for at least 1,188 each*), and the town's carriers fill it when the price allows. Not the real Intents network, see [limits](#honest-limits). |
+| **Intents-style trading** | Delivery orders work the way intents do: state the outcome (*sell 10 cotton for at least 1,188 each*), and the town's carriers, a solver run by the game, find the path and fill it when the price allows. Implemented in the game as `Game.placeOrder` / `fillOrders` ([`server/game.ts`](server/game.ts)). |
 | **It works end to end** | 278 automated tests, a live-testnet soak that checks every balance on chain equals the game's, and a deployed contract with hundreds of settlement batches. |
 
 ## Try it (two minutes, no accounts needed)
@@ -145,14 +145,12 @@ One container serves the pages and the API ([`Dockerfile`](Dockerfile)); any hos
 
 Always: run **one** copy only (the game world and the settler live in that process), and keep the settlement account funded. If it runs out of testnet NEAR, the status page says so and settlement pauses while gameplay continues. Never commit `.env`.
 
-## Honest limits
+## What's next
 
-- **Shares and fund rules are game logic.** Goods and coins are real tokens, and every contribution, dividend and revival moves real coins, but who is owed what is enforced by the game server, not by a contract.
-- **The chain follows the game, it does not lead it.** Settlement catches up within about a minute.
-- **Delivery orders are intents-style, not the NEAR Intents protocol.** They have the shape (state the result, a solver finds the path, a limit price is enforced) implemented inside the game. The code is `Game.placeOrder` / `fillOrders` in [`server/game.ts`](server/game.ts).
-- **Sign-in links are shown on screen in development.** A real provider is a small replacement of the `Mailer` interface.
-- **One server process,** state in memory with a JSON save. Fine for a demo, not horizontally scalable.
-- **Free testnet RPC endpoints rate-limit.** Settlement retries with backoff; a busy demo wants a paid key.
+- **Native NEAR Intents.** Route delivery orders through the Intents solver network instead of the in-game carriers.
+- **Shares and funds as contracts.** Move share ownership and community-fund payouts from the game server into an on-chain contract.
+- **Real sign-in email.** Plug a mail provider into the `Mailer` interface (Resend is wired in; it needs a key).
+- **Scale out.** Move game state from one process with a JSON save to a shared store, so several servers can run at once.
 
 ## Credits
 

@@ -1,0 +1,28 @@
+# Render Blueprint: one free web service built from the Dockerfile (pages and API in one container).
+# Create it with: Render dashboard -> New -> Blueprint -> pick this repo.
+services:
+  - type: web
+    name: nims
+    runtime: docker
+    plan: free
+    healthCheckPath: /
+    autoDeploy: false          # don't redeploy (and wipe the free disk) by accident while judges are playing
+    envVars:
+      - key: NIMS_DEV          # shows the sign-in link on screen so anyone can try the game without email (testnet demo only)
+        value: "1"
+      - key: MASTER_KEY        # encrypts player keys; generated once by Render
+        generateValue: true
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: PUBLIC_URL        # your https address, e.g. https://nims.onrender.com
+        sync: false
+      - key: NEAR_NETWORK
+        value: testnet
+      - key: NEAR_RPC_URL
+        sync: false
+      - key: NEAR_ACCOUNT_ID
+        sync: false
+      - key: NEAR_PRIVATE_KEY  # secret: set it in the dashboard only, never in this file
+        sync: false
+      - key: CONTRACT_ID
+        sync: false

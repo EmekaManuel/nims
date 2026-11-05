@@ -126,12 +126,18 @@ With credentials in `.env`, `npm run server` streams the running game to the cha
 
 ## Host it
 
-One container serves the pages and the API ([`Dockerfile`](Dockerfile)); any host that runs a container with a persistent volume works (Fly.io, Railway, Render).
+One container serves the pages and the API ([`Dockerfile`](Dockerfile)); any host that runs a container works (Fly.io, Railway, Render, a VM).
 
-1. Set the variables from `.env.example`: the NEAR testnet ones, plus `PUBLIC_URL`, `RESEND_API_KEY` and `MAIL_FROM` for real sign-in emails, and `MASTER_KEY` / `SESSION_SECRET` (`openssl rand -hex 32`).
-2. Mount a volume at `/data` (accounts, wallets, chain progress and the game save).
-3. Run **one** copy only: the game world and the settler live in that process.
-4. Keep the settlement account funded. If it runs out of testnet NEAR, the status page says so and settlement pauses while gameplay continues.
+**Free, in about ten minutes (Render, no card):** [`render.yaml`](render.yaml) is a ready Blueprint.
+
+1. Push the repo to GitHub. In Render choose **New, Blueprint** and pick it.
+2. Fill the prompted variables: `PUBLIC_URL` (the `https://...onrender.com` address Render gives you), and the testnet ones from `.env.example` (`NEAR_RPC_URL`, `NEAR_ACCOUNT_ID`, `NEAR_PRIVATE_KEY`, `CONTRACT_ID`). Leave them empty to run without the chain. `MASTER_KEY` and `SESSION_SECRET` are generated for you.
+3. Open the address. `NIMS_DEV=1` shows the sign-in link on screen so anyone can try it without email. Remove it, and set `RESEND_API_KEY` and `MAIL_FROM`, to send real emails.
+4. Keep it awake during judging with a free pinger (for example UptimeRobot hitting the address every 5 minutes).
+
+**Know the limits of a free plan:** it sleeps when idle, and its disk is wiped on restart or redeploy, so players and saves reset. For anything that should last, mount a persistent volume at `/data` (it holds accounts, wallets, chain progress and the game save) on a paid host or your own VM.
+
+Always: run **one** copy only (the game world and the settler live in that process), and keep the settlement account funded. If it runs out of testnet NEAR, the status page says so and settlement pauses while gameplay continues. Never commit `.env`.
 
 ## Honest limits
 

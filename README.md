@@ -5,7 +5,7 @@
 **A market town where every trader is an AI agent with its own money, its own stock and its own mind about prices.**
 Start with a wheelbarrow. Read the market. End up owning a piece of half the stalls.
 
-[▶ Watch the 100-second demo](docs/nims-demo.mp4) · [Judge walk-through](docs/DEMO.md) · Contract: `oja-items.testnet`
+[🎮 Play it live](https://nims-app.up.railway.app) · [▶ Watch the 100-second demo](docs/nims-demo.mp4) · [Judge walk-through](docs/DEMO.md) · Contract: `oja-items.testnet`
 
 ![NEAR testnet](https://img.shields.io/badge/NEAR-testnet-00ec97) ![NEP-245](https://img.shields.io/badge/items-NEP--245-blue) ![tests](https://img.shields.io/badge/tests-278%20passing-brightgreen) ![TypeScript](https://img.shields.io/badge/TypeScript%20%2B%20Rust-informational)
 
@@ -46,6 +46,10 @@ Underneath, every good and every coin is a token on NEAR testnet. You never see 
 | **It works end to end** | 278 automated tests, a live-testnet soak that checks every balance on chain equals the game's, and a deployed contract with hundreds of settlement batches. |
 
 ## Try it (two minutes, no accounts needed)
+
+**Fastest:** open the live game at **<https://nims-app.up.railway.app>**. It runs on NEAR testnet; enter any email and press **Send me a link**, then **Open my link (development)**.
+
+Or run it yourself:
 
 ```bash
 npm run setup     # installs the server and the web app
@@ -128,14 +132,16 @@ With credentials in `.env`, `npm run server` streams the running game to the cha
 
 One container serves the pages and the API ([`Dockerfile`](Dockerfile)); any host that runs a container works (Fly.io, Railway, Render, a VM).
 
-**Free, in about ten minutes (Render, no card):** [`render.yaml`](render.yaml) is a ready Blueprint.
+**Railway (what the live demo uses):** New Project, Deploy from GitHub repo (it builds the `Dockerfile`), attach a **Volume** mounted at `/data`, then set `DATA_DIR=/data`, `NIMS_DEV=1`, `MASTER_KEY` and `SESSION_SECRET` (`openssl rand -hex 32` each, set once), `PUBLIC_URL` (your generated `https://...up.railway.app` address) and the testnet variables from `.env.example`. Pushing to the repo redeploys it, so avoid pushes while people are playing.
+
+**Render (free, no card):** [`render.yaml`](render.yaml) is a ready Blueprint.
 
 1. Push the repo to GitHub. In Render choose **New, Blueprint** and pick it.
 2. Fill the prompted variables: `PUBLIC_URL` (the `https://...onrender.com` address Render gives you), and the testnet ones from `.env.example` (`NEAR_RPC_URL`, `NEAR_ACCOUNT_ID`, `NEAR_PRIVATE_KEY`, `CONTRACT_ID`). Leave them empty to run without the chain. `MASTER_KEY` and `SESSION_SECRET` are generated for you.
 3. Open the address. `NIMS_DEV=1` shows the sign-in link on screen so anyone can try it without email. Remove it, and set `RESEND_API_KEY` and `MAIL_FROM`, to send real emails.
 4. Keep it awake during judging with a free pinger (for example UptimeRobot hitting the address every 5 minutes).
 
-**Know the limits of a free plan:** it sleeps when idle, and its disk is wiped on restart or redeploy, so players and saves reset. For anything that should last, mount a persistent volume at `/data` (it holds accounts, wallets, chain progress and the game save) on a paid host or your own VM.
+**Know the limits of a free plan:** Render's free tier sleeps when idle and wipes its disk on restart or redeploy, so players and saves reset. Anything that should last needs a persistent volume at `/data` (it holds accounts, wallets, chain progress and the game save).
 
 Always: run **one** copy only (the game world and the settler live in that process), and keep the settlement account funded. If it runs out of testnet NEAR, the status page says so and settlement pauses while gameplay continues. Never commit `.env`.
 

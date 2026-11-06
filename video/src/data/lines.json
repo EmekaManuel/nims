@@ -1,6 +1,6 @@
 {
  "hook": "In most games, the economy is a spreadsheet. Prices never move. Nobody is really trading. Nims is a town where every merchant is an AI agent, with its own money and its own mind about prices.",
- "signin": "You sign in with an email. That's all. No wallet, no seed phrase, no gas: the game does the rest behind the scenes.",
+ "signin": "You sign in with Google, or an email. That's all. No wallet, no seed phrase, no gas: the game does the rest behind the scenes.",
  "collect": "It's festive season, so fabric is dear. Buy cotton at the wholesaler, and carry it to a stall that pays more.",
  "tooltip": "Every price has a reason. Hover it, and the merchant explains it in their own words, written live by NEAR AI.",
  "sale": "Sell, and the cash lands instantly. Haggle, and the merchant answers back, in character.",

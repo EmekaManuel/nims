@@ -1,11 +1,11 @@
 # Nims demo video (Remotion)
 
-1080p, about 100 s, narrated in a cloned ElevenLabs voice. It is **not a screen recording**: Remotion draws the game's real React screen (`web/src/game/GameScreen`) from states produced by the real game engine, with a scripted cursor and camera, so every frame is crisp vector UI at any zoom and nothing depends on a recording being in sync.
+1080p, about 104 s, narrated in a cloned ElevenLabs voice. It is **not a screen recording**: Remotion draws the game's real React screen (`web/src/game/GameScreen`) from states produced by the real game engine, with a scripted cursor and camera, so every frame is crisp vector UI at any zoom and nothing depends on a recording being in sync.
 
 What is real in it:
 
 - **The screen:** the same components the live game uses (map, HUD, stall panel, deals drawer, news), drawn from `GameState` objects.
-- **The numbers and events:** played through the real `Game` class (`scripts/play-session.ts`): collecting cotton, selling with a haggle, running out of coins, the scrap heap, taking and delivering an odd job. The "run out of coins" moment is staged by moving coins through the ledger.
+- **The numbers and events:** played through the real `Game` class (`scripts/play-session.ts`): the loading screen and sign-in (Google button and email), collecting cotton, selling with a haggle, running out of coins, the scrap heap, taking and delivering an odd job. The "run out of coins" moment is staged by moving coins through the ledger.
 - **The words:** the merchant's price explanation, the haggle reaction and the gazette headlines come from the real NEAR AI Cloud calls. The merchants' spoken lines are real ElevenLabs clips of those words. For the video each merchant line is trimmed to its first sentence so it stays short.
 - **The chain scene:** the live testnet contract's batch count, block height and balance, read by `chain-snapshot.mjs`.
 - **The fast-forward week** is the one scene that is footage (`public/raw.mp4`), because the replay is an animation the game plays itself.

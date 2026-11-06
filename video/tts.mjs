@@ -8,7 +8,10 @@ const dir = new URL('./public/vo/', import.meta.url).pathname;
 mkdirSync(dir, { recursive: true });
 const key = process.env.ELEVENLABS_API_KEY;
 const voice = process.env.ELEVENLABS_VOICE ?? '7IAccZ5Mu2dejWi0Rd6v';
+// `node tts.mjs signin` makes just that scene's line, so the other recordings (and credits) are left alone.
+const only = process.argv.slice(2);
 for (const [k, text] of Object.entries(lines)) {
+  if (only.length && !only.includes(k)) continue;
   const out = dir + k + '.mp3';
   if (key) {
     const r = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voice}?output_format=mp3_44100_128`, {

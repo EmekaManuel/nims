@@ -24,7 +24,7 @@ interface Def {
 
 const DEFS: Def[] = [
   { key: 'hook', kind: 'cards', chapter: '', delay: 0.5, min: 12.2 },
-  { key: 'signin', kind: 'app', chapter: 'Sign in with an email', delay: 0.3, extra: 1.4 },
+  { key: 'signin', kind: 'app', chapter: 'Sign in with Google or an email', delay: 1.9, extra: 1.6 },
   { key: 'collect', kind: 'app', chapter: 'Buy low, carry it, sell high', delay: 0.3, extra: 0.6 },
   { key: 'tooltip', kind: 'app', chapter: 'Every price explains itself', delay: 0.3, clip: 'lena-price', clipGap: 0.3 },
   { key: 'sale', kind: 'app', chapter: 'Instant settlement', delay: 0.3, clip: 'haggle-reaction', clipGap: 0.35 },

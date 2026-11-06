@@ -7,6 +7,7 @@ import type { GameState } from '../../../web/src/api';
 import { IconSprite } from '../../../web/src/art/icons';
 import { GameScreen } from '../../../web/src/game/GameScreen';
 import { Login } from '../../../web/src/game/Login';
+import { Loading } from '../../../web/src/game/Loading';
 import { ServicesProvider, type Services } from '../../../web/src/lib/services';
 import type { Shot } from './model';
 
@@ -92,7 +93,7 @@ export const LoginScreen: React.FC<{ email: string; camera?: Camera }> = ({ emai
       <div style={{ position: 'absolute', left: 0, top: 0, width: 1920, height: 1080, overflow: 'hidden', background: '#fff' }}>
         <div style={{ position: 'absolute', left: 0, top: 0, width: 1920, height: 1080, transformOrigin: '0 0', transform: `translate(${tx}px, ${ty}px) scale(${z})` }}>
           <IconSprite />
-          <Login onIn={noop} presetEmail={email} />
+          <Login onIn={noop} presetEmail={email} showGoogle />
         </div>
       </div>
     </>
@@ -144,3 +145,22 @@ export const Screen: React.FC<{ shot: Shot; camera?: Camera; hover?: boolean; ha
     </>
   );
 };
+
+/** The real full-screen loading animation, driven by the video clock (the game's CSS animations are paused and set to `t` seconds in). */
+export const LoadingScreen: React.FC<{ t: number; scale?: number }> = ({ t, scale = 1.6 }) => (
+  <>
+    <style>{`
+      .loading, .loading * { animation-play-state: paused !important; }
+      .loading .hop, .loading .ground, .loading .c1, .loading .loading-bar i, .loading .dots i:nth-child(1) { animation-delay: ${-t}s !important; }
+      .loading .c2 { animation-delay: ${0.7 - t}s !important; }
+      .loading .c3 { animation-delay: ${1.4 - t}s !important; }
+      .loading .dots i:nth-child(2) { animation-delay: ${0.2 - t}s !important; }
+      .loading .dots i:nth-child(3) { animation-delay: ${0.4 - t}s !important; }
+    `}</style>
+    <div style={{ position: 'absolute', left: 0, top: 0, width: 1920, height: 1080, overflow: 'hidden' }}>
+      <div style={{ position: 'absolute', left: 0, top: 0, width: 1920, height: 1080, transform: `scale(${scale})`, transformOrigin: '50% 50%' }}>
+        <Loading />
+      </div>
+    </div>
+  </>
+);

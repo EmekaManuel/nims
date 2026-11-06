@@ -19,6 +19,7 @@ export const FINDERS: Record<string, () => HTMLElement | null> = {
   'btn:deliver': () => withText('button', (t) => t.startsWith('Deliver to')),
   'tab:jobs': () => withText('[role=tab]', (t) => t.startsWith('Odd jobs')),
   'login:email': () => document.querySelector<HTMLElement>('main.login input[type=email]'),
+  'login:google': () => document.querySelector<HTMLElement>('main.login a.google'),
   'login:send': () => withText('main.login button', (t) => t === 'Send me a link'),
   'drawer': () => document.querySelector<HTMLElement>('.drawer'),
   'toast': () => document.querySelector<HTMLElement>('.toast'),

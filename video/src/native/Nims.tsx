@@ -6,7 +6,7 @@ import simclip from '../data/simclip.json';
 import { Background } from './Background';
 import { centre, shot as getShot, type Shot } from './model';
 import { Caption, Chips, Cursor, Gain, Pill, Stat, cameraAt, sec, type CameraKey, type CursorKey } from './overlays';
-import { LoginScreen, Screen } from './Screen';
+import { LoadingScreen, LoginScreen, Screen } from './Screen';
 
 /** What happens on screen in a scene, in seconds from its start. Positions come from `npm run measure`, so they follow the real layout. */
 interface Script {
@@ -94,19 +94,26 @@ const AppScene: React.FC<{ s: Scene }> = ({ s }) => {
   const fadeOut = interpolate(f, [s.frames - 6, s.frames], [1, 0], clamp);
 
   if (s.key === 'signin') {
-    // The real sign-in screen: the email is typed, then the button is pressed.
+    // The real loading animation, then the real sign-in screen: the cursor points at Google, then the email is typed and sent.
+    const LOAD = 1.5;
     const email = 'ada@example.com';
-    const typed = email.slice(0, Math.floor(interpolate(t, [0.9, 2.6], [0, email.length], clamp)));
+    const typed = email.slice(0, Math.floor(interpolate(t, [4.4, 5.9], [0, email.length], clamp)));
+    const google = centre('login', 'login:google');
     const field = centre('login', 'login:email');
     const send = centre('login', 'login:send');
-    const camera = cameraAt([{ t: 0, ...WIDE }, { t: 0.4, x: 960, y: 400, zoom: 1.45 }], t);
-    const cursor: CursorKey[] = [{ t: 0, x: 1300, y: 760 }, { t: 0.6, ...field }, { t: 0.8, ...field, click: true }, { t: 3.0, ...send }, { t: 3.2, ...send, click: true }];
+    const camera = cameraAt([{ t: 0, ...WIDE }, { t: LOAD, ...WIDE }, { t: LOAD + 0.2, x: 960, y: 470, zoom: 1.4 }], t);
+    const cursor: CursorKey[] = [{ t: 0, x: 1300, y: 760 }, { t: 2.5, ...google }, { t: 3.9, ...google }, { t: 4.1, ...field, click: true }, { t: 6.4, ...send }, { t: 6.6, ...send, click: true }];
+    const loadOpacity = interpolate(t, [LOAD - 0.1, LOAD + 0.3], [1, 0], clamp);
+    const loginOpacity = interpolate(t, [LOAD - 0.1, LOAD + 0.3], [0, 1], clamp);
     return (
       <AbsoluteFill style={{ opacity: fadeIn * fadeOut }}>
-        <LoginScreen email={typed} camera={camera} />
-        <Cursor keys={cursor} camera={camera} t={t} />
-        <Chips s={s} items={['No wallet', 'No seed phrase', 'No gas']} />
-        <Caption s={s} />
+        {t < LOAD + 0.4 && <AbsoluteFill style={{ opacity: loadOpacity }}><LoadingScreen t={t} /></AbsoluteFill>}
+        <AbsoluteFill style={{ opacity: loginOpacity }}>
+          <LoginScreen email={typed} camera={camera} />
+          <Cursor keys={cursor} camera={camera} t={t} />
+        </AbsoluteFill>
+        {t >= LOAD && <Chips s={s} items={['No wallet', 'No seed phrase', 'No gas']} />}
+        {t >= LOAD && <Caption s={s} />}
       </AbsoluteFill>
     );
   }

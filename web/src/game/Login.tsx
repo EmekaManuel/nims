@@ -3,8 +3,8 @@ import { api } from '../api';
 import { Mascot } from '../art/Mascot';
 import { TextField } from '../ui';
 
-/** The sign-in screen. `presetEmail` (used by the demo video) shows a fixed email instead of what is typed. */
-export function Login({ onIn, presetEmail }: { onIn: () => void; presetEmail?: string }) {
+/** The sign-in screen. `presetEmail` and `showGoogle` (used by the demo video) show a fixed email and force the Google button instead of asking the server. */
+export function Login({ onIn, presetEmail, showGoogle }: { onIn: () => void; presetEmail?: string; showGoogle?: boolean }) {
   const [typed, setEmail] = useState('');
   const email = presetEmail ?? typed;
   const [busy, setBusy] = useState(false);
@@ -12,8 +12,14 @@ export function Login({ onIn, presetEmail }: { onIn: () => void; presetEmail?: s
     const why = new URLSearchParams(location.search).get('login');
     return why === 'expired' ? 'That link has expired or was already used. Ask for a new one.' : why === 'failed' ? 'Google sign-in did not work. Try again, or use your email.' : '';
   });
-  const [google, setGoogle] = useState(false);
-  useEffect(() => { let live = true; void api.providers().then((p) => live && setGoogle(p.google)); return () => { live = false; }; }, []);
+  const [asked, setGoogle] = useState(false);
+  const google = showGoogle ?? asked;
+  useEffect(() => {
+    if (showGoogle !== undefined) return;
+    let live = true;
+    void api.providers().then((p) => live && setGoogle(p.google));
+    return () => { live = false; };
+  }, [showGoogle]);
   /** Something wrong with the email itself, shown on the field. */
   const [error, setError] = useState('');
   const [devLink, setDevLink] = useState('');

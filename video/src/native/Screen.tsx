@@ -103,7 +103,8 @@ export const LoginScreen: React.FC<{ email: string; camera?: Camera }> = ({ emai
 export const Screen: React.FC<{ shot: Shot; camera?: Camera; hover?: boolean; haggle?: boolean; dealsTab?: 'deals' | 'jobs' }> = ({ shot, camera, hover, haggle, dealsTab }) => {
   const { z, tx, ty } = cameraBox(camera);
   // The tooltip is drawn outside the zoomed screen; scale it with the camera so it keeps its place and size relative to the UI.
-  useLayoutEffect(() => { document.body.style.setProperty('--cam', String(z)); }, [z]);
+  // (Capped: the game places the bubble assuming its normal size, so a big bubble near the right edge would run off the screen.)
+  useLayoutEffect(() => { document.body.style.setProperty('--cam', String(Math.min(z, 1.3))); }, [z]);
   const state = shot.state as GameState;
   return (
     <>

@@ -45,7 +45,7 @@ function script(s: Scene): Script | null {
       return {
         shots: [{ t: 0, id: 'collected' }, { t: 1.1, id: 'stall' }, { t: 2.7, id: 'hover', hover: true }],
         cursor: [{ t: 0, ...C0(1500, 760) }, { t: T(0.85), ...lena }, { t: T(1.0), ...lena, click: true }, { t: T(2.5), ...price }],
-        camera: [{ t: 0, ...WIDE }, { t: 1.1, x: 1500, y: 450, zoom: 1.25 }, { t: 2.7, x: (price.x + bubble.x) / 2 + 40, y: (price.y + bubble.y) / 2, zoom: 1.75 }],
+        camera: [{ t: 0, ...WIDE }, { t: 1.1, x: 1500, y: 450, zoom: 1.25 }, { t: 2.7, x: (price.x + bubble.x) / 2 + 120, y: (price.y + bubble.y) / 2, zoom: 1.55 }],
       };
     }
     case 'sale': {

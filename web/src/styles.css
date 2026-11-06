@@ -157,6 +157,11 @@ button.link { background: none; border: 0; padding: 0; color: var(--accent-stron
 .note { background: var(--accent-soft); border: 1px solid #c9dcfb; border-radius: 12px; padding: .55rem .75rem; margin: .5rem 0; }
 .note.warn { background: var(--bad-soft); border-color: #f4c3c3; color: #7a1f1f; }
 .feed ul { list-style: none; margin: 0; padding: 0; display: grid; gap: .35rem; }
+.gazette { margin: 0 0 1rem; padding: .7rem .9rem .6rem; border: 1px solid var(--line-strong); border-radius: 12px; background: var(--surface); }
+.gazette h3 { margin: 0 0 .35rem; font-size: .8rem; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+.gazette ul { list-style: none; margin: 0; padding: 0; display: grid; gap: .3rem; }
+.gazette li { font-weight: 700; line-height: 1.3; padding: 0; border: 0; }
+.gazette .by { margin: .45rem 0 0; font-size: .7rem; color: var(--muted); }
 .feed li { padding-bottom: .35rem; border-bottom: 1px solid var(--line); }
 
 /* ---- tables, prices, speech bubbles ---- */

@@ -14,6 +14,8 @@ import { WalletStore } from './accounts/wallets';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { resendMailer } from './http/mailer';
+import { createChat } from './voice/llm';
+import { createGazette } from './voice/gazette';
 import { createVoice } from './voice/voice';
 import { createSpeaker } from './voice/speaker';
 
@@ -67,6 +69,8 @@ if (chain !== offlineChain && process.env.CHAIN_SYNC !== '0') {
   void sync.run();
   console.log('Streaming the game to the chain in the background.');
 }
+// One connection to NEAR AI Cloud for every feature that writes words, so they share one rate budget.
+const ai = process.env.NEAR_AI_API_KEY ? createChat({ apiKey: process.env.NEAR_AI_API_KEY, model: process.env.NEAR_AI_MODEL || undefined, baseUrl: process.env.NEAR_AI_BASE_URL || undefined }) : undefined;
 const app = createApp({
   auth: new Auth(secrets.sessionSecret),
   store: new AccountStore(`${DATA}/accounts.json`, contractId, secrets.masterKey),
@@ -79,7 +83,8 @@ const app = createApp({
   game,
   devLinks: process.env.NIMS_DEV === '1',
   speaker: process.env.ELEVENLABS_API_KEY?.trim() ? createSpeaker({ apiKey: process.env.ELEVENLABS_API_KEY.trim().split(/\s+/)[0], voices: process.env.ELEVENLABS_VOICES ? JSON.parse(process.env.ELEVENLABS_VOICES) : undefined, defaultVoice: process.env.ELEVENLABS_VOICE || undefined, model: process.env.ELEVENLABS_MODEL || undefined }) : undefined,
-  voice: process.env.NEAR_AI_API_KEY ? createVoice({ apiKey: process.env.NEAR_AI_API_KEY, model: process.env.NEAR_AI_MODEL || undefined, baseUrl: process.env.NEAR_AI_BASE_URL || undefined }) : undefined,
+  voice: ai ? createVoice({ chat: ai }) : undefined,
+  gazette: ai ? createGazette({ chat: ai }) : undefined,
   mailer: process.env.RESEND_API_KEY ? resendMailer(process.env.RESEND_API_KEY, process.env.MAIL_FROM ?? 'Nims <onboarding@resend.dev>') : {
     async sendLoginLink(email, link) {
       console.log(`[dev mailer] login link for ${email}: ${link}`);

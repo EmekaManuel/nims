@@ -10,6 +10,7 @@ import { AwayModal, GoalPicker, HowToPlay } from './game/Modals';
 import { BusinessPanel, StallOffer } from './game/Business';
 import { Hud } from './game/Hud';
 import { PriceBoard } from './game/PriceBoard';
+import { Gazette } from './game/Gazette';
 import { IconSprite } from './art/icons';
 import { Mascot } from './art/Mascot';
 import { TextField } from './ui';
@@ -88,6 +89,7 @@ function NewsFeed({ state }: { state: GameState }) {
   useEffect(() => { let live = true; void api.chain().then((p) => live && setProof(p)); return () => { live = false; }; }, []);
   return (
     <section className="panel feed" aria-label="What's happening">
+      <Gazette latest={Math.max(-1, ...state.events.map((e) => e.hour))} fetchHeadlines={api.gazette} />
       <h2>Around town</h2>
       {state.events.length === 0 ? <p className="muted">All quiet so far.</p> : (
         <ul>{state.events.map((e, i) => <li key={i}><span className="muted">Day {Math.floor(e.hour / 24) + 1}, {String(e.hour % 24).padStart(2, '0')}:00</span> {e.text}</li>)}</ul>

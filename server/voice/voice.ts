@@ -12,6 +12,9 @@
  * returns null. No player-typed text ever goes into the prompt.
  */
 import type { Personality } from '../../merchants/pricing';
+import { createChat, FORBIDDEN, numbersIn, type Chat, type ChatOptions } from './llm';
+
+export { DEFAULT_BASE_URL, DEFAULT_MODEL } from './llm';
 
 export interface VoiceFacts {
   /** The merchant's id (mira, lena, ...), used to pick their spoken voice. */
@@ -32,32 +35,19 @@ export interface Voice {
   say(facts: VoiceFacts): Promise<string | null>;
 }
 
-export interface VoiceOptions {
-  apiKey: string;
-  model?: string;
-  baseUrl?: string;
-  fetchImpl?: typeof fetch;
-  timeoutMs?: number;
-  /** Hard cap on model calls per minute across all players, so credits can't run away. */
-  maxPerMinute?: number;
+export interface VoiceOptions extends Omit<ChatOptions, 'apiKey'> {
+  apiKey?: string;
+  /** Share one model connection (and its rate budget) with other features. When given, the connection options above are ignored. */
+  chat?: Chat;
   /** How long an answer is reused. A changed price or reason makes a new key anyway. */
   ttlMs?: number;
-  now?: () => number;
 }
-
-export const DEFAULT_MODEL = 'google/gemini-3.1-flash-lite'; // fast, non-reasoning: ~1 s, and its replies pass the number check (checked live)
-export const DEFAULT_BASE_URL = 'https://cloud-api.near.ai/v1';
 
 const TEMPER: Record<Personality, string> = {
   cautious: 'careful with money and a little worried about risk',
   greedy: 'sharp and always chasing a good deal',
   loyal: 'warm, and you remember your regulars',
 };
-
-/** Words the player must never read: the chain, wallets and the fact that a model wrote this. */
-const FORBIDDEN = /\b(wallet|seed phrase|private key|gas|blockchain|on-?chain|crypto|tokens?|near protocol|smart contract|ai|llm|language model|assistant|chatbot)\b/i;
-
-const numbersIn = (s: string) => (s.match(/\d[\d,]*(?:\.\d+)?/g) ?? []).map((n) => n.replace(/,/g, ''));
 
 /** Pure: the text is usable only if it passes the checks above. Returns the cleaned text, or null. */
 export function accept(raw: string, facts: VoiceFacts): string | null {
@@ -95,43 +85,15 @@ const hash = (s: string) => {
 };
 
 export function createVoice(o: VoiceOptions): Voice {
-  const f = o.fetchImpl ?? fetch;
   const now = o.now ?? Date.now;
-  const model = o.model ?? DEFAULT_MODEL;
-  const base = (o.baseUrl ?? DEFAULT_BASE_URL).replace(/\/+$/, '');
-  const timeoutMs = o.timeoutMs ?? 6000;
-  const maxPerMinute = o.maxPerMinute ?? 20;
+  const chat = o.chat ?? createChat({ ...o, apiKey: o.apiKey ?? '' });
   const ttl = o.ttlMs ?? 10 * 60_000;
   const cache = new Map<string, { text: string | null; until: number }>();
   const inflight = new Map<string, Promise<string | null>>();
-  const calls: number[] = [];
-  let lastWarn = 0;
-  const warn = (m: string) => { if (now() - lastWarn > 60_000) { lastWarn = now(); console.warn(`[voice] ${m}`); } };
 
   async function ask(facts: VoiceFacts): Promise<string | null> {
-    const t = now();
-    while (calls.length && t - calls[0] > 60_000) calls.shift();
-    if (calls.length >= maxPerMinute) return null; // over budget: keep the templated line
-    calls.push(t);
     const { system, user } = prompt(facts);
-    const ctl = new AbortController();
-    const timer = setTimeout(() => ctl.abort(), timeoutMs);
-    try {
-      const r = await f(`${base}/chat/completions`, {
-        method: 'POST',
-        signal: ctl.signal,
-        headers: { 'content-type': 'application/json', authorization: `Bearer ${o.apiKey}` },
-        body: JSON.stringify({ model, temperature: 0.7, max_tokens: 200, stream: false, messages: [{ role: 'system', content: system }, { role: 'user', content: user }] }),
-      });
-      if (!r.ok) { warn(`NEAR AI answered ${r.status}`); return null; }
-      const j = (await r.json()) as { choices?: { message?: { content?: string } }[] };
-      return accept(j.choices?.[0]?.message?.content ?? '', facts);
-    } catch (e) {
-      warn(`call failed: ${(e as Error)?.name === 'AbortError' ? 'timed out' : (e as Error)?.message}`);
-      return null;
-    } finally {
-      clearTimeout(timer);
-    }
+    return accept((await chat.complete(system, user)) ?? '', facts);
   }
 
   return {

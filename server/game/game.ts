@@ -16,6 +16,7 @@ import {
 } from '../../sim/engine';
 import { clampPlayerPrice, MAX_MULT, MIN_MULT } from '../../merchants/pricing';
 import type { VoiceFacts } from '../voice/voice';
+import type { GazetteFacts } from '../voice/gazette';
 import { gather } from '../../sim/players';
 import { addPlayer, BASE_PRICE, CAPACITY, CARRY_VALUE, createWorld, Item, MARKETS, MarketId, Merchant, Player, Vehicle, World } from '../../sim/world';
 
@@ -656,6 +657,11 @@ export class Game {
     if (!m || m.owner || !(item in BASE_PRICE) || !merchantItems(m).includes(item as Item)) return null;
     const q = quoteFor(this.w, m, item as Item, this.playerFor(email));
     return { id: m.id, merchant: m.name, personality: m.personality, item, pays: q.buyPrice, charges: q.sellPrice, reasons: q.reasons, tooltip: q.tooltip };
+  }
+
+  /** The town's most recent events, newest first, for the gazette. World events only: nothing about any one player. */
+  gazetteFacts(): GazetteFacts {
+    return { events: this.w.events.slice(-8).reverse().map((e) => ({ hour: e.hour, text: e.text })) };
   }
 
   private stallViews(p: Player) {

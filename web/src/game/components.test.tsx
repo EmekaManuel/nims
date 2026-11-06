@@ -9,6 +9,7 @@ import { AwayModal, GoalPicker, HowToPlay } from './Modals';
 import { BusinessPanel, StallOffer } from './Business';
 import { Hud } from './Hud';
 import { Tip } from './Tip';
+import { Gazette } from './Gazette';
 import { PriceBoard } from './PriceBoard';
 import { StallPanel, SourcePanel, Actions } from './Panels';
 
@@ -651,5 +652,28 @@ describe('natural speech clips', () => {
     await settle();
     expect(clips).toHaveLength(0);
     expect(spoken).toHaveLength(0);
+  });
+});
+
+describe('the gazette', () => {
+  afterEach(cleanup);
+  it('shows the headlines with their label once they arrive, and asks again only when the news changes', async () => {
+    const fetchHeadlines = vi.fn(() => Promise.resolve(['Festive season lifts the town for 24h', 'Mira\'s Greens reopens']));
+    const { rerender } = render(<Gazette latest={153} fetchHeadlines={fetchHeadlines} />);
+    await screen.findByText(/Festive season lifts the town/);
+    expect(screen.getByText('headlines by NEAR AI')).toBeTruthy();
+    rerender(<Gazette latest={153} fetchHeadlines={fetchHeadlines} />);
+    expect(fetchHeadlines).toHaveBeenCalledTimes(1);
+    rerender(<Gazette latest={160} fetchHeadlines={fetchHeadlines} />);
+    await new Promise((r) => setTimeout(r, 10));
+    expect(fetchHeadlines).toHaveBeenCalledTimes(2);
+  });
+  it('renders nothing when there are no headlines or the call fails', async () => {
+    for (const f of [() => Promise.resolve(null), () => Promise.resolve([]), () => Promise.reject(new Error('down'))]) {
+      const { container, unmount } = render(<Gazette latest={1} fetchHeadlines={f as never} />);
+      await new Promise((r) => setTimeout(r, 10));
+      expect(container.textContent).toBe('');
+      unmount();
+    }
   });
 });

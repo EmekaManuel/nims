@@ -14,6 +14,7 @@ import { ChainPort } from '../chain/relayer';
 import { Game } from '../game/game';
 import type { Voice } from '../voice/voice';
 import type { Speaker } from '../voice/speaker';
+import type { Gazette } from '../voice/gazette';
 import { runFastForward, sanitize, FastForwardResult } from '../../sim/fastforward';
 import { BASE_PRICE, createMerchants } from '../../sim/world';
 
@@ -42,6 +43,8 @@ export interface AppDeps {
   voice?: Voice;
   /** Optional: turns those lines into natural speech (ElevenLabs). Without it the browser's own speech is used. */
   speaker?: Speaker;
+  /** Optional: headlines for the town's recent events. Without it the News tab shows only the plain list. */
+  gazette?: Gazette;
   /** Folder of the built web app (web/dist). When set, this server also serves the game's pages, so one process hosts everything. */
   staticDir?: string;
   /** Minimum gap between two different fast-forward runs. Default 500ms; tests set 0. */
@@ -218,6 +221,9 @@ export function createApp(d: AppDeps) {
         const text = d.voice ? await d.voice.say(facts) : null;
         const id = d.speaker?.register(facts, text ?? facts.tooltip);
         return send(res, 200, { text, audio: id ? `/game/voice/audio?id=${id}` : null });
+      }
+      if (req.method === 'GET' && url.pathname === '/game/gazette') {
+        return send(res, 200, { headlines: d.gazette ? await d.gazette.headlines(g.gazetteFacts()) : null });
       }
       if (req.method === 'GET' && url.pathname === '/game/voice/audio') {
         const mp3 = d.speaker ? await d.speaker.audio(url.searchParams.get('id') ?? '') : null;

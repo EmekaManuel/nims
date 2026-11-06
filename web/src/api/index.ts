@@ -145,6 +145,16 @@ export const api = {
     }
   },
 
+  /** Newspaper headlines for the town's latest events (written by NEAR AI Cloud), or null for none. Never throws. */
+  async gazette(): Promise<string[] | null> {
+    try {
+      const r = await json<{ headlines?: string[] | null }>('/game/gazette');
+      return r.status === 200 ? r.body.headlines ?? null : null;
+    } catch {
+      return null;
+    }
+  },
+
   /** null means "not logged in". */
   async state(): Promise<GameState | null> {
     const r = await json<GameState>('/game/state');

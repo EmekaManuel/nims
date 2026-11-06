@@ -569,3 +569,19 @@ describe('spoken merchants', () => {
     expect(spoken).toHaveLength(0);
   });
 });
+
+describe('a tooltip you are reading', () => {
+  afterEach(cleanup);
+  it('keeps its words while the price changes underneath it, and does not ask or speak again', async () => {
+    const voice = vi.fn(() => Promise.resolve('Stock is steady at 87.' as string | null));
+    const { rerender } = render(<Tip who="T" text="My flour stock (87) is about where I want it." voice={voice}><b>181 coins</b></Tip>);
+    fireEvent.mouseEnter(screen.getByText('181 coins').parentElement!);
+    await new Promise((r) => setTimeout(r, 15));
+    expect(screen.getByRole('tooltip').textContent).toContain('Stock is steady at 87.');
+    rerender(<Tip who="T" text="Now I have 40 flour, so it is dear." voice={voice}><b>181 coins</b></Tip>);
+    await new Promise((r) => setTimeout(r, 15));
+    expect(screen.getByRole('tooltip').textContent).toContain('Stock is steady at 87.');
+    expect(screen.getByRole('tooltip').textContent).not.toContain('40 flour');
+    expect(voice).toHaveBeenCalledTimes(1);
+  });
+});

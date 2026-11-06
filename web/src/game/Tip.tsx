@@ -16,6 +16,10 @@ const MARGIN = 12;
  */
 export function Tip({ who, text, voice, tone, children }: { who: string; text: string; voice?: () => Promise<string | null>; tone?: Tone; children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
+  // The explanation is frozen at the moment the bubble opens. Prices move every tick, and a bubble that rewrote itself
+  // (or restarted the speech) while you read it would be unreadable.
+  const [snap, setSnap] = useState(text);
+  const show = () => { setSnap(text); setOpen(true); };
   // The merchant's reasoning in their own words, when the server can supply it. The plain `text` shows at once; this swaps in if it arrives.
   const [said, setSaid] = useState<string | null>(null);
   const asked = useRef<string | null>(null);
@@ -39,21 +43,21 @@ export function Tip({ who, text, voice, tone, children }: { who: string; text: s
     setPos(above ? { left, bottom: window.innerHeight - r.top + GAP, arrow, above, width } : { left, top: r.bottom + GAP, arrow, above, width });
   };
 
-  useLayoutEffect(() => { if (open) place(); }, [open, text, said]);
-  useEffect(() => { setSaid(null); setSettled(false); asked.current = null; }, [text]);
+  useLayoutEffect(() => { if (open) place(); }, [open, snap, said]);
+  useEffect(() => { setSaid(null); setSettled(false); asked.current = null; }, [snap]);
   useEffect(() => {
-    if (!open || !voice || asked.current === text) return;
-    asked.current = text;
+    if (!open || !voice || asked.current === snap) return;
+    asked.current = snap;
     // Not cancelled on close: the answer is kept, so coming back to this price is instant and can speak at once.
-    voice().then((t) => { if (asked.current === text) { if (t) setSaid(t); setSettled(true); } }).catch(() => { if (asked.current === text) setSettled(true); });
-  }, [open, text]);
+    voice().then((t) => { if (asked.current === snap) { if (t) setSaid(t); setSettled(true); } }).catch(() => { if (asked.current === snap) setSettled(true); });
+  }, [open, snap]);
   // Speak the words on screen out loud (when sound is on): at once if there is no voice to wait for, else when it has settled.
   useEffect(() => {
     if (!open) return;
     if (voice && !settled) return;
-    speak(said ?? text, who, tone);
+    speak(said ?? snap, who, tone);
     return stopSpeaking;
-  }, [open, text, said, settled]);
+  }, [open, snap, said, settled]);
   useEffect(() => {
     if (!open) return;
     // Scrolling or resizing moves the price out from under a fixed bubble: just close it.
@@ -69,11 +73,11 @@ export function Tip({ who, text, voice, tone, children }: { who: string; text: s
       className="tipwrap"
       tabIndex={0}
       aria-describedby={open ? id : undefined}
-      onMouseEnter={() => setOpen(true)}
+      onMouseEnter={show}
       onMouseLeave={() => setOpen(false)}
-      onFocus={() => setOpen(true)}
+      onFocus={show}
       onBlur={() => setOpen(false)}
-      onClick={() => setOpen((o) => !o)}
+      onClick={() => (open ? setOpen(false) : show())}
     >
       {children}
       {open && createPortal(
@@ -85,7 +89,7 @@ export function Tip({ who, text, voice, tone, children }: { who: string; text: s
           style={{ left: pos?.left ?? 0, top: pos?.top, bottom: pos?.bottom, width: pos?.width, visibility: pos ? 'visible' : 'hidden', ['--arrow' as string]: `${pos?.arrow ?? 18}px` }}
         >
           <span className="who">{who} says</span>
-          “{said ?? text}”
+          “{said ?? snap}”
           {said && <span className="by">voice by NEAR AI</span>}
         </span>,
         document.body,

@@ -47,7 +47,8 @@ const save = () => { try { saveGame(game, SAVE_FILE); } catch (e) { console.erro
 setInterval(save, 20_000);
 for (const sig of ['SIGINT', 'SIGTERM'] as const) process.on(sig, () => { save(); process.exit(0); });
 // One in-game hour every 4 real seconds: a day passes in about a minute and a half.
-setInterval(() => game.tickOnce(), Number(process.env.TICK_MS ?? 4000));
+// One game hour per tick. 10 s keeps prices readable: at 4 s nearly every price moved every tick (about 6%), too fast to follow or read a tooltip.
+setInterval(() => game.tickOnce(), Number(process.env.TICK_MS ?? 10_000));
 // The live settler streams every trade (goods and coins) to the testnet in the background, with each
 // account signing its own transfers. If it is on, it handles every player's account too, so the older
 // per-player relayer is switched off to avoid doing the same work twice.

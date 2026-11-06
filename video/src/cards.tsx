@@ -118,7 +118,6 @@ export const Chain: React.FC = () => {
       <div style={{ opacity: a, transform: `translateY(${(1 - a) * 24}px)`, textAlign: 'center' }}>
         <div style={{ font: `700 24px ${BODY}`, color: C.green, letterSpacing: 4 }}>● LIVE ON NEAR TESTNET</div>
         <div style={{ font: `700 104px/1.05 ${HEAD}`, color: C.ink, marginTop: 14 }}>Every good is a real token</div>
-        <div style={{ font: `500 36px ${MONO}`, color: C.sky, marginTop: 22 }}>{chain.contract}</div>
       </div>
       <div style={{ display: 'flex', gap: 24, marginTop: 52, width: '100%' }}>
         <Count to={chain.settlementBatches} at={s.delay + 14} label="settlement batches on chain" />
@@ -155,7 +154,7 @@ export const Outro: React.FC = () => {
   const s = scene('outro');
   const a = useRamp(0, 20);
   const pop = spring({ frame: f - 6, fps, config: { damping: 14, stiffness: 110 } });
-  const tags = [['AI MERCHANTS', 'Each with its own money'], ['EMAIL LOGIN', 'No wallet, no gas'], ['NEP-245 ITEMS', 'One contract, every good'], ['NEAR AI', 'Behind every merchant voice']];
+  const tags = [['AI MERCHANTS', 'Each with its own money'], ['SIMPLE LOGIN', 'Google or email, no wallet'], ['NEP-245 ITEMS', 'One contract, every good'], ['NEAR AI', 'Behind every merchant voice']];
   const out = interpolate(f, [s.frames - 10, s.frames], [1, 0], clamp);
   return (
     <AbsoluteFill style={{ alignItems: 'center', justifyContent: 'center', opacity: a * out }}>

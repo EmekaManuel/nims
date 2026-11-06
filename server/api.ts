@@ -12,6 +12,7 @@ import { AccountStore } from './accounts';
 import { Auth, looksLikeEmail, normaliseEmail } from './auth';
 import { ChainPort } from './relayer';
 import { Game } from './game';
+import type { Voice } from './voice';
 import { runFastForward, sanitize, FastForwardResult } from '../sim/fastforward';
 import { BASE_PRICE, createMerchants } from '../sim/world';
 
@@ -36,6 +37,8 @@ export interface AppDeps {
   chainStatus?: () => unknown;
   /** The signed-in player's own proof link, if the live settler is on. */
   chainProof?: (email: string) => unknown;
+  /** Optional: writes each merchant's price reasoning in their own words. Without it the plain templated line is used. */
+  voice?: Voice;
   /** Folder of the built web app (web/dist). When set, this server also serves the game's pages, so one process hosts everything. */
   staticDir?: string;
   /** Minimum gap between two different fast-forward runs. Default 500ms; tests set 0. */
@@ -204,6 +207,11 @@ export function createApp(d: AppDeps) {
       const g = d.game;
       if (req.method === 'GET' && url.pathname === '/game/state') return send(res, 200, g.state(email));
       if (req.method === 'GET' && url.pathname === '/game/chain') return send(res, 200, d.chainProof?.(email) ?? null);
+      // Lazy and optional: the page asks only when a price is hovered, and `text: null` means "keep the plain line".
+      if (req.method === 'GET' && url.pathname === '/game/voice') {
+        const facts = d.voice ? g.voiceFacts(email, url.searchParams.get('merchant') ?? '', url.searchParams.get('item') ?? '') : null;
+        return send(res, 200, { text: facts && d.voice ? await d.voice.say(facts) : null });
+      }
       if (req.method === 'POST') {
         const b = await readJson(req);
         const item = String(b.item ?? '') as never;

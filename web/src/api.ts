@@ -130,6 +130,16 @@ export const api = {
     return r && r.status === 200 ? r.body : null;
   },
 
+  /** A merchant's price reasoning in their own words (written by NEAR AI Cloud), or null to keep the plain line. Never throws. */
+  async voice(merchant: string, item: Item): Promise<string | null> {
+    try {
+      const r = await json<{ text?: string | null }>(`/game/voice?merchant=${encodeURIComponent(merchant)}&item=${encodeURIComponent(item)}`);
+      return r.status === 200 ? r.body.text ?? null : null;
+    } catch {
+      return null;
+    }
+  },
+
   /** null means "not logged in". */
   async state(): Promise<GameState | null> {
     const r = await json<GameState>('/game/state');

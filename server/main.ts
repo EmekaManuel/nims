@@ -14,6 +14,7 @@ import { WalletStore } from './wallets';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { resendMailer } from './mailer';
+import { createVoice } from './voice';
 
 /** The built web app. When it exists this server serves the game's pages too (see Dockerfile). */
 const WEB_DIST = resolve('web/dist');
@@ -75,6 +76,7 @@ const app = createApp({
   merchantParent,
   game,
   devLinks: process.env.NIMS_DEV === '1',
+  voice: process.env.NEAR_AI_API_KEY ? createVoice({ apiKey: process.env.NEAR_AI_API_KEY, model: process.env.NEAR_AI_MODEL || undefined, baseUrl: process.env.NEAR_AI_BASE_URL || undefined }) : undefined,
   mailer: process.env.RESEND_API_KEY ? resendMailer(process.env.RESEND_API_KEY, process.env.MAIL_FROM ?? 'Nims <onboarding@resend.dev>') : {
     async sendLoginLink(email, link) {
       console.log(`[dev mailer] login link for ${email}: ${link}`);
@@ -82,6 +84,7 @@ const app = createApp({
   },
 });
 await app.listen(port);
+if (process.env.NEAR_AI_API_KEY) console.log('Merchant voice: on (NEAR AI Cloud).');
 if (process.env.RESEND_API_KEY) console.log('Login links are emailed.'); else console.log('No RESEND_API_KEY: login links are printed here instead of emailed.');
 if (!sync) setInterval(() => void app.flush(), 5_000); // batch-settle every few seconds
 console.log(`Nims server on http://localhost:${port}`);

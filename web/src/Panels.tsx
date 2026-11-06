@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { GameState, Item, MarketId, Stall } from './api';
-import { coins } from './api';
+import { api, coins } from './api';
 import { Tip } from './Tip';
 import { ItemIcon } from './icons';
 import { Checkbox, Field, NumberField, Select } from './ui';
@@ -150,8 +150,8 @@ export function StallPanel({ stall, state, act }: { stall: Stall; state: GameSta
                 return (
                   <tr key={o.item}>
                     <td><span className="itemcell"><ItemIcon item={o.item} size={30} /><span><b>{o.item}</b><span className="muted carry">{o.stock} in stock{have > 0 ? ` · you carry ${have}` : ''}</span></span></span></td>
-                    <td>{o.willBuy ? <Tip who={stall.name} text={o.why}><span className="price">{coins(o.buyPrice)}</span></Tip> : <Tip who={stall.name} text={o.why}><span className="price off">not buying</span></Tip>}{o.bestPay && <span className="star">★ best in town</span>}</td>
-                    <td>{o.willSell ? <Tip who={stall.name} text={o.why}><span className="price">{coins(o.sellPrice)}</span></Tip> : <span className="price off">sold out</span>}{o.bestCharge && <span className="star">★ cheapest</span>}</td>
+                    <td>{o.willBuy ? <Tip who={stall.name} text={o.why} voice={stall.owner ? undefined : () => api.voice(stall.id, o.item)}><span className="price">{coins(o.buyPrice)}</span></Tip> : <Tip who={stall.name} text={o.why} voice={stall.owner ? undefined : () => api.voice(stall.id, o.item)}><span className="price off">not buying</span></Tip>}{o.bestPay && <span className="star">★ best in town</span>}</td>
+                    <td>{o.willSell ? <Tip who={stall.name} text={o.why} voice={stall.owner ? undefined : () => api.voice(stall.id, o.item)}><span className="price">{coins(o.sellPrice)}</span></Tip> : <span className="price off">sold out</span>}{o.bestCharge && <span className="star">★ cheapest</span>}</td>
                     <td className="btns">
                       <button disabled={!o.willBuy || have < 1} onClick={() => act.sell(stall.id, o.item, qty, haggle)}>Sell</button>
                       <button disabled={!o.willBuy || have < 1} onClick={() => act.sell(stall.id, o.item, have, haggle)} title="Sell everything you carry of this">All</button>

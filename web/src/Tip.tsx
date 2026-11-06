@@ -7,13 +7,17 @@ const MARGIN = 12;
 
 /**
  * Hover, focus or tap a price and the merchant answers in their own words, in a speech bubble.
- * `who` is the stall's name; `text` is the reasoning from pricing.ts.
+ * `who` is the stall's name; `text` is the reasoning from pricing.ts. `voice` (optional) asks the server for the same
+ * reasoning in the merchant's own words; if it fails or is slow the plain `text` simply stays.
  *
  * The bubble is drawn in a portal with fixed positioning, so a scrolling panel or a screen edge can never cut it off:
  * it sits under the price, slides sideways to stay on screen, and flips above the price if there is no room below.
  */
-export function Tip({ who, text, children }: { who: string; text: string; children: React.ReactNode }) {
+export function Tip({ who, text, voice, children }: { who: string; text: string; voice?: () => Promise<string | null>; children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
+  // The merchant's reasoning in their own words, when the server can supply it. The plain `text` shows at once; this swaps in if it arrives.
+  const [said, setSaid] = useState<string | null>(null);
+  const asked = useRef<string | null>(null);
   const [pos, setPos] = useState<{ left: number; top?: number; bottom?: number; arrow: number; above: boolean; width: number } | null>(null);
   const id = useId();
   const anchor = useRef<HTMLSpanElement>(null);
@@ -32,7 +36,15 @@ export function Tip({ who, text, children }: { who: string; text: string; childr
     setPos(above ? { left, bottom: window.innerHeight - r.top + GAP, arrow, above, width } : { left, top: r.bottom + GAP, arrow, above, width });
   };
 
-  useLayoutEffect(() => { if (open) place(); }, [open, text]);
+  useLayoutEffect(() => { if (open) place(); }, [open, text, said]);
+  useEffect(() => { setSaid(null); asked.current = null; }, [text]);
+  useEffect(() => {
+    if (!open || !voice || asked.current === text) return;
+    asked.current = text;
+    let live = true;
+    voice().then((t) => { if (live && asked.current === text && t) setSaid(t); }).catch(() => {});
+    return () => { live = false; };
+  }, [open, text]);
   useEffect(() => {
     if (!open) return;
     // Scrolling or resizing moves the price out from under a fixed bubble: just close it.
@@ -64,7 +76,8 @@ export function Tip({ who, text, children }: { who: string; text: string; childr
           style={{ left: pos?.left ?? 0, top: pos?.top, bottom: pos?.bottom, width: pos?.width, visibility: pos ? 'visible' : 'hidden', ['--arrow' as string]: `${pos?.arrow ?? 18}px` }}
         >
           <span className="who">{who} says</span>
-          “{text}”
+          “{said ?? text}”
+          {said && <span className="by">voice by NEAR AI</span>}
         </span>,
         document.body,
       )}

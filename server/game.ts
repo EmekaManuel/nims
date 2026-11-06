@@ -15,6 +15,7 @@ import {
   publicSharesLeft, quoteFor, refreshState, sellShares, sellToMerchant, sharePrice, STALL_COST, STALL_MARKETS, tick, transferCoins,
 } from '../sim/engine';
 import { clampPlayerPrice, MAX_MULT, MIN_MULT } from '../merchants/pricing';
+import type { VoiceFacts } from './voice';
 import { gather } from '../sim/players';
 import { addPlayer, BASE_PRICE, CAPACITY, CARRY_VALUE, createWorld, Item, MARKETS, MarketId, Merchant, Player, Vehicle, World } from '../sim/world';
 
@@ -647,6 +648,14 @@ export class Game {
       );
     }
     return say('Prices are flat right now. Look at the price board and wait for a gap to open up.');
+  }
+
+  /** The facts a merchant's voice is written from: the same quote the tooltip uses. Player stalls speak for themselves, so they return null. */
+  voiceFacts(email: string, merchantId: string, item: string): VoiceFacts | null {
+    const m = this.w.merchants.find((x) => x.id === merchantId);
+    if (!m || m.owner || !(item in BASE_PRICE) || !merchantItems(m).includes(item as Item)) return null;
+    const q = quoteFor(this.w, m, item as Item, this.playerFor(email));
+    return { merchant: m.name, personality: m.personality, item, pays: q.buyPrice, charges: q.sellPrice, reasons: q.reasons, tooltip: q.tooltip };
   }
 
   private stallViews(p: Player) {

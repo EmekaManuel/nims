@@ -8,7 +8,7 @@
 
 [Play it live](https://nims-app.up.railway.app) · [Demo video (100 s)](docs/nims-demo.mp4) · [Judge walk-through](docs/DEMO.md) · Contract: `oja-items.testnet`
 
-![NEAR testnet](https://img.shields.io/badge/NEAR-testnet-00ec97) ![NEP-245](https://img.shields.io/badge/items-NEP--245-blue) ![tests](https://img.shields.io/badge/tests-278%20passing-brightgreen) ![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)
+![NEAR testnet](https://img.shields.io/badge/NEAR-testnet-00ec97) ![NEP-245](https://img.shields.io/badge/items-NEP--245-blue) ![tests](https://img.shields.io/badge/tests-295%20passing-brightgreen) ![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)
 
 </div>
 
@@ -45,6 +45,7 @@ The chain is invisible: email sign-in, no wallet, no seed phrase, no gas prompt.
 | Gas | A relayer pays through **NEP-366** delegate actions | [`server/relayer.ts`](server/relayer.ts) |
 | Merchant agents | Each has its own account and signs its own transfers | [`merchants/agents/`](merchants/agents/), [`server/rounds.ts`](server/rounds.ts) |
 | Settlement | Trades apply instantly in the game, then settle to the chain in merged batches with per-signer sequence numbers, so a retry can never apply twice | [`server/chainsync.ts`](server/chainsync.ts) |
+| Merchant voice (optional) | **NEAR AI Cloud** (OpenAI-compatible API) rewrites a merchant's price reasoning in their own words when a player hovers a price. Prices never depend on it: the reply is used only if every number matches `pricing.ts`, and the plain explanation shows otherwise. Set `NEAR_AI_API_KEY` to turn it on | [`server/voice.ts`](server/voice.ts) |
 | Delivery orders | Intents-style: state the outcome and a limit price, a solver fills it. Implemented inside the game (`Game.placeOrder`, `fillOrders`) | [`server/game.ts`](server/game.ts) |
 
 NEAR **testnet only**. No mainnet or real funds are used.
@@ -125,8 +126,8 @@ The full design (world, game loop, on-chain design, balance numbers) is in [DESI
 ## Tests and chain verification
 
 ```bash
-npm test               # economy, pricing, server, API       (165 tests)
-npm run test:web       # the UI against real game state      (113 tests)
+npm test               # economy, pricing, server, API       (179 tests)
+npm run test:web       # the UI against real game state      (116 tests)
 npm run contract:test  # the NEP-245 contract                (needs Rust)
 ```
 

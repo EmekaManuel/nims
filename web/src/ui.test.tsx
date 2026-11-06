@@ -467,3 +467,47 @@ describe('price tooltip', () => {
     expect(bubble.textContent).toContain('My flour stock (87)');
   });
 });
+
+describe('merchant voice in the tooltip', () => {
+  afterEach(cleanup);
+  const hover = () => fireEvent.mouseEnter(screen.getByText('181 coins').parentElement!);
+  const plain = 'My flour stock (87) is about where I want it.';
+
+  it('shows the plain line at once, then swaps in the merchant voice when it arrives, labelled', async () => {
+    let resolve!: (t: string | null) => void;
+    const voice = vi.fn(() => new Promise<string | null>((r) => { resolve = r; }));
+    render(<Tip who="Tomas Produce" text={plain} voice={voice}><b>181 coins</b></Tip>);
+    hover();
+    expect(screen.getByRole('tooltip').textContent).toContain('My flour stock (87)');
+    expect(voice).toHaveBeenCalledTimes(1);
+    resolve('Flour is steady at 87, just where I like it.');
+    await screen.findByText(/Flour is steady at 87/);
+    expect(screen.getByRole('tooltip').textContent).toContain('voice by NEAR AI');
+  });
+
+  it('keeps the plain line when the voice is null, fails, or is absent', async () => {
+    for (const voice of [() => Promise.resolve(null), () => Promise.reject(new Error('down')), undefined]) {
+      const { unmount } = render(<Tip who="Tomas Produce" text={plain} voice={voice}><b>181 coins</b></Tip>);
+      hover();
+      await new Promise((r) => setTimeout(r, 10));
+      expect(screen.getByRole('tooltip').textContent).toContain('My flour stock (87)');
+      expect(screen.getByRole('tooltip').textContent).not.toContain('NEAR AI');
+      unmount();
+    }
+  });
+
+  it('asks only once per price, and asks again when the price text changes', async () => {
+    const voice = vi.fn(() => Promise.resolve('A line.' as string | null));
+    const { rerender } = render(<Tip who="T" text={plain} voice={voice}><b>181 coins</b></Tip>);
+    hover();
+    fireEvent.mouseLeave(screen.getByText('181 coins').parentElement!);
+    hover();
+    await new Promise((r) => setTimeout(r, 10));
+    expect(voice).toHaveBeenCalledTimes(1);
+    rerender(<Tip who="T" text="Now I have 40 flour, so it is dear." voice={voice}><b>181 coins</b></Tip>);
+    fireEvent.mouseLeave(screen.getByText('181 coins').parentElement!);
+    hover();
+    await new Promise((r) => setTimeout(r, 10));
+    expect(voice).toHaveBeenCalledTimes(2);
+  });
+});

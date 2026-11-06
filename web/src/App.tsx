@@ -8,6 +8,7 @@ import { setSound, sfx, soundOn } from './lib/sfx';
 import { Actions } from './game/Panels';
 import { AwayModal, GoalPicker, HowToPlay } from './game/Modals';
 import { GameScreen } from './game/GameScreen';
+import { Loading } from './game/Loading';
 import { IconSprite } from './art/icons';
 import { Mascot } from './art/Mascot';
 import { Login } from './game/Login';
@@ -176,7 +177,7 @@ function Game() {
     if (t === 'news' && state) setNewsSeen(Math.max(-1, ...state.events.map((e) => e.hour)));
   };
 
-  if (!checked) return <main className="login"><Mascot size={72} /><p className="muted">Opening the market…</p></main>;
+  if (!checked) return <Loading />;
   if (offline && !state) {
     return (
       <main className="login">

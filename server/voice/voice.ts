@@ -43,7 +43,7 @@ export interface VoiceOptions {
   now?: () => number;
 }
 
-export const DEFAULT_MODEL = 'zai-org/GLM-5.1-FP8';
+export const DEFAULT_MODEL = 'google/gemini-3.1-flash-lite'; // fast, non-reasoning: ~1 s, and its replies pass the number check (checked live)
 export const DEFAULT_BASE_URL = 'https://cloud-api.near.ai/v1';
 
 const TEMPER: Record<Personality, string> = {
@@ -74,6 +74,7 @@ export function prompt(facts: VoiceFacts): { system: string; user: string } {
     `A customer hovered over your price and asked why it is what it is. Answer out loud, in your own voice. ` +
     `Rules: first person, one or two short sentences, under 220 characters, plain everyday words, no emojis, no quotation marks. ` +
     `Use only numbers that appear in the facts below and copy them exactly. ` +
+    `Say why the price is what it is, using only the reasons listed in the facts. Do not invent other causes, such as buyers, shortages or events that are not listed. `+
     `Never mention wallets, blockchains, tokens, computers, AI or games.`;
   const user = [
     `Item: ${facts.item}`,
@@ -118,7 +119,7 @@ export function createVoice(o: VoiceOptions): Voice {
         method: 'POST',
         signal: ctl.signal,
         headers: { 'content-type': 'application/json', authorization: `Bearer ${o.apiKey}` },
-        body: JSON.stringify({ model, temperature: 0.7, max_tokens: 160, stream: false, messages: [{ role: 'system', content: system }, { role: 'user', content: user }] }),
+        body: JSON.stringify({ model, temperature: 0.7, max_tokens: 200, stream: false, messages: [{ role: 'system', content: system }, { role: 'user', content: user }] }),
       });
       if (!r.ok) { warn(`NEAR AI answered ${r.status}`); return null; }
       const j = (await r.json()) as { choices?: { message?: { content?: string } }[] };

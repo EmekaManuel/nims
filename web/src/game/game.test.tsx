@@ -10,6 +10,8 @@ import { Mission } from './Mission';
 import { setSound, sfx, soundOn } from '../lib/sfx';
 import type { Actions } from './Panels';
 import { merchantReaction } from '../lib/haggle';
+import { Recovery } from './Recovery';
+import type { JobView } from '../api';
 
 const state = fixture as unknown as GameState;
 const act = (): Actions => new Proxy({}, { get: () => vi.fn() }) as Actions;
@@ -176,5 +178,60 @@ describe('merchant reaction to a haggle', () => {
     expect(await merchantReaction(who, () => Promise.resolve({ text: null, audio: null }), say)).toBeNull();
     expect(await merchantReaction(who, () => Promise.reject(new Error('down')), say)).toBeNull();
     expect(say).not.toHaveBeenCalled();
+  });
+});
+
+describe('the way back from broke', () => {
+  const job = (o: Partial<JobView> = {}): JobView => ({ id: 7, item: 'iron', units: 4, reward: 150, from: { id: 'iron', name: 'Scrap spot (iron)' }, to: { id: 'diego', name: 'Diego Hardware' }, hoursLeft: 30, ...o });
+  const withHelp = (o: Partial<GameState>): GameState => ({ ...state, ...o });
+  const acts = () => ({ scavenge: vi.fn(), takeJob: vi.fn(), deliverJob: vi.fn(), dropJob: vi.fn() });
+
+  it('shows nothing when you are fine and there are no jobs', () => {
+    const { container } = render(<Recovery state={withHelp({ help: { needed: false, scavengeIn: 0, canWork: true, workIn: 0 }, jobs: { board: [], active: null } })} act={acts()} />);
+    expect(container.textContent).toBe('');
+  });
+
+  it('offers a scrap search when you need a hand, and says when it is not ready', () => {
+    const a = acts();
+    const { rerender } = render(<Recovery state={withHelp({ help: { needed: true, scavengeIn: 0, canWork: true, workIn: 0 }, jobs: { board: [], active: null } })} act={a} />);
+    expect(screen.getByText('Need a hand?')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Search the scrap heap' }));
+    expect(a.scavenge).toHaveBeenCalledTimes(1);
+    rerender(<Recovery state={withHelp({ help: { needed: true, scavengeIn: 2, canWork: true, workIn: 0 }, jobs: { board: [], active: null } })} act={a} />);
+    const wait = screen.getByRole('button', { name: /refills in 2h/ }) as HTMLButtonElement;
+    expect(wait.disabled).toBe(true);
+  });
+
+  it('lists the board and takes a job by its id', () => {
+    const a = acts();
+    render(<Recovery state={withHelp({ help: { needed: false, scavengeIn: 0, canWork: true, workIn: 0 }, jobs: { board: [job(), job({ id: 8, item: 'tomatoes', reward: 78 })], active: null } })} act={a} />);
+    expect(screen.getAllByRole('button', { name: 'Take this job' })).toHaveLength(2);
+    expect(screen.getAllByText(/Collect at the scrap spot, carry to Diego Hardware/)).toHaveLength(2);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Take this job' })[1]);
+    expect(a.takeJob).toHaveBeenCalledWith(8);
+  });
+
+  it('shows the job you hold with deliver and give-back, and blocks taking another', () => {
+    const a = acts();
+    render(<Recovery state={withHelp({ help: { needed: false, scavengeIn: 0, canWork: true, workIn: 0 }, jobs: { board: [job({ id: 9 })], active: job() } })} act={a} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Deliver to Diego Hardware' }));
+    expect(a.deliverJob).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Give it back' }));
+    expect(a.dropJob).toHaveBeenCalledTimes(1);
+    expect((screen.getByRole('button', { name: 'Take this job' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('hides the board from people who are doing fine, shows the cooldown to those who are not', () => {
+    const board = [job()];
+    const { container, rerender } = render(<Recovery state={withHelp({ help: { needed: false, scavengeIn: 0, canWork: false, workIn: 0 }, jobs: { board, active: null } })} act={acts()} />);
+    expect(container.textContent).toBe('');
+    rerender(<Recovery state={withHelp({ help: { needed: false, scavengeIn: 0, canWork: true, workIn: 5 }, jobs: { board, active: null } })} act={acts()} />);
+    expect(screen.getByText(/next job in 5h/)).toBeTruthy();
+    expect((screen.getByRole('button', { name: 'Take this job' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('works with an older server that sends neither field', () => {
+    const { container } = render(<Recovery state={state} act={acts()} />);
+    expect(container.textContent).toBe('');
   });
 });

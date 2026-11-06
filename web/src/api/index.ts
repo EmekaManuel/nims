@@ -91,6 +91,10 @@ export interface GameState {
   gatherSpeed: number;
   markets: { id: MarketId; name: string; items: Item[] }[];
   stalls: Stall[];
+  /** Present when the server supports the way back from broke. `needed` is true when you are nearly out of coins with nothing to sell. */
+  help?: { needed: boolean; scavengeIn: number; canWork: boolean; workIn: number };
+  /** The odd jobs board, and the job you hold, if any. */
+  jobs?: { board: JobView[]; active: JobView | null };
   board: { market: MarketId; item: Item; base: number; price: number | null }[];
   sources: { item: Item; label: string; units: number; cost: number }[];
   events: { hour: number; type: string; text: string }[];
@@ -122,6 +126,16 @@ async function json<T>(path: string, init?: RequestInit): Promise<{ status: numb
 }
 
 const post = (path: string, body: unknown) => json<ActionResponse>(path, { method: 'POST', body: JSON.stringify(body) });
+
+export interface JobView {
+  id: number;
+  item: Item;
+  units: number;
+  reward: number;
+  from: { id: string; name: string };
+  to: { id: string; name: string };
+  hoursLeft: number;
+}
 
 export interface VoiceReply { text: string | null; audio: string | null }
 
@@ -199,6 +213,10 @@ export const api = {
   stallDeposit: (amount: number) => post('/game/stall/deposit', { amount }).then((r) => r.body),
   stallWithdraw: (amount: number) => post('/game/stall/withdraw', { amount }).then((r) => r.body),
   ack: () => post('/game/ack', {}).then((r) => r.body),
+  scavenge: () => post('/game/scavenge', {}).then((r) => r.body),
+  takeJob: (id: number) => post('/game/job/take', { id }).then((r) => r.body),
+  deliverJob: () => post('/game/job/deliver', {}).then((r) => r.body),
+  dropJob: () => post('/game/job/drop', {}).then((r) => r.body),
   upgrade: (to: string) => post('/game/upgrade', { to }).then((r) => r.body),
 };
 

@@ -28,6 +28,10 @@ export interface Actions {
   stallDeposit: (amount: number) => void;
   stallWithdraw: (amount: number) => void;
   ack: () => void;
+  scavenge: () => void;
+  takeJob: (id: number) => void;
+  deliverJob: () => void;
+  dropJob: () => void;
 }
 
 function FundSection({ stall, cash, act }: { stall: Stall; cash: number; act: Actions }) {

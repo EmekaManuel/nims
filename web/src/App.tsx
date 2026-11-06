@@ -12,6 +12,7 @@ import { BusinessPanel, StallOffer } from './game/Business';
 import { Hud } from './game/Hud';
 import { PriceBoard } from './game/PriceBoard';
 import { Gazette } from './game/Gazette';
+import { Recovery } from './game/Recovery';
 import { IconSprite } from './art/icons';
 import { Mascot } from './art/Mascot';
 import { TextField } from './ui';
@@ -226,6 +227,10 @@ function Game() {
     stallDeposit: (n) => run(api.stallDeposit(n)),
     stallWithdraw: (n) => run(api.stallWithdraw(n)),
     ack: () => run(api.ack()),
+    scavenge: () => run(api.scavenge()),
+    takeJob: (id) => run(api.takeJob(id)),
+    deliverJob: () => run(api.deliverJob()),
+    dropJob: () => run(api.dropJob()),
   };
 
   const focusOn = (f: Focus) => setSelected(!f ? null : f.kind === 'stall' ? { kind: 'stall', id: f.id } : { kind: 'source', item: f.id as never });
@@ -258,7 +263,7 @@ function Game() {
   if (stall) drawer = { title: stall.name, body: <StallPanel stall={stall} state={state} act={act} /> };
   else if (selected?.kind === 'source') drawer = { title: 'Collect goods', body: <SourcePanel item={selected.item} state={state} act={act} /> };
   else if (selected?.kind === 'plot') drawer = { title: 'A free plot', body: <section className="panel"><h2>A free plot</h2><StallOffer state={state} act={act} focus={selected.market} /></section> };
-  else if (tab === 'deals') drawer = { title: 'Deals', body: <Deals deals={state.deals} onFocus={focusOn} /> };
+  else if (tab === 'deals') drawer = { title: 'Deals', body: <><Recovery state={state} act={act} /><Deals deals={state.deals} onFocus={focusOn} /></> };
   else if (tab === 'prices') drawer = { title: 'Prices', body: <PriceBoard state={state} /> };
   else if (tab === 'business') drawer = { title: 'My business', body: <BusinessPanel state={state} act={act} onFocus={(id) => setSelected({ kind: 'stall', id })} /> };
   else if (tab === 'news') drawer = { title: 'News', body: <NewsFeed state={state} /> };

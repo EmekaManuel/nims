@@ -18,6 +18,7 @@ import { clampPlayerPrice, MAX_MULT, MIN_MULT, type Personality } from '../../me
 import type { VoiceFacts } from '../voice/voice';
 import type { GazetteFacts } from '../voice/gazette';
 import type { HaggleFacts } from '../voice/haggle';
+import { planBoard, totalDue, type Job } from './jobs';
 import { gather } from '../../sim/players';
 import { addPlayer, BASE_PRICE, CAPACITY, CARRY_VALUE, createWorld, Item, MARKETS, MarketId, Merchant, Player, Vehicle, World } from '../../sim/world';
 
@@ -98,6 +99,13 @@ export interface ActionResult {
   haggled?: { merchant: string; name: string; personality: Personality };
 }
 
+/** How long between two scrap searches (in-game hours). */
+const SCAVENGE_GAP_HOURS = 3;
+/** Odd jobs are for players short of coins: you can take one only below this many times the cheapest wholesale price... */
+const LOW_CASH_FACTOR = 10;
+/** ...and at most one every this many in-game hours, so a job is a way back up, never a way to farm. */
+const JOB_GAP_HOURS = 8;
+
 const fail = (message: string): ActionResult => ({ ok: false, message });
 const ok = (message: string): ActionResult => ({ ok: true, message });
 
@@ -112,6 +120,14 @@ export class Game {
   /** email -> delivery orders (open ones, and recent finished ones for display). */
   private orders = new Map<string, Order[]>();
   private nextOrderId = 1;
+  /** The odd jobs board (unclaimed jobs), and the job each player has taken: its goods are reserved for it. */
+  private board: Job[] = [];
+  private nextJobId = 1;
+  private activeJobs = new Map<string, Job>();
+  /** email -> hour of the last scrap search, so help can't be farmed. */
+  private scavenged = new Map<string, number>();
+  /** email -> hour of the last delivered job. */
+  private jobDone = new Map<string, number>();
   /** player id -> the name shown on signs and stalls. */
   private names = new Map<string, string>([['npc-investor', 'The Community Fund']]);
 
@@ -154,6 +170,11 @@ export class Game {
       haggled: [...this.haggled],
       orders: [...this.orders],
       nextOrderId: this.nextOrderId,
+      jobs: this.board,
+      activeJobs: [...this.activeJobs],
+      nextJobId: this.nextJobId,
+      scavenged: [...this.scavenged],
+      jobDone: [...this.jobDone],
     };
   }
 
@@ -179,6 +200,12 @@ export class Game {
     const o = snap as { orders?: [string, Order[]][]; nextOrderId?: number };
     g.orders = new Map(o.orders ?? []);
     g.nextOrderId = o.nextOrderId ?? 1;
+    const j = snap as { jobs?: Job[]; activeJobs?: [string, Job][]; nextJobId?: number; scavenged?: [string, number][]; jobDone?: [string, number][] };
+    g.board = j.jobs ?? [];
+    g.activeJobs = new Map(j.activeJobs ?? []);
+    g.nextJobId = j.nextJobId ?? 1;
+    g.scavenged = new Map(j.scavenged ?? []);
+    g.jobDone = new Map(j.jobDone ?? []);
     return g;
   }
 
@@ -222,6 +249,7 @@ export class Game {
     if (this.w.history.length > HISTORY_KEEP) this.w.history.splice(0, this.w.history.length - HISTORY_KEEP);
     this.trimLedger();
     this.fillOrders();
+    this.refreshJobs();
     if (this.w.events.length > 200) this.w.events.splice(0, this.w.events.length - 200);
     const anyClosed = this.w.merchants.some((m) => m.state === 'closed');
     for (const [email, pr] of this.progress) {
@@ -266,7 +294,7 @@ export class Game {
         const lapse = (why: string) => { o.status = 'expired'; addNote(this.w, p, `Your order for ${o.units} ${o.item} lapsed: ${why}`); };
         if (this.w.hour >= o.expiresHour) { lapse(`the price never reached ${o.minPrice} coins.`); continue; }
         if (!m || m.state === 'closed') continue; // wait: a closed stall may be revived
-        const have = p.inventory[o.item] ?? 0;
+        const have = this.available(email, o.item);
         if (have < 1) continue; // wait for the player to collect some goods
         const q = quoteFor(this.w, m, o.item, p);
         if (!q.willBuy || q.buyPrice < o.minPrice) continue;
@@ -384,6 +412,130 @@ export class Game {
     return pay;
   }
 
+  // ---- odd jobs and scrap searching: the way back from broke ----------------------------------------
+
+  /** Goods of this kind held for the player's current job (they can't be sold or shelved until it is done). */
+  private reservedFor(email: string, item: Item): number {
+    const j = this.activeJobs.get(email);
+    return j && j.item === item ? j.units : 0;
+  }
+  /** What the player can freely use: what they carry, less what is reserved for their job. */
+  private available(email: string, item: Item): number {
+    return Math.max(0, (this.humans.get(email)?.inventory[item] ?? 0) - this.reservedFor(email, item));
+  }
+
+  /** The cheapest a load can start: the lowest price per unit at any source that charges. */
+  private cheapestSource = () => Math.min(...this.w.sources.filter((s) => s.cost > 0).map((s) => s.cost));
+
+  /** Nearly out of coins, carrying nothing and holding no job: the player needs a hand. */
+  private needsHelp(email: string, p: Player): boolean {
+    return this.carried(p) === 0 && !this.activeJobs.has(email) && p.cash < 2 * this.cheapestSource();
+  }
+
+  /** Short of coins, so odd jobs are open to you. Richer players leave them to those who need them. */
+  private lowOnCoins(p: Player): boolean {
+    return p.cash < LOW_CASH_FACTOR * this.cheapestSource();
+  }
+
+  /** Hours until the player may take another job (0 = ready). */
+  private jobWait(email: string): number {
+    const last = this.jobDone.get(email);
+    return last === undefined ? 0 : Math.max(0, last + JOB_GAP_HOURS - this.w.hour);
+  }
+
+  /** Hours until the player may search the scrap again (0 = ready). */
+  private scavengeWait(email: string): number {
+    const last = this.scavenged.get(email);
+    return last === undefined ? 0 : Math.max(0, last + SCAVENGE_GAP_HOURS - this.w.hour);
+  }
+
+  /** Rummage through the scrap heap for something to sell. Only when nearly broke, and not too often. */
+  scavenge(email: string): ActionResult {
+    const p = this.playerFor(email);
+    if (!this.needsHelp(email, p)) return fail('You are not that short. Trade, or sell what you carry.');
+    const wait = this.scavengeWait(email);
+    if (wait > 0) return fail(`You have picked this heap clean for now. Try again in ${wait} hour${wait === 1 ? '' : 's'}.`);
+    this.scavenged.set(email, this.w.hour);
+    p.inventory.iron = (p.inventory.iron ?? 0) + 1;
+    this.w.ledger.push({ hour: this.w.hour, kind: 'mint', to: p.id, item: 'iron', units: 1 });
+    return ok('You found a piece of iron in the scrap heap. Sell it at a stall that buys iron, then you are back in business.');
+  }
+
+  /** Each hour: lapse jobs that ran out of time (the cargo goes back to where it came from) and refresh the board. */
+  private refreshJobs() {
+    for (const [email, j] of [...this.activeJobs]) {
+      if (this.w.hour >= j.expires) this.returnCargo(email, j, 'ran out of time');
+    }
+    this.board = planBoard(this.w, this.board, () => this.nextJobId++);
+  }
+
+  /** Send a job's goods back to the source they came from (the town takes them back), and end the job. */
+  private returnCargo(email: string, j: Job, why: string) {
+    const p = this.humans.get(email);
+    const m = this.w.merchants.find((x) => x.id === j.to);
+    this.activeJobs.delete(email);
+    if (!p) return;
+    const n = Math.min(j.units, p.inventory[j.item] ?? 0);
+    if (n > 0) {
+      p.inventory[j.item] = (p.inventory[j.item] ?? 0) - n;
+      const src = this.w.sources.find((x) => x.item === j.item);
+      if (src) src.units = Math.min(src.max, src.units + n);
+      this.w.ledger.push({ hour: this.w.hour, kind: 'transfer', from: p.id, to: 'town', item: j.item, units: n });
+    }
+    addNote(this.w, p, `Your job to carry ${j.units} ${j.item} to ${m?.name ?? 'a merchant'} ${why}. The goods went back to the ${SOURCE_LABEL[j.item] ?? 'source'}.`);
+  }
+
+  /** Take a job from the board: collect the goods from the source (free for you), which are reserved until you deliver them. */
+  takeJob(email: string, id: number): ActionResult {
+    const p = this.playerFor(email);
+    if (this.activeJobs.has(email)) return fail('Finish or give back your current job first.');
+    if (!this.lowOnCoins(p)) return fail('Odd jobs are for people who are short of coins. You are doing fine: trade instead.');
+    const wait = this.jobWait(email);
+    if (wait > 0) return fail(`You have just finished a job. The next one is on offer in ${wait} hour${wait === 1 ? '' : 's'}.`);
+    const job = this.board.find((j) => j.id === id);
+    if (!job) return fail('That job is gone.');
+    const to = this.w.merchants.find((m) => m.id === job.to);
+    const src = this.w.sources.find((s) => s.item === job.item);
+    if (!to || !src || to.state === 'closed' || src.units < job.units) return fail('That job is no longer on offer.');
+    if (CAPACITY[p.vehicle] - this.carried(p) < job.units) return fail(`You need room for ${job.units} ${job.item}. Sell something first.`);
+    src.units -= job.units;
+    p.inventory[job.item] = (p.inventory[job.item] ?? 0) + job.units;
+    this.w.ledger.push({ hour: this.w.hour, kind: 'mint', to: p.id, item: job.item, units: job.units });
+    this.board = this.board.filter((j) => j.id !== id);
+    this.activeJobs.set(email, job);
+    return ok(`You collected ${job.units} ${job.item} at the ${SOURCE_LABEL[job.item] ?? 'source'}, paid for by ${to.name}. Carry them there: it pays you ${job.reward} coins. The goods are reserved for this job.`);
+  }
+
+  /** Hand the goods to the merchant. They pay what the goods cost at the source (to the town) and your reward, from their own till. */
+  deliverJob(email: string): ActionResult {
+    const p = this.playerFor(email);
+    const job = this.activeJobs.get(email);
+    if (!job) return fail('You have no job to deliver.');
+    const to = this.w.merchants.find((m) => m.id === job.to);
+    if (!to || to.state === 'closed') return fail('They are closed right now. Try again later, before the job runs out.');
+    if (to.cash < totalDue(job)) return fail(`${to.name} cannot pay for this just now. Try again later, before the job runs out.`);
+    if ((p.inventory[job.item] ?? 0) < job.units) return fail('The goods for this job are missing.');
+    const trip = this.travelTo(p, to.market, true);
+    if (trip) return trip;
+    p.inventory[job.item] = (p.inventory[job.item] ?? 0) - job.units;
+    to.stock[job.item] = (to.stock[job.item] ?? 0) + job.units;
+    this.w.ledger.push({ hour: this.w.hour, kind: 'transfer', from: p.id, to: to.id, item: job.item, units: job.units });
+    transferCoins(this.w, to, 'town', job.units * job.unitCost);
+    transferCoins(this.w, to, p, job.reward);
+    const fare = this.settleFare(p);
+    this.activeJobs.delete(email);
+    this.jobDone.set(email, this.w.hour);
+    return ok(`Delivered ${job.units} ${job.item} to ${to.name} and earned ${job.reward} coins.${fare > 0 ? ` The fare you owed (${fare} coins) came out of it.` : ''}`);
+  }
+
+  /** Give a job up: the goods go back to where they came from. */
+  dropJob(email: string): ActionResult {
+    const job = this.activeJobs.get(email);
+    if (!job) return fail('You have no job to drop.');
+    this.returnCargo(email, job, 'was given back');
+    return ok('You gave the job back and returned the goods.');
+  }
+
   gather(email: string, item: Item): ActionResult {
     const p = this.playerFor(email);
     const src = this.w.sources.find((s) => s.item === item);
@@ -403,8 +555,8 @@ export class Game {
     if (m.owner === p.id) return fail('That is your own stall. Use the stock controls in My business.');
     if (!Number.isInteger(units) || units < 1) return fail('Pick a whole number of units.');
     if (m.state === 'closed') return fail(`${m.name} is closed.`);
-    const have = p.inventory[item] ?? 0;
-    if (have < 1) return fail(`You are not carrying any ${item}.`);
+    const have = this.available(email, item);
+    if (have < 1) return fail(this.reservedFor(email, item) > 0 ? `Your ${item} is reserved for your job. Deliver it first.` : `You are not carrying any ${item}.`);
     const q = quoteFor(this.w, m, item, p);
     if (!q.willBuy) return fail(`${m.name} has stopped buying ${item}. ${q.reasons.find((r) => r.includes('cash')) ?? ''}`.trim());
     const mult = haggle ? this.haggleSwing(p, m.id) : 1;
@@ -529,9 +681,9 @@ export class Game {
     if (!st) return fail('You do not have a stall yet.');
     if (!(item in st.target)) return fail(`Your stall in the ${MARKETS[st.market].name} does not trade ${item}.`);
     if (!Number.isInteger(units) || units < 1) return fail('Pick a whole number of units.');
-    const have = p.inventory[item] ?? 0;
-    if (have < units) return fail(`You are only carrying ${have} ${item}.`);
-    p.inventory[item] = have - units;
+    const have = this.available(email, item);
+    if (have < units) return fail(`You are only carrying ${have} ${item} that is free to use${this.reservedFor(email, item) > 0 ? ' (the rest is reserved for your job)' : ''}.`);
+    p.inventory[item] = (p.inventory[item] ?? 0) - units;
     st.stock[item] = (st.stock[item] ?? 0) + units;
     this.w.ledger.push({ hour: this.w.hour, kind: 'transfer', from: p.id, to: st.id, item, units });
     return ok(`Put ${units} ${item} on your shelves.`);
@@ -641,6 +793,17 @@ export class Game {
         if (pick) return say(`Buy a few shares in ${pick.name} (${pick.shares!.price} coins each) to get a stake in the ${MARKETS[missing].name}.`, { kind: 'stall', id: pick.id });
       }
     }
+    // The way back from broke comes before anything else once you are stuck.
+    const job = this.activeJobs.get(email);
+    if (job) {
+      const to = this.w.merchants.find((m) => m.id === job.to);
+      return say(`Deliver your ${job.units} ${job.item} to ${to?.name ?? 'the merchant'}: they pay you ${job.reward} coins for the job.`, to ? { kind: 'stall', id: to.id } : null);
+    }
+    if (this.needsHelp(email, p)) {
+      return say(this.scavengeWait(email) === 0
+        ? 'You are nearly out of coins. Open Deals: search the scrap heap for something to sell, or take an odd job.'
+        : 'You are nearly out of coins. Open Deals and take an odd job while the scrap heap refills.');
+    }
     const carried = this.carried(p);
     if (carried > 0) {
       const [item, units] = Object.entries(p.inventory).filter(([, n]) => (n ?? 0) > 0).sort((a, b) => (b[1] ?? 0) - (a[1] ?? 0))[0] as [Item, number];
@@ -667,6 +830,14 @@ export class Game {
       );
     }
     return say('Prices are flat right now. Look at the price board and wait for a gap to open up.');
+  }
+
+  /** The board and the player's own job, shaped for the page. */
+  private jobViews(email: string) {
+    const name = (id: string) => this.w.merchants.find((m) => m.id === id)?.name ?? id;
+    const view = (j: Job) => ({ id: j.id, item: j.item, units: j.units, reward: j.reward, from: { id: j.item, name: SOURCE_LABEL[j.item] ?? 'the source' }, to: { id: j.to, name: name(j.to) }, hoursLeft: Math.max(0, j.expires - this.w.hour) });
+    const mine = this.activeJobs.get(email);
+    return { board: this.board.map(view), active: mine ? view(mine) : null };
   }
 
   /** The facts a merchant's voice is written from: the same quote the tooltip uses. Player stalls speak for themselves, so they return null. */
@@ -775,6 +946,8 @@ export class Game {
       goal: pr.kind ? { kind: pr.kind, title: GOALS[pr.kind].title, blurb: GOALS[pr.kind].blurb, progress: gs!.progress, label: gs!.label, done: pr.done } : null,
       goals: (Object.keys(GOALS) as GoalKind[]).map((k) => ({ kind: k, ...GOALS[k] })),
       coach: this.coach(email, p, raw, deals),
+      help: { needed: this.needsHelp(email, p), scavengeIn: this.scavengeWait(email), canWork: this.lowOnCoins(p), workIn: this.jobWait(email) },
+      jobs: this.jobViews(email),
       deals,
       orders: (this.orders.get(email) ?? []).slice().reverse().slice(0, 8),
       hour: w.hour,

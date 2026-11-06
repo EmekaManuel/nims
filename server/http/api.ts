@@ -264,6 +264,10 @@ export function createApp(d: AppDeps) {
           '/game/stall/price': () => g.stallPrice(email, item, Number(b.buy), Number(b.sell)),
           '/game/stall/deposit': () => g.stallCash(email, 'deposit', Number(b.amount)),
           '/game/stall/withdraw': () => g.stallCash(email, 'withdraw', Number(b.amount)),
+          '/game/scavenge': () => g.scavenge(email),
+          '/game/job/take': () => g.takeJob(email, Number(b.id)),
+          '/game/job/deliver': () => g.deliverJob(email),
+          '/game/job/drop': () => g.dropJob(email),
           '/game/ack': () => g.ack(email),
         };
         const run = routes[url.pathname];

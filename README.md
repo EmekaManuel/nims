@@ -154,8 +154,8 @@ The full design (world, game loop, on-chain design, balance numbers) is in [DESI
 ## Tests and chain verification
 
 ```bash
-npm test               # economy, pricing, server, API       (221 tests)
-npm run test:web       # the UI against real game state      (143 tests)
+npm test               # economy, pricing, server, API       (231 tests)
+npm run test:web       # the UI against real game state      (146 tests)
 npm run contract:test  # the NEP-245 contract                (needs Rust)
 ```
 

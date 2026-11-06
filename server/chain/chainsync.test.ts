@@ -90,7 +90,7 @@ class FakeWallets implements Wallets {
 const CONTRACT = 'oja-items.testnet';
 const me = 'ada@example.com';
 
-function setup(opts: { game?: Game; chain?: FakeChain; stateFile?: string; wallets?: Map<string, FakeWallets> } = {}) {
+function setup(opts: { game?: Game; chain?: FakeChain; stateFile?: string; wallets?: Map<string, FakeWallets>; extra?: Partial<ConstructorParameters<typeof ChainSync>[0]> } = {}) {
   const game = opts.game ?? new Game(4);
   const chain = opts.chain ?? new FakeChain();
   const stateFile = opts.stateFile ?? join(mkdtempSync(join(tmpdir(), 'nims-sync-')), 'chain-state.json');
@@ -100,6 +100,7 @@ function setup(opts: { game?: Game; chain?: FakeChain; stateFile?: string; walle
     game, ops: chain, contractId: CONTRACT, stateFile, log: (m) => logs.push(m), sleep: async () => {}, nsSuffix: () => '',
     rootWallets: wallets.get('root') ?? (wallets.set('root', new FakeWallets(CONTRACT)), wallets.get('root')!),
     walletsFor: (ns) => wallets.get(ns) ?? (wallets.set(ns, new FakeWallets(ns)), wallets.get(ns)!),
+    ...opts.extra,
   });
   return { game, chain, sync, stateFile, wallets, logs };
 }
@@ -493,5 +494,31 @@ describe('planning a chunk', () => {
     const steps = planChunk([e('mint', 'a', 'iron', 10), e('transfer', 'b', 'iron', 4, 'a')], 'ns.x');
     expect(steps[0]).toMatchObject({ kind: 'mint' });
     expect(steps[1]).toMatchObject({ kind: 'send', call: { signer: 'a.ns.x' } });
+  });
+});
+
+describe('ChainSync and shutdown', () => {
+  it('never settles past what the game has saved, so a hard kill cannot cost a new epoch', async () => {
+    const game = new Game(4);
+    play(game, 8);
+    let savedEnd = game.ledgerEnd();
+    let saved = JSON.parse(JSON.stringify(game.snapshot()));
+    const a = setup({ game, extra: { durableEnd: () => savedEnd, saveGame: () => { savedEnd = game.ledgerEnd(); saved = JSON.parse(JSON.stringify(game.snapshot())); } } });
+    await drain(game, a.sync); // the epoch starts (and saves), then settles what is saved
+    play(game, 12);            // more happens, but nothing has been saved since
+    await drain(game, a.sync);
+    // Killed here: the game comes back from its last save. The chain must not be ahead of it.
+    const back = Game.restore(saved);
+    const b = setup({ game: back, chain: a.chain, stateFile: a.stateFile, wallets: a.wallets });
+    expect(b.sync.status().epoch).toBe(1);
+    expect(b.logs.join('\n')).not.toMatch(/fresh epoch/i);
+  });
+
+  it('stop() ends run() at once, even while it is waiting between rounds', async () => {
+    const a = setup({ extra: { sleep: () => new Promise<void>(() => {}) } });
+    const done = a.sync.run();
+    await new Promise((r) => setTimeout(r, 10));
+    a.sync.stop();
+    await expect(Promise.race([done.then(() => 'stopped'), new Promise((r) => setTimeout(() => r('hung'), 500))])).resolves.toBe('stopped');
   });
 });

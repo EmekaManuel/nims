@@ -47,16 +47,19 @@ const SAVE_FILE = process.env.SAVE_FILE ?? `${DATA}/game.json`;
 const restored = loadGame(SAVE_FILE);
 const game = restored ?? new Game(Number(process.env.SEED ?? 1));
 console.log(restored ? `Resumed the saved game at day ${Math.floor(game.w.hour / 24) + 1}.` : 'Starting a new game.');
-const save = () => { try { saveGame(game, SAVE_FILE); } catch (e) { console.error('Could not save the game:', (e as Error).message); } };
+// The ledger position the file on disk reaches. The chain settler stays at or behind it, so a hard kill can never leave
+// the chain ahead of the save (which would cost a whole new epoch on restart).
+let savedEnd = game.ledgerEnd();
+const save = () => { try { const end = game.ledgerEnd(); saveGame(game, SAVE_FILE); savedEnd = end; } catch (e) { console.error('Could not save the game:', (e as Error).message); } };
 setInterval(save, 20_000);
-for (const sig of ['SIGINT', 'SIGTERM'] as const) process.on(sig, () => { save(); process.exit(0); });
 // One in-game hour every 4 real seconds: a day passes in about a minute and a half.
 // One game hour per tick. 10 s keeps prices readable: at 4 s nearly every price moved every tick (about 6%), too fast to follow or read a tooltip.
-setInterval(() => game.tickOnce(), Number(process.env.TICK_MS ?? 10_000));
+const ticker = setInterval(() => game.tickOnce(), Number(process.env.TICK_MS ?? 10_000));
 // The live settler streams every trade (goods and coins) to the testnet in the background, with each
 // account signing its own transfers. If it is on, it handles every player's account too, so the older
 // per-player relayer is switched off to avoid doing the same work twice.
 let sync: ChainSync | null = null;
+let syncDone: Promise<void> = Promise.resolve();
 if (chain !== offlineChain && process.env.CHAIN_SYNC !== '0') {
   sync = new ChainSync({
     game,
@@ -65,9 +68,11 @@ if (chain !== offlineChain && process.env.CHAIN_SYNC !== '0') {
     rootWallets: new WalletStore(`${DATA}/chain-roots.json`, contractId, secrets.masterKey),
     walletsFor: (ns) => new WalletStore(`${DATA}/wallets-${ns}.json`, ns, secrets.masterKey),
     stateFile: `${DATA}/chain-state.json`,
+    durableEnd: () => savedEnd,
+    saveGame: save,
     log: (m) => console.log(m),
   });
-  void sync.run();
+  syncDone = sync.run();
   console.log('Streaming the game to the chain in the background.');
 }
 // One connection to NEAR AI Cloud for every feature that writes words, so they share one rate budget.
@@ -93,7 +98,24 @@ const app = createApp({
     },
   },
 });
-await app.listen(port);
+const server = await app.listen(port);
+
+// Stop politely when the host asks (a redeploy sends SIGTERM): let the settlement call in flight finish, write the
+// game, then exit. Without this a redeploy can leave the chain ahead of the save and open a new epoch (about 1 NEAR).
+let closing = false;
+async function shutdown(sig: string) {
+  if (closing) return;
+  closing = true;
+  console.log(`${sig}: finishing the current settlement, saving the game, then stopping.`);
+  clearInterval(ticker);
+  server.close();
+  sync?.stop();
+  await Promise.race([syncDone, new Promise((r) => setTimeout(r, 8_000))]);
+  save();
+  console.log('Saved. Bye.');
+  process.exit(0);
+}
+for (const sig of ['SIGINT', 'SIGTERM'] as const) process.on(sig, () => void shutdown(sig));
 if (process.env.NEAR_AI_API_KEY) console.log('Merchant voice: on (NEAR AI Cloud).');
 if (process.env.ELEVENLABS_API_KEY?.trim()) console.log('Spoken merchants: on (ElevenLabs).'); else console.log('Spoken merchants: using the browser voice (set ELEVENLABS_API_KEY for natural speech).');
 if (process.env.RESEND_API_KEY) console.log('Login links are emailed.'); else console.log('No RESEND_API_KEY: login links are printed here instead of emailed.');

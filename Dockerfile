@@ -8,4 +8,4 @@ COPY . .
 RUN npm run build --prefix web
 ENV PORT=8080 DATA_DIR=/data
 EXPOSE 8080
-CMD ["npx", "tsx", "server/main.ts"]
+CMD ["node", "--import", "tsx", "server/main.ts"]

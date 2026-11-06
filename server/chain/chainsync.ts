@@ -50,6 +50,14 @@ export interface ChainSyncOptions {
   /** Keys for the accounts inside one namespace. */
   walletsFor: (nsAccount: string) => Wallets;
   stateFile: string;
+  /**
+   * The ledger position the game has safely written to disk. The settler never sends anything past it: if the
+   * server is killed, the game comes back from that save, and an entry already on the chain but missing from the
+   * save would force a whole new epoch (and its funding).
+   */
+  durableEnd?: () => number;
+  /** Writes the game to disk now. Called when a new epoch records its starting point, so that point is itself durable. */
+  saveGame?: () => void;
   log?: (msg: string) => void;
   /** Coins to give a new namespace account so it can create the accounts under it (default 0.3 NEAR). */
   nsFund?: bigint;
@@ -134,6 +142,8 @@ export class ChainSync {
   private lastSend: { signer: string; legs: TransferLeg[] } | null = null;
   private paused = false;
   private stopped = false;
+  private wake: () => void = () => {};
+  private readonly woken = new Promise<void>((r) => { this.wake = r; });
   private readonly log: (m: string) => void;
   private readonly sleep: (ms: number) => Promise<void>;
 
@@ -244,6 +254,7 @@ export class ChainSync {
       // Capture the position and the opening balances together, with no await between them.
       const cursor = this.o.game.ledgerEnd();
       const mints = this.openingBalances(nsAccount);
+      this.o.saveGame?.();
       this.lastEpoch = epoch;
       this.state = { epoch, ns: nsAccount, cursor, stage: 'genesis', callsDone: 0, mintSeq: await this.o.ops.mintSeq(), seqs: {} };
       this.wallets = this.o.walletsFor(nsAccount);
@@ -287,7 +298,7 @@ export class ChainSync {
       if (!this.state) { await this.startEpoch(); return this.paused ? 'paused' : 'reset'; }
       const g = this.o.game;
       const st = this.state;
-      const end = g.ledgerEnd();
+      const end = Math.min(g.ledgerEnd(), this.o.durableEnd?.() ?? Infinity);
       if (st.cursor >= end) return 'idle';
 
       const backlog = end - st.cursor;
@@ -298,7 +309,7 @@ export class ChainSync {
       // A chunk is pinned the first time it is planned. The game keeps adding entries while we work (and the usual
       // window size changes with the backlog), so a retry must not re-plan a different chunk from the same position.
       if (st.chunk === undefined) {
-        st.chunk = g.ledgerFrom(st.cursor, 20_000).filter((e) => e.hour < first.hour + hours).length;
+        st.chunk = g.ledgerFrom(st.cursor, Math.min(20_000, end - st.cursor)).filter((e) => e.hour < first.hour + hours).length;
         this.save();
       }
       const entries = g.ledgerFrom(st.cursor, st.chunk);
@@ -368,11 +379,12 @@ export class ChainSync {
       const r = await this.step();
       delay = r === 'settled' ? 250 : r === 'retry' ? Math.min(30_000, delay * 2) : r === 'paused' ? 60_000 : r === 'reset' ? 2000 : 4000;
       if (r !== 'retry' && r !== 'settled') delay = Math.max(delay, 2000);
-      await this.sleep(delay);
+      await Promise.race([this.sleep(delay), this.woken]);
     }
   }
 
-  stop() { this.stopped = true; }
+  /** Ask run() to finish. A call already in flight completes first (it keeps its sequence number, so nothing is half-sent). */
+  stop() { this.stopped = true; this.wake(); }
 
   // ---- reporting -----------------------------------------------------------------------------
 

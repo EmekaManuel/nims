@@ -15,7 +15,7 @@ const MARGIN = 12;
  * The bubble is drawn in a portal with fixed positioning, so a scrolling panel or a screen edge can never cut it off:
  * it sits under the price, slides sideways to stay on screen, and flips above the price if there is no room below.
  */
-export function Tip({ who, text, voice, tone, children }: { who: string; text: string; voice?: () => Promise<VoiceReply | null>; tone?: Tone; children: React.ReactNode }) {
+export function Tip({ who, text, voice, tone, demoKey, children }: { who: string; text: string; voice?: () => Promise<VoiceReply | null>; tone?: Tone; demoKey?: string; children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   // The explanation is frozen at the moment the bubble opens. Prices move every tick, and a bubble that rewrote itself
   // (or restarted the speech) while you read it would be unreadable.
@@ -79,6 +79,7 @@ export function Tip({ who, text, voice, tone, children }: { who: string; text: s
     <span
       ref={anchor}
       className="tipwrap"
+      data-demo={demoKey}
       tabIndex={0}
       aria-describedby={open ? id : undefined}
       onMouseEnter={show}

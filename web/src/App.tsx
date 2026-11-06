@@ -1,67 +1,18 @@
-import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
-import { ActionResponse, api, ChainProof, coins, Focus, GameState, GoalKind } from './api';
-import { DistrictMap, Popup, Selection, spotOf } from './game/Map';
-import { Confetti, Dock, Drawer, Tab } from './game/Dock';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ActionResponse, api, coins, Focus, GameState, GoalKind } from './api';
+import { Popup, Selection, spotOf } from './game/Map';
+import { Tab } from './game/Dock';
 import { merchantReaction } from './lib/haggle';
 import { rankOf } from './lib/rank';
 import { setSound, sfx, soundOn } from './lib/sfx';
-import { SourcePanel, StallPanel, Actions } from './game/Panels';
-import { Mission } from './game/Mission';
+import { Actions } from './game/Panels';
 import { AwayModal, GoalPicker, HowToPlay } from './game/Modals';
-import { BusinessPanel, StallOffer } from './game/Business';
-import { Hud } from './game/Hud';
-import { PriceBoard } from './game/PriceBoard';
-import { Gazette } from './game/Gazette';
-import { DealsDrawer } from './game/DealsDrawer';
+import { GameScreen } from './game/GameScreen';
 import { IconSprite } from './art/icons';
 import { Mascot } from './art/Mascot';
-import { TextField } from './ui';
+import { Login } from './game/Login';
 import { FastForwardPage } from './sim/Fastforward';
 
-function Login({ onIn }: { onIn: () => void }) {
-  const [email, setEmail] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState(() => (new URLSearchParams(location.search).get('login') === 'expired' ? 'That link has expired or was already used. Ask for a new one.' : ''));
-  /** Something wrong with the email itself, shown on the field. */
-  const [error, setError] = useState('');
-  const [devLink, setDevLink] = useState('');
-
-  async function submit(e: FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    setMsg('');
-    setError('');
-    const r = await api.requestLogin(email);
-    setBusy(false);
-    if (r.error) return setError(r.error);
-    if (r.devLink) setDevLink(r.devLink);
-    else setMsg('Check your email — we sent you a link to come in.');
-  }
-
-  async function open() {
-    const r = await api.openLink(devLink);
-    if (r.error) setMsg(r.error);
-    else onIn();
-  }
-
-  return (
-    <main className="login">
-      <Mascot size={84} mood="cheer" />
-      <h1>Nims</h1>
-      <p className="lede">A market town where every trader runs on their own. Start with a wheelbarrow. Read the market. End up with a share in half the stalls.</p>
-      <form onSubmit={submit}>
-        <TextField label="Your email" type="email" required autoComplete="email" value={email} onChange={(v) => { setEmail(v); setError(''); }} placeholder="you@example.com" error={error || undefined} />
-        <button className="primary" disabled={busy || !email}>Send me a link</button>
-      </form>
-      {devLink && <button onClick={open}>Open my link (development)</button>}
-      {msg && <p role="status" className="note">{msg}</p>}
-      <p className="muted small">Buy low, carry it, sell high. No password, no wallet — just your email.</p>
-      <a className="simlink" href="#sim">Or watch a week of the market unfold →</a>
-    </main>
-  );
-}
-
-/** Tiny hash router: "#sim" is the open fast-forward dashboard; anything else is the game. */
 function useHash() {
   const [hash, setHash] = useState(() => location.hash);
   useEffect(() => {
@@ -84,23 +35,6 @@ export function App() {
 
 /** Where an action happened, so a floating number can appear there. */
 type At = { kind: 'stall' | 'source'; id: string };
-
-function NewsFeed({ state }: { state: GameState }) {
-  // Optional proof for the curious. The game never waits for, or depends on, any of this.
-  const [proof, setProof] = useState<ChainProof | null>(null);
-  useEffect(() => { let live = true; void api.chain().then((p) => live && setProof(p)); return () => { live = false; }; }, []);
-  return (
-    <section className="panel feed" aria-label="What's happening">
-      <Gazette latest={Math.max(-1, ...state.events.map((e) => e.hour))} fetchHeadlines={api.gazette} />
-      <h2>Around town</h2>
-      {state.events.length === 0 ? <p className="muted">All quiet so far.</p> : (
-        <ul>{state.events.map((e, i) => <li key={i}><span className="muted">Day {Math.floor(e.hour / 24) + 1}, {String(e.hour % 24).padStart(2, '0')}:00</span> {e.text}</li>)}</ul>
-      )}
-      {proof && <p className="small muted">Your goods and coins are real. <a href={proof.explorer} target="_blank" rel="noreferrer">See them on the public ledger →</a></p>}
-      <p className="small"><a href="#sim">Watch a whole week of the market unfold →</a></p>
-    </section>
-  );
-}
 
 function Game() {
   const [state, setState] = useState<GameState | null>(null);
@@ -255,37 +189,32 @@ function Game() {
   }
   if (!state) return <Login onIn={refresh} />;
 
-  const stall = selected?.kind === 'stall' ? state.stalls.find((s) => s.id === selected.id) : undefined;
   const newsCount = newsSeen === null ? 0 : state.events.filter((e) => e.hour > newsSeen).length;
 
-  // What the drawer shows: whatever you tapped on the map, otherwise the menu tab you opened.
-  let drawer: { title: string; body: React.ReactNode } | null = null;
-  if (stall) drawer = { title: stall.name, body: <StallPanel stall={stall} state={state} act={act} /> };
-  else if (selected?.kind === 'source') drawer = { title: 'Collect goods', body: <SourcePanel item={selected.item} state={state} act={act} /> };
-  else if (selected?.kind === 'plot') drawer = { title: 'A free plot', body: <section className="panel"><h2>A free plot</h2><StallOffer state={state} act={act} focus={selected.market} /></section> };
-  else if (tab === 'deals') drawer = { title: 'Deals', body: <DealsDrawer state={state} act={act} onFocus={focusOn} /> };
-  else if (tab === 'prices') drawer = { title: 'Prices', body: <PriceBoard state={state} /> };
-  else if (tab === 'business') drawer = { title: 'My business', body: <BusinessPanel state={state} act={act} onFocus={(id) => setSelected({ kind: 'stall', id })} /> };
-  else if (tab === 'news') drawer = { title: 'News', body: <NewsFeed state={state} /> };
-
   return (
-    <div className="shell">
-      {offline && <div className="shock offline" role="alert">Lost touch with the game server. Reconnecting…</div>}
-      <Hud state={state} act={act} onHelp={() => setHelp(true)} sound={sound} onSound={toggleSound} peakWorth={peak} />
-      <main className="stage">
-        <div className="viewport">
-          <div className="mapscroll"><DistrictMap state={state} selected={selected} onSelect={(s) => { setSelected(s); }} popups={popups} /></div>
-          <Mission state={state} onFocus={focusOn} onPickGoal={() => setGoalOpen(true)} />
-        </div>
-        {drawer && <Drawer title={drawer.title} onClose={() => (selected ? setSelected(null) : setTab(null))}>{drawer.body}</Drawer>}
-      </main>
-      <Dock tab={selected ? null : tab} onTab={openTab} newsCount={newsCount} />
-      <div className="aria-live" aria-live="polite">{toast?.text} {toast?.line}</div>
-      {toast && <div className={`toast ${toast.ok ? 'good' : 'bad'}`}>{toast.text}{toast.line && <div className="toastline">{toast.line}</div>}</div>}
-      {confetti > 0 && <Confetti key={confetti} />}
+    <GameScreen
+      state={state}
+      act={act}
+      selected={selected}
+      onSelect={setSelected}
+      tab={tab}
+      onTab={openTab}
+      onDrawerClose={() => (selected ? setSelected(null) : setTab(null))}
+      onFocus={focusOn}
+      popups={popups}
+      newsCount={newsCount}
+      sound={sound}
+      onSound={toggleSound}
+      peakWorth={peak}
+      onHelp={() => setHelp(true)}
+      onPickGoal={() => setGoalOpen(true)}
+      offline={offline}
+      toast={toast}
+      confetti={confetti}
+    >
       {help && <HowToPlay onClose={closeHelp} />}
       {!help && state.away && <AwayModal away={state.away} onClose={() => act.ack()} />}
       {!help && !state.away && goalOpen && <GoalPicker goals={state.goals} current={state.goal?.kind} onPick={pickGoal} onClose={() => setGoalOpen(false)} />}
-    </div>
+    </GameScreen>
   );
 }

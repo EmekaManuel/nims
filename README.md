@@ -19,13 +19,14 @@ Track: **Games With Real Economies** (NEAR HACKATHON). The economy is the gamepl
 Game economies are usually scripts: prices follow a table, NPCs trade nothing, and a player cannot move a market. Nims replaces the script with agents.
 
 - **Eight merchant agents** each hold their own goods and coins, and set their own prices from their stock, their cash and what was traded recently.
-- **Prices explain themselves.** Hover a price and the merchant says why: *"I'm holding 140 iron and I only want 50. Four people sold me iron this hour."*
+- **Prices explain themselves, out loud.** Hover a price and the merchant says why, in their own voice: *"It is the festive season and everyone wants fabric right now."* The words come from **NEAR AI Cloud**, checked against the game's real numbers, and are spoken with ElevenLabs.
+- **Merchants talk back.** Haggle once an hour and the merchant answers in character (cautious, greedy or loyal), and the town gazette prints what really happened: dividends, a merchant that stopped buying, a week of rain.
 - **Players move markets.** Flooding one good crashes its price for everyone. A merchant with no cash closes; a community fund can reopen it.
 - **Players own parts of the economy.** Buy up to 49% of a merchant for a share of its nightly profit, or open a stall and set your own prices.
 - **A way back from broke.** Nearly out of coins with nothing to sell? Search the scrap heap, or take an odd job: a merchant who is short of a good pays you to fetch it, and pays the cost and your reward from their own till. Jobs are open only while you are short of coins, with a cooldown, so they are a way back up and not a way to farm.
 - **Delivery orders.** State the goods and the lowest price you will take; the town's carriers (a solver run by the game) sell for you when the price allows.
 
-The chain is invisible: email sign-in, no wallet, no seed phrase, no gas prompt.
+The chain is invisible: sign in with Google or an emailed link, no wallet, no seed phrase, no gas prompt.
 
 <table>
 <tr>
@@ -57,13 +58,15 @@ NEAR **testnet only**. No mainnet or real funds are used.
 
 **Live (no setup):** <https://nims-app.up.railway.app>. Do each step, then look for the result.
 
-1. Enter any email, press **Send me a link**, then **Open my link (development)**. See the town map with a goal card and a next-step hint from Nim. No wallet or popup appears.
+1. Press **Continue with Google**, or enter any email, press **Send me a link**, then **Open my link (development)**. See the town map with a goal card and a next-step hint from Nim. No wallet or popup appears.
 2. Click the **Wholesaler (cotton)**, press **Collect cotton**. See your cash drop and the wheelbarrow fill.
-3. Click **Lena's Textiles** and hover a price. See the merchant explain it in plain words.
-4. Press **Sell**. See your cash rise at once; the game never waits for a block.
+3. Click **Lena's Textiles** and hover a price. See the merchant explain it in their own voice (sound on for the spoken line).
+4. Tick **Haggle** and press **Sell**. See your cash rise at once and the merchant answer in character; the game never waits for a block.
 5. In the stall panel, place a **delivery order** (goods and a lowest price). See the carriers sell the load and your cash rise when the price allows.
-6. Open **Fast-forward** (or add `#sim` to the address, no login). See a simulated week as price and shop-cash charts, driven by the same pricing code as the live game.
-7. Open `/chain/status` on the live address. See the contract, the settlement namespace, and how far settlement has got.
+6. Run low on coins with nothing to sell, then open **Deals** and its **Odd jobs** tab. See the scrap heap and merchants offering to pay you to fetch what they lack.
+7. Open the **News** tab. See the town gazette and the plain list of events.
+8. Open **Fast-forward** (or add `#sim` to the address, no login). See a simulated week as price and shop-cash charts, driven by the same pricing code as the live game.
+9. Open `/chain/status` on the live address. See the contract, the settlement namespace, and how far settlement has got.
 
 **Locally:**
 
@@ -112,6 +115,7 @@ Below its cash floor a merchant stops buying; at zero cash with nothing to sell 
 
 - One pricing file, one economy: fast-forward calls the same engine as the live game.
 - Gameplay never waits on the chain. If the chain rejects a call, the settler starts a fresh epoch minted from the game state instead of patching.
+- A redeploy does not cost a new epoch: the settler never sends anything the saved game does not contain, and on a stop signal it finishes the call in flight and saves before exiting.
 - Testnet only: the chain client refuses any other network. Secrets live in `.env`; only `.env.example` is committed.
 
 ```
@@ -121,7 +125,7 @@ merchants/
 sim/                   Headless economy: engine, world, simulated players, fast-forward
 server/
   main.ts              Entry point: wires everything and starts the server
-  http/                HTTP API, email-link login, mailer
+  http/                HTTP API, email-link and Google login, mailer
   game/                Live game state, saving, and the odd jobs board
   chain/               NEAR client, relayer, settlement batches, rounds, live settler
   accounts/            Player accounts, merchant wallets, key encryption, secrets
@@ -139,7 +143,7 @@ video/                 The demo video, built with Remotion (see video/README.md)
 docs/                  Judge walk-through, deploy notes, voice-over script, demo video, images
 ```
 
-The full design (world, game loop, on-chain design, balance numbers) is in [DESIGN.md](DESIGN.md).
+The [privacy policy](web/public/privacy.html) is served at `/privacy.html`. The full design (world, game loop, on-chain design, balance numbers) is in [DESIGN.md](DESIGN.md).
 
 ## Fit to the track
 
@@ -148,7 +152,7 @@ The full design (world, game loop, on-chain design, balance numbers) is in [DESI
 | NPCs with wallets | Eight merchant agents, each with its own NEAR account and its own signing |
 | Economy that evolves without a dev patch | Prices come from stock, cash and trades; shocks (rain, fuel queue, festive season) are random |
 | Player-owned markets | Own a stall, hold shares in merchants, fund a closed shop back open |
-| Players never notice the chain | Email login, no wallet, relayer pays gas; tests assert no API response mentions wallets, keys or gas |
+| Players never notice the chain | Google or email login, no wallet, relayer pays gas; tests assert no API response mentions wallets, keys or gas |
 | NEP-245 | One multi-token contract holds every item and the coin token |
 
 ## Tests and chain verification
@@ -180,7 +184,7 @@ One container serves the pages and the API ([`Dockerfile`](Dockerfile)). Steps f
 
 - **Native NEAR Intents:** route delivery orders through the Intents solver network instead of the in-game carriers.
 - **Shares and funds as contracts:** move share ownership and community-fund payouts from the game server to an on-chain contract.
-- **Real sign-in email:** plug a mail provider into the `Mailer` interface (Resend is wired in and needs a key).
+- **Real sign-in email:** Resend is wired in; it needs a key and a verified sending domain. Google sign-in already works without one.
 - **Scale out:** move game state from one process with a JSON save to a shared store.
 
 ## Built at NEAR HACKATHON

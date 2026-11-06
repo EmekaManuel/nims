@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import fixture from '../test/fixture.json';
 import type { GameState, MarketId } from '../api';
@@ -509,5 +509,63 @@ describe('merchant voice in the tooltip', () => {
     hover();
     await new Promise((r) => setTimeout(r, 10));
     expect(voice).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('spoken merchants', () => {
+  const plain = 'My flour stock (87) is about where I want it.';
+  const spoken: { text: string; rate: number; pitch: number; voice?: string }[] = [];
+  const synth = { speak: vi.fn((u: { text: string; rate: number; pitch: number; voice?: { name: string } }) => void spoken.push({ text: u.text, rate: u.rate, pitch: u.pitch, voice: u.voice?.name })), cancel: vi.fn(), getVoices: () => [{ name: 'A', lang: 'en-GB', localService: true }, { name: 'B', lang: 'en-US', localService: true }, { name: 'C', lang: 'en-US', localService: true }, { name: 'D', lang: 'fr-FR', localService: true }] };
+  const hover = () => fireEvent.mouseEnter(screen.getByText('181 coins').parentElement!);
+  const settle = () => new Promise((r) => setTimeout(r, 15));
+
+  beforeEach(() => {
+    spoken.length = 0; synth.speak.mockClear(); synth.cancel.mockClear();
+    (window as unknown as { speechSynthesis: unknown }).speechSynthesis = synth;
+    (globalThis as unknown as { SpeechSynthesisUtterance: unknown }).SpeechSynthesisUtterance = class { text: string; rate = 1; pitch = 1; volume = 1; lang = ''; voice?: unknown; constructor(t: string) { this.text = t; } };
+    localStorage.removeItem('nims-sound');
+  });
+  afterEach(() => { cleanup(); delete (window as unknown as { speechSynthesis?: unknown }).speechSynthesis; localStorage.removeItem('nims-sound'); });
+
+  it('with no voice to wait for, speaks the plain line at once, in the merchant\'s personality', () => {
+    render(<Tip who="Tomas Produce" text={plain} tone="greedy"><b>181 coins</b></Tip>);
+    hover();
+    expect(spoken).toHaveLength(1);
+    expect(spoken[0].text).toBe(plain);
+    expect(spoken[0].rate).toBeGreaterThan(1); // greedy talks quickly
+  });
+
+  it('waits for the merchant voice and speaks only that, never the plain line first', async () => {
+    render(<Tip who="Tomas Produce" text={plain} voice={() => Promise.resolve('Flour is steady at 87, just where I like it.')} tone="cautious"><b>181 coins</b></Tip>);
+    hover();
+    expect(spoken).toHaveLength(0);
+    await settle();
+    expect(spoken.map((s) => s.text)).toEqual(['Flour is steady at 87, just where I like it.']);
+    expect(spoken[0].rate).toBeLessThan(1); // cautious talks slowly
+  });
+
+  it('speaks the plain line when the voice has nothing to say', async () => {
+    render(<Tip who="Tomas Produce" text={plain} voice={() => Promise.resolve(null)}><b>181 coins</b></Tip>);
+    hover();
+    await settle();
+    expect(spoken.map((s) => s.text)).toEqual([plain]);
+  });
+
+  it('stops when the tooltip closes, and gives each merchant the same English voice every time', async () => {
+    render(<Tip who="Tomas Produce" text={plain}><b>181 coins</b></Tip>);
+    hover();
+    fireEvent.mouseLeave(screen.getByText('181 coins').parentElement!);
+    expect(synth.cancel).toHaveBeenCalled();
+    hover();
+    expect(spoken).toHaveLength(2);
+    expect(spoken[0].voice).toBe(spoken[1].voice);
+    expect(['A', 'B', 'C']).toContain(spoken[0].voice);
+  });
+
+  it('is silent when sound is muted', async () => {
+    localStorage.setItem('nims-sound', 'off');
+    render(<Tip who="Tomas Produce" text={plain}><b>181 coins</b></Tip>);
+    hover();
+    expect(spoken).toHaveLength(0);
   });
 });

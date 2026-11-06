@@ -1,5 +1,6 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { speak, stopSpeaking, type Tone } from '../lib/speech';
 
 const W = 336; // bubble width in px, shrinks on a narrow screen
 const GAP = 12;
@@ -13,11 +14,13 @@ const MARGIN = 12;
  * The bubble is drawn in a portal with fixed positioning, so a scrolling panel or a screen edge can never cut it off:
  * it sits under the price, slides sideways to stay on screen, and flips above the price if there is no room below.
  */
-export function Tip({ who, text, voice, children }: { who: string; text: string; voice?: () => Promise<string | null>; children: React.ReactNode }) {
+export function Tip({ who, text, voice, tone, children }: { who: string; text: string; voice?: () => Promise<string | null>; tone?: Tone; children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   // The merchant's reasoning in their own words, when the server can supply it. The plain `text` shows at once; this swaps in if it arrives.
   const [said, setSaid] = useState<string | null>(null);
   const asked = useRef<string | null>(null);
+  // True once we know the final words (the voice answered, or said nothing), so we speak once, never the plain line first.
+  const [settled, setSettled] = useState(false);
   const [pos, setPos] = useState<{ left: number; top?: number; bottom?: number; arrow: number; above: boolean; width: number } | null>(null);
   const id = useId();
   const anchor = useRef<HTMLSpanElement>(null);
@@ -37,14 +40,20 @@ export function Tip({ who, text, voice, children }: { who: string; text: string;
   };
 
   useLayoutEffect(() => { if (open) place(); }, [open, text, said]);
-  useEffect(() => { setSaid(null); asked.current = null; }, [text]);
+  useEffect(() => { setSaid(null); setSettled(false); asked.current = null; }, [text]);
   useEffect(() => {
     if (!open || !voice || asked.current === text) return;
     asked.current = text;
-    let live = true;
-    voice().then((t) => { if (live && asked.current === text && t) setSaid(t); }).catch(() => {});
-    return () => { live = false; };
+    // Not cancelled on close: the answer is kept, so coming back to this price is instant and can speak at once.
+    voice().then((t) => { if (asked.current === text) { if (t) setSaid(t); setSettled(true); } }).catch(() => { if (asked.current === text) setSettled(true); });
   }, [open, text]);
+  // Speak the words on screen out loud (when sound is on): at once if there is no voice to wait for, else when it has settled.
+  useEffect(() => {
+    if (!open) return;
+    if (voice && !settled) return;
+    speak(said ?? text, who, tone);
+    return stopSpeaking;
+  }, [open, text, said, settled]);
   useEffect(() => {
     if (!open) return;
     // Scrolling or resizing moves the price out from under a fixed bubble: just close it.

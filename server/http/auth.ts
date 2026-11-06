@@ -7,10 +7,11 @@
 import { randomHex, signToken, verifyToken } from '../accounts/crypto';
 
 const MAGIC_TTL_MS = 15 * 60_000;
+const OAUTH_TTL_MS = 10 * 60_000;
 const SESSION_TTL_MS = 30 * 24 * 3_600_000;
 
 interface Payload {
-  t: 'magic' | 'session';
+  t: 'magic' | 'session' | 'oauth';
   e: string; // normalised email
   x: number; // expiry (ms since epoch)
   n: string; // nonce
@@ -38,6 +39,19 @@ export class Auth {
     if (!p || p.t !== 'magic' || p.x < this.now() || this.used.has(p.n)) return null;
     this.used.add(p.n);
     return p.e;
+  }
+
+  /** A sign-in-with-a-provider attempt. The nonce also goes in a cookie, so only the browser that started it can finish it. */
+  oauthState(): { state: string; nonce: string } {
+    const nonce = randomHex(12);
+    return { nonce, state: signToken({ t: 'oauth', e: '', x: this.now() + OAUTH_TTL_MS, n: nonce } satisfies Payload, this.secretHex) };
+  }
+
+  /** True only for an unexpired state we signed, whose nonce matches the one in the browser's cookie. */
+  verifyOauthState(state: string | null | undefined, cookieNonce: string | undefined): boolean {
+    if (!state || !cookieNonce) return false;
+    const p = verifyToken<Payload>(state, this.secretHex);
+    return !!p && p.t === 'oauth' && p.x >= this.now() && p.n === cookieNonce;
   }
 
   sessionToken(email: string): string {

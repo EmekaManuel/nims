@@ -19,6 +19,7 @@ import { createGazette } from './voice/gazette';
 import { createHaggler } from './voice/haggle';
 import { createVoice } from './voice/voice';
 import { createSpeaker } from './voice/speaker';
+import { createGoogle } from './http/google';
 
 /** The built web app. When it exists this server serves the game's pages too (see Dockerfile). */
 const WEB_DIST = resolve('web/dist');
@@ -77,13 +78,18 @@ if (chain !== offlineChain && process.env.CHAIN_SYNC !== '0') {
 }
 // One connection to NEAR AI Cloud for every feature that writes words, so they share one rate budget.
 const ai = process.env.NEAR_AI_API_KEY ? createChat({ apiKey: process.env.NEAR_AI_API_KEY, model: process.env.NEAR_AI_MODEL || undefined, baseUrl: process.env.NEAR_AI_BASE_URL || undefined }) : undefined;
+const publicUrl = (process.env.PUBLIC_URL ?? `http://localhost:${port}`).replace(/\/+$/, '');
+const google = process.env.GOOGLE_CLIENT_ID?.trim() && process.env.GOOGLE_CLIENT_SECRET?.trim()
+  ? createGoogle({ clientId: process.env.GOOGLE_CLIENT_ID.trim(), clientSecret: process.env.GOOGLE_CLIENT_SECRET.trim(), redirectUri: `${publicUrl}/auth/google/callback` })
+  : undefined;
 const app = createApp({
+  google,
   auth: new Auth(secrets.sessionSecret),
   store: new AccountStore(`${DATA}/accounts.json`, contractId, secrets.masterKey),
   chain: sync ? offlineChain : chain,
   chainStatus: sync ? () => sync!.status() : undefined,
   chainProof: sync ? (email) => sync!.proof(game.playerFor(email).id) : undefined,
-  baseUrl: (process.env.PUBLIC_URL ?? `http://localhost:${port}`).replace(/\/+$/, ''),
+  baseUrl: publicUrl,
   staticDir: existsSync(WEB_DIST) ? WEB_DIST : undefined,
   merchantParent,
   game,
@@ -118,6 +124,7 @@ async function shutdown(sig: string) {
 for (const sig of ['SIGINT', 'SIGTERM'] as const) process.on(sig, () => void shutdown(sig));
 if (process.env.NEAR_AI_API_KEY) console.log('Merchant voice: on (NEAR AI Cloud).');
 if (process.env.ELEVENLABS_API_KEY?.trim()) console.log('Spoken merchants: on (ElevenLabs).'); else console.log('Spoken merchants: using the browser voice (set ELEVENLABS_API_KEY for natural speech).');
+if (google) console.log('Sign-in: Continue with Google is on.');
 if (process.env.RESEND_API_KEY) console.log('Login links are emailed.'); else console.log('No RESEND_API_KEY: login links are printed here instead of emailed.');
 if (!sync) setInterval(() => void app.flush(), 5_000); // batch-settle every few seconds
 console.log(`Nims server on http://localhost:${port}`);

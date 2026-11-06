@@ -191,6 +191,15 @@ export const api = {
     const r = await json<{ ok?: boolean; error?: string; devLink?: string }>('/auth/request', { method: 'POST', body: JSON.stringify({ email }) });
     return r.body;
   },
+  /** Which sign-in options the server offers. Never throws: if it can't be reached, only the email link is shown. */
+  async providers(): Promise<{ google: boolean }> {
+    try {
+      const r = await json<{ google?: boolean }>('/auth/providers');
+      return { google: r.status === 200 && r.body?.google === true };
+    } catch {
+      return { google: false };
+    }
+  },
   /** Open a sign-in link (dev only: the server returns it directly). */
   async openLink(link: string) {
     const u = new URL(link);

@@ -10,6 +10,7 @@ import { existsSync, readFileSync, statSync } from 'node:fs';
 import { extname, join, normalize } from 'node:path';
 import { AccountStore } from '../accounts/accounts';
 import { Auth, looksLikeEmail, normaliseEmail } from './auth';
+import type { Google } from './google';
 import { ChainPort } from '../chain/relayer';
 import { Game } from '../game/game';
 import type { Voice } from '../voice/voice';
@@ -48,6 +49,8 @@ export interface AppDeps {
   gazette?: Gazette;
   /** Optional: the merchant's reaction after the player wins a haggle. Without it the plain result stands. */
   haggler?: Haggler;
+  /** Optional: "Continue with Google". Without it the login screen only offers the emailed link. */
+  google?: Google;
   /** Folder of the built web app (web/dist). When set, this server also serves the game's pages, so one process hosts everything. */
   staticDir?: string;
   /** Minimum gap between two different fast-forward runs. Default 500ms; tests set 0. */
@@ -73,6 +76,7 @@ function staticFile(dir: string, pathname: string): string | null {
 
 const MERCHANTS = new Set(createMerchants().map((m) => m.id));
 const COOKIE = 'nims_session';
+const OAUTH_COOKIE = 'nims_oauth';
 
 const readJson = (req: IncomingMessage): Promise<Record<string, unknown>> =>
   new Promise((resolve) => {
@@ -91,8 +95,8 @@ const send = (res: ServerResponse, code: number, body: unknown, headers: Record<
   res.end(JSON.stringify(body));
 };
 
-const cookieOf = (req: IncomingMessage) =>
-  /(?:^|;\s*)nims_session=([^;]+)/.exec(req.headers.cookie ?? '')?.[1];
+const cookieOf = (req: IncomingMessage, name = COOKIE) =>
+  new RegExp(`(?:^|;\\s*)${name}=([^;]+)`).exec(req.headers.cookie ?? '')?.[1];
 
 export function createApp(d: AppDeps) {
   const queue: Pending[] = [];
@@ -149,6 +153,30 @@ export function createApp(d: AppDeps) {
       return send(res, 200, d.devLinks ? { ok: true, devLink: link } : { ok: true });
     }
 
+    // Which sign-in options this server offers, so the login screen shows only what works.
+    if (req.method === 'GET' && url.pathname === '/auth/providers') return send(res, 200, { google: !!d.google });
+
+    const secure = d.baseUrl.startsWith('https:') ? '; Secure' : '';
+    const sessionCookie = (email: string) => `${COOKIE}=${d.auth.sessionToken(email)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=2592000${secure}`;
+
+    if (req.method === 'GET' && url.pathname === '/auth/google' && d.google) {
+      const { state, nonce } = d.auth.oauthState();
+      res.writeHead(302, { location: d.google.authUrl(state), 'set-cookie': `${OAUTH_COOKIE}=${nonce}; HttpOnly; SameSite=Lax; Path=/auth; Max-Age=600${secure}` });
+      return void res.end();
+    }
+
+    if (req.method === 'GET' && url.pathname === '/auth/google/callback' && d.google) {
+      const clear = `${OAUTH_COOKIE}=; HttpOnly; SameSite=Lax; Path=/auth; Max-Age=0${secure}`;
+      const fail = () => { res.writeHead(302, { location: '/?login=failed', 'set-cookie': clear }); return void res.end(); };
+      const code = url.searchParams.get('code');
+      if (!code || !d.auth.verifyOauthState(url.searchParams.get('state'), cookieOf(req, OAUTH_COOKIE))) return fail();
+      const email = await d.google.emailFor(code);
+      if (!email || !looksLikeEmail(email)) return fail();
+      ensureAccount(normaliseEmail(email));
+      res.writeHead(302, { location: '/', 'set-cookie': [sessionCookie(normaliseEmail(email)), clear] });
+      return void res.end();
+    }
+
     if (req.method === 'GET' && url.pathname === '/auth/verify') {
       const email = d.auth.verifyMagic(url.searchParams.get('token') ?? '');
       // A person clicking the emailed link (a browser page load) lands back in the game; API callers get JSON.
@@ -158,7 +186,7 @@ export function createApp(d: AppDeps) {
         return send(res, 400, { error: 'That link has expired. Ask for a new one.' });
       }
       ensureAccount(email);
-      const cookie = `${COOKIE}=${d.auth.sessionToken(email)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=2592000${d.baseUrl.startsWith('https:') ? '; Secure' : ''}`;
+      const cookie = sessionCookie(email);
       if (fromBrowser) { res.writeHead(302, { location: '/', 'set-cookie': cookie }); return void res.end(); }
       return send(res, 200, { ok: true }, { 'set-cookie': cookie });
     }

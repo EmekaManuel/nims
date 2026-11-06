@@ -8,7 +8,7 @@ One container serves the pages and the API ([`Dockerfile`](../Dockerfile)); any 
 
 1. Push the repo to GitHub. In Render choose **New, Blueprint** and pick it.
 2. Fill the prompted variables: `PUBLIC_URL` (the `https://...onrender.com` address Render gives you), and the testnet ones from `.env.example` (`NEAR_RPC_URL`, `NEAR_ACCOUNT_ID`, `NEAR_PRIVATE_KEY`, `CONTRACT_ID`). Leave them empty to run without the chain. `MASTER_KEY` and `SESSION_SECRET` are generated for you.
-3. Open the address. `NIMS_DEV=1` shows the sign-in link on screen so anyone can try it without email. Remove it, and set `RESEND_API_KEY` and `MAIL_FROM`, to send real emails.
+3. Open the address. `NIMS_DEV=1` shows the sign-in link on screen so anyone can try it without email. Remove it, and set `RESEND_API_KEY` and `MAIL_FROM`, to send real emails. For one-click sign-in, create a Google OAuth client (Credentials, OAuth client ID, Web), add `<PUBLIC_URL>/auth/google/callback` as an authorised redirect URI, and set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`. Publish the consent screen ("In production") so anyone can sign in, not only listed test users.
 4. Keep it awake during judging with a free pinger (for example UptimeRobot hitting the address every 5 minutes).
 
 **Know the limits of a free plan:** Render's free tier sleeps when idle and wipes its disk on restart or redeploy, so players and saves reset. Anything that should last needs a persistent volume at `/data` (it holds accounts, wallets, chain progress and the game save).

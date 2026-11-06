@@ -292,6 +292,9 @@ th { font-size: .7rem; letter-spacing: .06em; text-transform: uppercase; color: 
 .login { max-width: 31rem; margin: 9vh auto; padding: 32px 30px 26px; display: grid; gap: .9rem; background: var(--surface); border: 1px solid var(--line); border-radius: 20px; box-shadow: var(--shadow-lg); }
 .login h1 { font-size: 3.2rem; letter-spacing: -.04em; margin: 0; }
 .login form { display: grid; gap: .8rem; }
+.login .google { display: flex; align-items: center; justify-content: center; gap: .6rem; min-height: 46px; padding: 0 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink); font-weight: 600; text-decoration: none; }
+.login .google:hover { background: var(--surface-2); }
+.login .or { text-align: center; margin: 0; }
 .simlink { font-weight: 600; }
 @media (max-width: 480px) { .login { margin: 4vh 16px; padding: 22px; } }
 

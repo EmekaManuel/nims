@@ -3768,7 +3768,7 @@
    },
    "tab": null,
    "hover": "lena:cotton",
-   "voiceText": "The festive season means everyone wants fabric right now, so I charge 1406 coins instead of the usual 800 coins. My cotton stock of 36 is close to my goal of 40.",
+   "voiceText": "It is the festive season and everyone wants fabric right now.",
    "audio": "live/lena-price.mp3"
   },
   {
@@ -5277,7 +5277,7 @@
    "toast": {
     "ok": true,
     "text": "Sold 5 cotton to Lena's Textiles. You haggled a 2% better price.",
-    "line": "Lena's Textiles: “You drive a hard bargain, but for 5 cotton, I will pay 1173 coins. It is 2% better than my usual price.”"
+    "line": "Lena's Textiles: “You drive a hard bargain for those 5 cotton, but I am happy to pay 1173 coins each since you are a regular.”"
    },
    "audio": "live/haggle-reaction.mp3"
   },
@@ -9782,8 +9782,8 @@
    "tab": "news",
    "gazette": [
     "Lena's Textiles pays 102 coins in dividends",
-    "June's Pantry stops buying due to low cash",
-    "Rain falls for 6h on Day 4"
+    "June's Pantry stops buying",
+    "Rain falls for 6h"
    ]
   }
  ]

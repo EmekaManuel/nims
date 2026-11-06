@@ -155,7 +155,7 @@ export const Outro: React.FC = () => {
   const s = scene('outro');
   const a = useRamp(0, 20);
   const pop = spring({ frame: f - 6, fps, config: { damping: 14, stiffness: 110 } });
-  const tags = [['AGENT NPCS', 'Every merchant decides for itself'], ['SOCIAL LOGIN', 'Email in, no wallet'], ['NEP-245', 'One contract, every item'], ['INTENTS-STYLE ORDERS', 'Outcome and a price limit']];
+  const tags = [['AI MERCHANTS', 'Each with its own money'], ['EMAIL LOGIN', 'No wallet, no gas'], ['NEP-245 ITEMS', 'One contract, every good'], ['NEAR AI', 'Behind every merchant voice']];
   const out = interpolate(f, [s.frames - 10, s.frames], [1, 0], clamp);
   return (
     <AbsoluteFill style={{ alignItems: 'center', justifyContent: 'center', opacity: a * out }}>

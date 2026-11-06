@@ -4,16 +4,18 @@ import { Deals } from './Mission';
 import type { Actions } from './Panels';
 import { Recovery, recoveryView } from './Recovery';
 
-type Which = 'deals' | 'jobs';
+export type Which = 'deals' | 'jobs';
 type Focus = Parameters<React.ComponentProps<typeof Deals>['onFocus']>[0];
 
 /**
  * The Deals drawer: a switch between the best trades right now and the odd jobs board. It opens on the jobs tab
  * when you need it (nearly broke, or holding a job) and on the deals otherwise; after that the choice is yours.
  */
-export function DealsDrawer({ state, act, onFocus }: { state: GameState; act: Pick<Actions, 'scavenge' | 'takeJob' | 'deliverJob' | 'dropJob'>; onFocus: (f: Focus) => void }) {
+export function DealsDrawer({ state, act, onFocus, forceTab }: { state: GameState; act: Pick<Actions, 'scavenge' | 'takeJob' | 'deliverJob' | 'dropJob'>; onFocus: (f: Focus) => void; forceTab?: Which }) {
   const r = recoveryView(state);
-  const [tab, setTab] = useState<Which>(r.urgent ? 'jobs' : 'deals');
+  const [chosen, setTab] = useState<Which>(r.urgent ? 'jobs' : 'deals');
+  // `forceTab` pins the tab from outside (the demo video does, because a frame-by-frame render cannot carry a choice from frame to frame).
+  const tab = forceTab ?? chosen;
   const refs = { deals: useRef<HTMLButtonElement>(null), jobs: useRef<HTMLButtonElement>(null) };
   const go = (t: Which) => { setTab(t); refs[t].current?.focus(); };
   const jobCount = r.showJobs ? r.board.length + (r.mine ? 1 : 0) : 0;

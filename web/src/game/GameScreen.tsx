@@ -2,7 +2,7 @@ import type { Actions } from './Panels';
 import type { Focus, GameState } from '../api';
 import { BusinessPanel, StallOffer } from './Business';
 import { Confetti, Dock, Drawer, type Tab } from './Dock';
-import { DealsDrawer } from './DealsDrawer';
+import { DealsDrawer, type Which } from './DealsDrawer';
 import { Hud } from './Hud';
 import { DistrictMap, type Popup, type Selection } from './Map';
 import { Mission } from './Mission';
@@ -29,6 +29,8 @@ export interface GameScreenProps {
   peakWorth: number;
   onHelp: () => void;
   onPickGoal: () => void;
+  /** Pin the Deals drawer to one tab (the demo video uses this). */
+  dealsTab?: Which;
   offline?: boolean;
   toast?: ToastView | null;
   confetti?: number;
@@ -51,7 +53,7 @@ export function GameScreen(p: GameScreenProps) {
   if (stall) drawer = { title: stall.name, body: <StallPanel stall={stall} state={state} act={act} /> };
   else if (p.selected?.kind === 'source') drawer = { title: 'Collect goods', body: <SourcePanel item={p.selected.item} state={state} act={act} /> };
   else if (p.selected?.kind === 'plot') drawer = { title: 'A free plot', body: <section className="panel"><h2>A free plot</h2><StallOffer state={state} act={act} focus={p.selected.market} /></section> };
-  else if (p.tab === 'deals') drawer = { title: 'Deals', body: <DealsDrawer state={state} act={act} onFocus={p.onFocus} /> };
+  else if (p.tab === 'deals') drawer = { title: 'Deals', body: <DealsDrawer state={state} act={act} onFocus={p.onFocus} forceTab={p.dealsTab} /> };
   else if (p.tab === 'prices') drawer = { title: 'Prices', body: <PriceBoard state={state} /> };
   else if (p.tab === 'business') drawer = { title: 'My business', body: <BusinessPanel state={state} act={act} onFocus={(id) => p.onSelect({ kind: 'stall', id })} /> };
   else if (p.tab === 'news') drawer = { title: 'News', body: <NewsFeed state={state} /> };

@@ -296,6 +296,13 @@ describe('the deals drawer tabs', () => {
     expect(selected()).toBe('Best deals');
   });
 
+  it('can be pinned to a tab from outside, whatever it would open on', () => {
+    const { rerender } = render(<DealsDrawer state={st(fine)} act={acts()} onFocus={vi.fn()} forceTab="jobs" />);
+    expect(selected()).toMatch(/Odd jobs/);
+    rerender(<DealsDrawer state={st(broke)} act={acts()} onFocus={vi.fn()} forceTab="deals" />);
+    expect(selected()).toBe('Best deals');
+  });
+
   it('works with an older server that sends neither field', () => {
     render(<DealsDrawer state={state} act={acts()} onFocus={vi.fn()} />);
     fireEvent.click(screen.getByRole('tab', { name: /Odd jobs/ }));

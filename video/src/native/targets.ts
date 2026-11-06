@@ -9,7 +9,7 @@ export const FINDERS: Record<string, () => HTMLElement | null> = {
   'map:lena': () => document.querySelector<HTMLElement>('.map g.stall[aria-label^="Lena"]'),
   'btn:collect': () => withText('button', (t) => t.startsWith('Collect')),
   'price:lena:cotton': () => document.querySelector<HTMLElement>('[data-demo="lena:cotton"]'),
-  'check:haggle': () => document.querySelector<HTMLElement>('label[for="haggle"], #haggle')?.closest('label') ?? document.querySelector<HTMLElement>('#haggle'),
+  'check:haggle': () => document.querySelector<HTMLElement>('#haggle'),
   'btn:sell:cotton': () => {
     const row = all('tr').find((r) => /cotton/i.test(r.textContent ?? ''));
     return row ? withText('button', (t) => t === 'Sell') && ([...row.querySelectorAll<HTMLElement>('button')].find((b) => b.textContent?.trim() === 'Sell') ?? null) : null;
@@ -18,6 +18,8 @@ export const FINDERS: Record<string, () => HTMLElement | null> = {
   'btn:take': () => withText('button', (t) => t === 'Take this job'),
   'btn:deliver': () => withText('button', (t) => t.startsWith('Deliver to')),
   'tab:jobs': () => withText('[role=tab]', (t) => t.startsWith('Odd jobs')),
+  'login:email': () => document.querySelector<HTMLElement>('main.login input[type=email]'),
+  'login:send': () => withText('main.login button', (t) => t === 'Send me a link'),
   'drawer': () => document.querySelector<HTMLElement>('.drawer'),
   'toast': () => document.querySelector<HTMLElement>('.toast'),
   'bubble': () => document.querySelector<HTMLElement>('[role=tooltip]'),

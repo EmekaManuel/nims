@@ -1,8 +1,8 @@
 {
  "contract": "oja-items.testnet",
- "blockHeight": 276270324,
- "settlementBatches": 277,
- "balanceNear": 13.6727,
- "storageKb": 394,
- "fetchedAt": "2026-11-05"
+ "blockHeight": 276430480,
+ "settlementBatches": 1452,
+ "balanceNear": 36.2598,
+ "storageKb": 496,
+ "fetchedAt": "2026-11-06"
 }

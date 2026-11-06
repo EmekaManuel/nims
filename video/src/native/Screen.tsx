@@ -6,6 +6,7 @@ import '../../../web/src/styles.css';
 import type { GameState } from '../../../web/src/api';
 import { IconSprite } from '../../../web/src/art/icons';
 import { GameScreen } from '../../../web/src/game/GameScreen';
+import { Login } from '../../../web/src/game/Login';
 import { ServicesProvider, type Services } from '../../../web/src/lib/services';
 import type { Shot } from './model';
 
@@ -53,13 +54,54 @@ function Hover({ keyName, expect }: { keyName: string | null; expect?: string })
   return null;
 }
 
+/** Hold a checkbox on or off (the game keeps that in the panel's own state, which a frame-by-frame render can't carry from one frame to the next). */
+function ForceCheck({ id, checked }: { id: string; checked: boolean | undefined }) {
+  useEffect(() => {
+    if (checked === undefined) return;
+    const h = delayRender('checkbox');
+    let tries = 0;
+    const tick = () => {
+      const el = document.getElementById(id);
+      const on = () => el?.getAttribute('aria-checked') === 'true';
+      if (el && on() !== checked) el.click();
+      if ((el && on() === checked) || tries++ > 40) continueRender(h);
+      else setTimeout(tick, 40);
+    };
+    tick();
+  }, [checked, id]);
+  return null;
+}
+
 export interface Camera { x: number; y: number; zoom: number }
 
-/** The real game screen for one recorded shot, at 1920x1080, with an optional camera (zoom and pan on the real vector UI). */
-export const Screen: React.FC<{ shot: Shot; camera?: Camera; hover?: boolean }> = ({ shot, camera, hover }) => {
+const cameraBox = (camera?: Camera) => {
   const z = camera?.zoom ?? 1;
-  const tx = camera ? Math.min(0, Math.max(1920 - 1920 * z, 1920 / 2 - camera.x * z)) : 0;
-  const ty = camera ? Math.min(0, Math.max(1080 - 1080 * z, 1080 / 2 - camera.y * z)) : 0;
+  return {
+    z,
+    tx: camera ? Math.min(0, Math.max(1920 - 1920 * z, 1920 / 2 - camera.x * z)) : 0,
+    ty: camera ? Math.min(0, Math.max(1080 - 1080 * z, 1080 / 2 - camera.y * z)) : 0,
+  };
+};
+
+/** The game's real sign-in screen, with the email shown as typed so far. */
+export const LoginScreen: React.FC<{ email: string; camera?: Camera }> = ({ email, camera }) => {
+  const { z, tx, ty } = cameraBox(camera);
+  return (
+    <>
+      <style>{`*, *::before, *::after { animation: none !important; transition: none !important; caret-color: transparent; }`}</style>
+      <div style={{ position: 'absolute', left: 0, top: 0, width: 1920, height: 1080, overflow: 'hidden', background: '#fff' }}>
+        <div style={{ position: 'absolute', left: 0, top: 0, width: 1920, height: 1080, transformOrigin: '0 0', transform: `translate(${tx}px, ${ty}px) scale(${z})` }}>
+          <IconSprite />
+          <Login onIn={noop} presetEmail={email} />
+        </div>
+      </div>
+    </>
+  );
+};
+
+/** The real game screen for one recorded shot, at 1920x1080, with an optional camera (zoom and pan on the real vector UI). */
+export const Screen: React.FC<{ shot: Shot; camera?: Camera; hover?: boolean; haggle?: boolean; dealsTab?: 'deals' | 'jobs' }> = ({ shot, camera, hover, haggle, dealsTab }) => {
+  const { z, tx, ty } = cameraBox(camera);
   // The tooltip is drawn outside the zoomed screen; scale it with the camera so it keeps its place and size relative to the UI.
   useLayoutEffect(() => { document.body.style.setProperty('--cam', String(z)); }, [z]);
   const state = shot.state as GameState;
@@ -90,11 +132,13 @@ export const Screen: React.FC<{ shot: Shot; camera?: Camera; hover?: boolean }> 
               peakWorth={state.you.netWorth}
               onHelp={noop}
               onPickGoal={noop}
+              dealsTab={dealsTab}
               toast={shot.toast ?? null}
             />
           </div>
         </div>
         <Hover keyName={hover ? shot.hover ?? null : null} expect={shot.voiceText} />
+        <ForceCheck id="haggle" checked={haggle} />
       </ServicesProvider>
     </>
   );

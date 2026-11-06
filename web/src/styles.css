@@ -165,7 +165,7 @@ button.link { background: none; border: 0; padding: 0; color: var(--accent-stron
 .subtabs { display: flex; gap: .35rem; margin: 0 0 .8rem; padding: .25rem; border-radius: 14px; background: var(--line); }
 .subtabs button { flex: 1; position: relative; border: 0; border-radius: 10px; padding: .5rem .7rem; background: transparent; font: inherit; font-weight: 700; color: var(--muted); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: .4rem; }
 .subtabs button[aria-selected='true'] { background: var(--surface); color: var(--ink); box-shadow: var(--shadow-sm, 0 1px 3px rgba(0, 0, 0, .15)); }
-.subtabs .count { min-width: 20px; height: 20px; padding: 0 5px; border-radius: 999px; background: var(--muted); color: #fff; font: 700 .72rem var(--display); display: grid; place-items: center; font-style: normal; }
+.subtabs .count { min-width: 20px; height: 20px; padding: 0 5px; border-radius: 999px; background: #4f5f82; color: #fff; font: 700 .72rem var(--display); display: grid; place-items: center; font-style: normal; }
 .subtabs .count.urgent { background: #ff4d6a; }
 .hand { border-left: 5px solid var(--accent); }
 .hand p { margin: .25rem 0 .6rem; }

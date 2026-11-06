@@ -1,64 +1,69 @@
-import beatsFile from './data/beats.json';
 import lines from './data/lines.json';
 import durations from './data/durations.json';
+import clips from './data/clips.json';
 
 export const FPS = 30;
-export const SRC_W = 1920, SRC_H = 1080;
 export type Key = keyof typeof lines;
-export type Focus = { x: number; y: number; zoom: number };
+type Clip = keyof typeof clips;
 
-const beats = beatsFile.beats as Record<string, { start: number; end: number }>;
-export const facts = beatsFile.facts as Record<string, number | string>;
-/** The recorder's clock minus the video's clock, measured from the magenta sync flash at the start of the take. */
-const OFFSET = beatsFile.offset;
-const videoTime = (scriptSeconds: number) => scriptSeconds - OFFSET;
+type Kind = 'cards' | 'app' | 'footage';
+interface Def {
+  key: Key;
+  kind: Kind;
+  chapter: string;
+  /** Seconds of quiet before the narration starts. */
+  delay: number;
+  /** Shortest the scene may be, in seconds. */
+  min?: number;
+  /** A merchant's spoken line that plays after the narration, and the gap before it. */
+  clip?: Clip;
+  clipGap?: number;
+  /** Extra seconds after the narration, for the screen to finish what it is doing. */
+  extra?: number;
+}
 
-interface Def { key: Key; beat?: string; chapter: string; min: number; delay: number; focus: [number, Focus][] }
-
-// Where the camera looks (in the 1920x1080 recording). Each entry is [fraction of the scene, view].
 const DEFS: Def[] = [
-  { key: 'hook', chapter: '', min: 12.2, delay: 0.5, focus: [] },
-  { key: 'signin', beat: 'signin', chapter: 'Sign in with an email', min: 0, delay: 0.3, focus: [[0, { x: 960, y: 540, zoom: 1 }], [0.45, { x: 960, y: 520, zoom: 1.35 }]] },
-  { key: 'goal', beat: 'goal', chapter: 'Pick a goal', min: 0, delay: 0.25, focus: [[0, { x: 960, y: 540, zoom: 1 }]] },
-  { key: 'collect', beat: 'collect', chapter: 'Buy low, carry it, sell high', min: 0, delay: 0.25, focus: [[0, { x: 960, y: 540, zoom: 1 }]] },
-  { key: 'tooltip', beat: 'tooltip', chapter: 'Every price explains itself', min: 0, delay: 0.25, focus: [[0, { x: 960, y: 540, zoom: 1 }], [0.25, { x: 1500, y: 430, zoom: 1.5 }]] },
-  { key: 'sale', beat: 'sale', chapter: 'Instant settlement', min: 0, delay: 0.2, focus: [[0, { x: 960, y: 540, zoom: 1 }], [0.3, { x: 1100, y: 440, zoom: 1.25 }]] },
-  { key: 'order', beat: 'order', chapter: 'Delivery orders', min: 0, delay: 0.25, focus: [[0, { x: 960, y: 540, zoom: 1 }], [0.3, { x: 1560, y: 690, zoom: 1.5 }]] },
-  { key: 'filled', beat: 'filled', chapter: 'Delivery orders', min: 0, delay: 0.2, focus: [[0, { x: 960, y: 540, zoom: 1 }]] },
-  { key: 'prices', beat: 'prices', chapter: 'The price board', min: 0, delay: 0.25, focus: [[0, { x: 960, y: 540, zoom: 1 }], [0.3, { x: 1400, y: 470, zoom: 1.4 }]] },
-  { key: 'shares', beat: 'shares', chapter: 'Own a piece of a merchant', min: 0, delay: 0.25, focus: [[0, { x: 960, y: 540, zoom: 1 }], [0.3, { x: 1560, y: 520, zoom: 1.4 }]] },
-  { key: 'sim', beat: 'sim', chapter: 'A week in seconds', min: 0, delay: 0.3, focus: [[0, { x: 960, y: 540, zoom: 1 }], [0.42, { x: 1450, y: 430, zoom: 1.5 }]] },
-  { key: 'chain', chapter: 'Settled on NEAR testnet', min: 9.6, delay: 0.4, focus: [] },
-  { key: 'outro', chapter: '', min: 9.8, delay: 0.5, focus: [] },
+  { key: 'hook', kind: 'cards', chapter: '', delay: 0.5, min: 12.2 },
+  { key: 'signin', kind: 'app', chapter: 'Sign in with an email', delay: 0.3, extra: 1.4 },
+  { key: 'collect', kind: 'app', chapter: 'Buy low, carry it, sell high', delay: 0.3, extra: 0.6 },
+  { key: 'tooltip', kind: 'app', chapter: 'Every price explains itself', delay: 0.3, clip: 'lena-price', clipGap: 0.3 },
+  { key: 'sale', kind: 'app', chapter: 'Instant settlement', delay: 0.3, clip: 'haggle-reaction', clipGap: 0.35 },
+  { key: 'broke', kind: 'app', chapter: 'Never stuck', delay: 0.3, extra: 2.6 },
+  { key: 'news', kind: 'app', chapter: 'The Nims Gazette', delay: 0.3, min: 5.2 },
+  { key: 'sim', kind: 'footage', chapter: 'A week in seconds', delay: 0.3, min: 10.5 },
+  { key: 'chain', kind: 'cards', chapter: 'Settled on NEAR testnet', delay: 0.4, min: 9.6 },
+  { key: 'outro', kind: 'cards', chapter: '', delay: 0.5, min: 9.8 },
 ];
 
 export interface Scene {
-  key: Key; chapter: string; text: string; from: number; frames: number; delay: number; voiceFrames: number;
-  footage: boolean; focus: [number, Focus][];
-  /** Footage mapping: source seconds, playback rate, and how many composition frames the footage plays before holding. */
-  a: number; b: number; rate: number; playFrames: number;
+  key: Key;
+  kind: Kind;
+  chapter: string;
+  text: string;
+  from: number;
+  frames: number;
+  delay: number;
+  voiceFrames: number;
+  /** The merchant's spoken line: which clip, and when it starts and how long it plays (in frames from the scene start). */
+  clip?: { name: Clip; start: number; frames: number };
 }
 
-const TAIL = 0.55;
+const TAIL = 0.6;
 let cursor = 0;
 export const SCENES: Scene[] = DEFS.map((d) => {
   const voice = durations[d.key];
-  const frames = Math.round(Math.max(d.min, d.delay + voice + TAIL) * FPS);
-  const beat = d.beat ? beats[d.beat] : undefined;
-  const a = beat ? videoTime(beat.start) - 0.12 : 0;
-  const b = beat ? videoTime(beat.end) : 0;
-  const n = b - a;
-  const rate = beat ? Math.min(1.9, Math.max(0.8, n / ((frames / FPS) - 0.2))) : 1;
-  const playFrames = beat ? Math.min(frames, Math.round((n / rate) * FPS)) : 0;
-  const s: Scene = { key: d.key, chapter: d.chapter, text: lines[d.key], from: cursor, frames, delay: Math.round(d.delay * FPS), voiceFrames: Math.round(voice * FPS), footage: !!beat, focus: d.focus, a, b, rate, playFrames };
+  const clipDur = d.clip ? clips[d.clip] : 0;
+  const voiceEnd = d.delay + voice;
+  const clipStart = voiceEnd + (d.clipGap ?? 0);
+  const end = Math.max(d.min ?? 0, (d.clip ? clipStart + clipDur : voiceEnd) + (d.extra ?? 0) + TAIL);
+  const frames = Math.round(end * FPS);
+  const s: Scene = {
+    key: d.key, kind: d.kind, chapter: d.chapter, text: lines[d.key],
+    from: cursor, frames, delay: Math.round(d.delay * FPS), voiceFrames: Math.round(voice * FPS),
+    ...(d.clip ? { clip: { name: d.clip, start: Math.round(clipStart * FPS), frames: Math.round(clipDur * FPS) } } : {}),
+  };
   cursor += frames;
   return s;
 });
 export const TOTAL_FRAMES = cursor;
 export const scene = (k: Key) => SCENES.find((s) => s.key === k)!;
-
-/** Frame inside a footage scene at which something that happened at recorder time `scriptSeconds` is on screen. */
-export const sceneFrameOf = (k: Key, scriptSeconds: number) => {
-  const s = scene(k);
-  return Math.round(((videoTime(scriptSeconds) - s.a) / s.rate) * FPS);
-};

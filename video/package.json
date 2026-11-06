@@ -4,8 +4,8 @@
   "type": "module",
   "scripts": {
     "studio": "remotion studio src/index.ts",
-    "render": "remotion render src/index.ts Demo out/nims-demo.mp4",
-    "render:silent": "remotion render src/index.ts DemoSilent out/nims-demo-silent.mp4",
+    "render": "remotion render src/index.ts Nims out/nims-demo.mp4",
+    "render:silent": "remotion render src/index.ts NimsSilent out/nims-demo-silent.mp4",
     "session": "cd .. && npx tsx --env-file=.env video/scripts/play-session.ts",
     "measure": "node scripts/measure-targets.mjs"
   },

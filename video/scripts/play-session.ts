@@ -31,7 +31,10 @@ const haggler = createHaggler({ chat });
 const gazette = createGazette({ chat });
 const speaker = createSpeaker({ apiKey: need('ELEVENLABS_API_KEY'), maxPerMinute: 100 });
 
-const seed = Number(process.argv[2] ?? 7);
+/** The video keeps each real line to its first sentence, so a spoken line stays short; the words and the audio are the same sentence. */
+const firstSentence = (t: string) => t.match(/^.*?[.!?](?=\s|$)/)?.[0] ?? t;
+
+const seed = Number(process.argv[2] ?? 5);
 const me = 'demo@nims.game';
 const g = new Game(seed);
 for (let i = 0; i < 70; i++) g.tickOnce(); // let the town settle first, as in any live game
@@ -62,8 +65,9 @@ shot('collected', { kind: 'source', item: 'cotton' }, null, { toast: { ok: true,
 // 2. A stall, and the merchant explaining a price in their own words.
 const facts = g.voiceFacts(me, 'lena', 'cotton');
 if (!facts) throw new Error('no voice facts for lena/cotton');
-const said = await voice.say(facts);
-if (!said) throw new Error('NEAR AI gave no usable merchant line (it was rejected or failed)');
+const saidFull = await voice.say(facts);
+if (!saidFull) throw new Error('NEAR AI gave no usable merchant line (it was rejected or failed)');
+const said = firstSentence(saidFull);
 const lena = g.w.merchants.find((m) => m.id === 'lena')!;
 const lenaClip = await clip('lena-price', { id: 'lena', personality: lena.personality }, said);
 shot('stall', { kind: 'stall', id: 'lena' }, null);
@@ -74,8 +78,9 @@ const sale = g.sell(me, 'lena', 'cotton', 5, true);
 if (!sale.ok || !sale.haggled) throw new Error(`sale/haggle failed: ${sale.message}`);
 shot('sold', { kind: 'stall', id: 'lena' }, null, { toast: { ok: true, text: sale.message } });
 const hf = g.haggleFacts(me)!;
-const reaction = await haggler.reply(hf);
-if (!reaction) throw new Error('NEAR AI gave no usable haggle reaction');
+const reactionFull = await haggler.reply(hf);
+if (!reactionFull) throw new Error('NEAR AI gave no usable haggle reaction');
+const reaction = firstSentence(reactionFull);
 const hClip = await clip('haggle-reaction', { id: hf.id, personality: hf.personality }, reaction);
 shot('reaction', { kind: 'stall', id: 'lena' }, null, { toast: { ok: true, text: sale.message, line: `${hf.merchant}: “${reaction}”` }, audio: hClip });
 

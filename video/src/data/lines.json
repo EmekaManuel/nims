@@ -1,15 +1,12 @@
 {
-  "hook": "In most games, the economy is a spreadsheet. Prices never move. Nobody is really trading. Nims is a town where every merchant is an AI agent, with its own money and its own mind about prices.",
-  "signin": "You sign in with an email. That's all. No wallet, no seed phrase, no gas: the game makes your account and pays every fee behind the scenes.",
-  "goal": "Pick a goal. Nim, your guide, always says what to do next.",
-  "collect": "Buy cotton at the wholesaler, then carry it to a stall that pays more.",
-  "tooltip": "Every price has a reason. Hover it, and the merchant explains in plain words: how much stock they hold, who sold to them this hour, and what they can afford.",
-  "sale": "Sell, and the cash lands instantly. The game never waits for a block.",
-  "order": "Too far to walk? Place a delivery order: the goods, and the lowest price you'll take. The town's carriers wait for that price, then sell the load for you.",
-  "filled": "And there it is. Sold, with no walking.",
-  "prices": "The price board shows every good in every market, against its usual price.",
-  "shares": "You can even own a piece of a merchant, and earn a share of their profit each evening.",
-  "sim": "Because every merchant reacts to the others, one trader flooding the market crashes a price for everyone. No scripted event. No developer patch. That is the economy as the gameplay.",
-  "chain": "And it's all real. Every good is a token on NEAR testnet, settled in batches by a relayer, so you never see a wallet. Here is the live contract.",
-  "outro": "Nims. Agent merchants. Email login. NEP-245 goods. Delivery orders in the spirit of NEAR Intents. The economy is the game."
+ "hook": "In most games, the economy is a spreadsheet. Prices never move. Nobody is really trading. Nims is a town where every merchant is an AI agent, with its own money and its own mind about prices.",
+ "signin": "You sign in with an email. That's all. No wallet, no seed phrase, no gas: the game does the rest behind the scenes.",
+ "collect": "It's festive season, so fabric is dear. Buy cotton at the wholesaler, and carry it to a stall that pays more.",
+ "tooltip": "Every price has a reason. Hover it, and the merchant explains it in their own words, written live by NEAR AI.",
+ "sale": "Sell, and the cash lands instantly. Haggle, and the merchant answers back, in character.",
+ "broke": "Run out of coins, and you're never stuck. Search the scrap heap, or take an odd job: a short merchant pays you to fetch goods for them.",
+ "news": "The town even prints its own news.",
+ "sim": "Because every merchant reacts to the others, one trader flooding the market crashes a price for everyone. No script. No patch. That is the economy as the gameplay.",
+ "chain": "And it's all real. Every good and coin is a token on NEAR testnet, settled in batches by a relayer, so you never see a wallet. Here is the live contract.",
+ "outro": "Nims. AI merchants, email login, NEP-245 goods, and NEAR AI behind every voice. The economy is the game."
 }

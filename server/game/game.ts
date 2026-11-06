@@ -655,7 +655,7 @@ export class Game {
     const m = this.w.merchants.find((x) => x.id === merchantId);
     if (!m || m.owner || !(item in BASE_PRICE) || !merchantItems(m).includes(item as Item)) return null;
     const q = quoteFor(this.w, m, item as Item, this.playerFor(email));
-    return { merchant: m.name, personality: m.personality, item, pays: q.buyPrice, charges: q.sellPrice, reasons: q.reasons, tooltip: q.tooltip };
+    return { id: m.id, merchant: m.name, personality: m.personality, item, pays: q.buyPrice, charges: q.sellPrice, reasons: q.reasons, tooltip: q.tooltip };
   }
 
   private stallViews(p: Player) {

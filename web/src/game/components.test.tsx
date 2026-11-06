@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import fixture from '../test/fixture.json';
-import type { GameState, MarketId } from '../api';
+import type { GameState, MarketId, VoiceReply } from '../api';
 import { crateCount, DistrictMap, lightAt, PLOTS, STALL_H, STALL_POS, STALL_W, ZONES } from './Map';
 import { Deals, Mission } from './Mission';
 import { AwayModal, GoalPicker, HowToPlay } from './Modals';
@@ -474,13 +474,13 @@ describe('merchant voice in the tooltip', () => {
   const plain = 'My flour stock (87) is about where I want it.';
 
   it('shows the plain line at once, then swaps in the merchant voice when it arrives, labelled', async () => {
-    let resolve!: (t: string | null) => void;
-    const voice = vi.fn(() => new Promise<string | null>((r) => { resolve = r; }));
+    let resolve!: (t: VoiceReply | null) => void;
+    const voice = vi.fn(() => new Promise<VoiceReply | null>((r) => { resolve = r; }));
     render(<Tip who="Tomas Produce" text={plain} voice={voice}><b>181 coins</b></Tip>);
     hover();
     expect(screen.getByRole('tooltip').textContent).toContain('My flour stock (87)');
     expect(voice).toHaveBeenCalledTimes(1);
-    resolve('Flour is steady at 87, just where I like it.');
+    resolve({ text: 'Flour is steady at 87, just where I like it.', audio: null });
     await screen.findByText(/Flour is steady at 87/);
     expect(screen.getByRole('tooltip').textContent).toContain('voice by NEAR AI');
   });
@@ -497,7 +497,7 @@ describe('merchant voice in the tooltip', () => {
   });
 
   it('asks only once per price, and asks again when the price text changes', async () => {
-    const voice = vi.fn(() => Promise.resolve('A line.' as string | null));
+    const voice = vi.fn(() => Promise.resolve({ text: 'A line.', audio: null }));
     const { rerender } = render(<Tip who="T" text={plain} voice={voice}><b>181 coins</b></Tip>);
     hover();
     fireEvent.mouseLeave(screen.getByText('181 coins').parentElement!);
@@ -536,7 +536,7 @@ describe('spoken merchants', () => {
   });
 
   it('waits for the merchant voice and speaks only that, never the plain line first', async () => {
-    render(<Tip who="Tomas Produce" text={plain} voice={() => Promise.resolve('Flour is steady at 87, just where I like it.')} tone="cautious"><b>181 coins</b></Tip>);
+    render(<Tip who="Tomas Produce" text={plain} voice={() => Promise.resolve({ text: 'Flour is steady at 87, just where I like it.', audio: null })} tone="cautious"><b>181 coins</b></Tip>);
     hover();
     expect(spoken).toHaveLength(0);
     await settle();
@@ -573,7 +573,7 @@ describe('spoken merchants', () => {
 describe('a tooltip you are reading', () => {
   afterEach(cleanup);
   it('keeps its words while the price changes underneath it, and does not ask or speak again', async () => {
-    const voice = vi.fn(() => Promise.resolve('Stock is steady at 87.' as string | null));
+    const voice = vi.fn(() => Promise.resolve({ text: 'Stock is steady at 87.', audio: null }));
     const { rerender } = render(<Tip who="T" text="My flour stock (87) is about where I want it." voice={voice}><b>181 coins</b></Tip>);
     fireEvent.mouseEnter(screen.getByText('181 coins').parentElement!);
     await new Promise((r) => setTimeout(r, 15));
@@ -583,5 +583,73 @@ describe('a tooltip you are reading', () => {
     expect(screen.getByRole('tooltip').textContent).toContain('Stock is steady at 87.');
     expect(screen.getByRole('tooltip').textContent).not.toContain('40 flour');
     expect(voice).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('natural speech clips', () => {
+  const plain = 'My flour stock (87) is about where I want it.';
+  const clips: { src: string; paused: boolean; failPlay: boolean }[] = [];
+  const spoken: string[] = [];
+  const synth = { speak: vi.fn((u: { text: string }) => void spoken.push(u.text)), cancel: vi.fn(), getVoices: () => [] };
+  const hover = () => fireEvent.mouseEnter(screen.getByText('181 coins').parentElement!);
+  const settle = () => new Promise((r) => setTimeout(r, 15));
+
+  beforeEach(() => {
+    clips.length = 0; spoken.length = 0; synth.speak.mockClear();
+    (window as unknown as { speechSynthesis: unknown }).speechSynthesis = synth;
+    (globalThis as unknown as { SpeechSynthesisUtterance: unknown }).SpeechSynthesisUtterance = class { text: string; constructor(t: string) { this.text = t; } };
+    (globalThis as unknown as { Audio: unknown }).Audio = class {
+      src = ''; volume = 1; paused = false; failPlay = (globalThis as unknown as { __failPlay?: boolean }).__failPlay === true;
+      listeners: Record<string, () => void> = {};
+      constructor(u: string) { this.src = u; clips.push(this as never); }
+      addEventListener(n: string, f: () => void) { this.listeners[n] = f; }
+      removeAttribute() { this.src = ''; }
+      pause() { this.paused = true; }
+      play() { return this.failPlay ? Promise.reject(new Error('blocked')) : Promise.resolve(); }
+    };
+    (globalThis as unknown as { __failPlay?: boolean }).__failPlay = false;
+    localStorage.removeItem('nims-sound');
+  });
+  afterEach(() => {
+    cleanup();
+    delete (window as unknown as { speechSynthesis?: unknown }).speechSynthesis;
+    delete (globalThis as unknown as { Audio?: unknown }).Audio;
+    localStorage.removeItem('nims-sound');
+  });
+  const tip = (voice: () => Promise<VoiceReply | null>) => render(<Tip who="Tomas Produce" text={plain} voice={voice}><b>181 coins</b></Tip>);
+
+  it('plays the clip instead of the browser voice, and stops it when the tooltip closes', async () => {
+    tip(() => Promise.resolve({ text: 'Flour is steady at 87.', audio: '/game/voice/audio?id=abc' }));
+    hover();
+    await settle();
+    expect(clips.map((c) => c.src)).toEqual(['/game/voice/audio?id=abc']);
+    expect(spoken).toHaveLength(0);
+    fireEvent.mouseLeave(screen.getByText('181 coins').parentElement!);
+    expect(clips[0].paused).toBe(true);
+  });
+
+  it('falls back to the browser voice, saying the same words, if the clip will not play', async () => {
+    (globalThis as unknown as { __failPlay?: boolean }).__failPlay = true;
+    tip(() => Promise.resolve({ text: 'Flour is steady at 87.', audio: '/game/voice/audio?id=abc' }));
+    hover();
+    await settle();
+    expect(spoken).toEqual(['Flour is steady at 87.']);
+  });
+
+  it('falls back when the clip fails to load', async () => {
+    tip(() => Promise.resolve({ text: null, audio: '/game/voice/audio?id=abc' }));
+    hover();
+    await settle();
+    (clips[0] as unknown as { listeners: Record<string, () => void> }).listeners.error();
+    expect(spoken).toEqual([plain]);
+  });
+
+  it('plays no clip when sound is muted', async () => {
+    localStorage.setItem('nims-sound', 'off');
+    tip(() => Promise.resolve({ text: 'x steady 87', audio: '/game/voice/audio?id=abc' }));
+    hover();
+    await settle();
+    expect(clips).toHaveLength(0);
+    expect(spoken).toHaveLength(0);
   });
 });

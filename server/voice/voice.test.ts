@@ -8,8 +8,10 @@ import { Auth } from '../http/auth';
 import { randomHex } from '../accounts/crypto';
 import { Game } from '../game/game';
 import { accept, createVoice, prompt, type VoiceFacts } from './voice';
+import { createSpeaker } from './speaker';
 
 const facts: VoiceFacts = {
+  id: 'mira',
   merchant: "Mira's Greens",
   personality: 'cautious',
   item: 'iron',
@@ -170,7 +172,113 @@ describe('Game.voiceFacts and /game/voice', () => {
 
     const off = await setup();
     const r2 = await (await fetch(off.base + '/game/voice?merchant=mira&item=tomatoes', { headers: { cookie: off.cookie } })).json();
-    expect(r2).toEqual({ text: null });
+    expect(r2).toEqual({ text: null, audio: null });
     off.server.close();
+  });
+});
+
+describe('spoken merchants (ElevenLabs)', () => {
+  const mp3 = Buffer.from('ID3-fake-mp3-bytes');
+  const fakeTTS = (status = 200) => {
+    const seen = { calls: [] as { url: string; key: string; body: any }[] };
+    const fetchImpl = (async (url: string, init: RequestInit) => {
+      seen.calls.push({ url, key: String((init.headers as Record<string, string>)['xi-api-key']), body: JSON.parse(String(init.body)) });
+      return status === 200 ? new Response(mp3, { status }) : new Response('{"detail":"no"}', { status });
+    }) as unknown as typeof fetch;
+    return { fetchImpl, seen };
+  };
+  const mira = { id: 'mira', personality: 'greedy' as const };
+
+  it('makes audio for a line the server registered, with that merchant\'s voice, model and personality', async () => {
+    const t = fakeTTS();
+    const sp = createSpeaker({ apiKey: 'xi-test', fetchImpl: t.fetchImpl, voices: { mira: 'VOICE_MIRA' } });
+    const id = sp.register(mira, 'I only have 63 tomatoes, so it is dear.');
+    expect(await sp.audio(id)).toEqual(mp3);
+    expect(await sp.audio(id)).toEqual(mp3); // cached
+    expect(t.seen.calls).toHaveLength(1);
+    expect(t.seen.calls[0].url).toContain('/text-to-speech/VOICE_MIRA');
+    expect(t.seen.calls[0].key).toBe('xi-test');
+    expect(t.seen.calls[0].body.model_id).toBe('eleven_flash_v2_5');
+    expect(t.seen.calls[0].body.text).toBe('I only have 63 tomatoes, so it is dear.');
+    expect(t.seen.calls[0].body.voice_settings.stability).toBe(0.35); // greedy: more swing
+  });
+
+  it('never speaks text it did not register itself, and caps long lines', async () => {
+    const t = fakeTTS();
+    const sp = createSpeaker({ apiKey: 'k', fetchImpl: t.fetchImpl, maxChars: 40 });
+    expect(await sp.audio('0123456789abcdef0123')).toBeNull();
+    expect(t.seen.calls).toHaveLength(0);
+    const id = sp.register(mira, 'word '.repeat(50));
+    await sp.audio(id);
+    expect(t.seen.calls[0].body.text.length).toBeLessThanOrEqual(40);
+  });
+
+  it('shares one call for the same line, and falls back to the default voice if a merchant voice is refused', async () => {
+    const urls: string[] = [];
+    const fetchImpl = (async (url: string) => { urls.push(url); return url.includes('BAD') ? new Response('no', { status: 404 }) : new Response(mp3, { status: 200 }); }) as unknown as typeof fetch;
+    const sp = createSpeaker({ apiKey: 'k', fetchImpl, voices: { mira: 'BAD' }, defaultVoice: 'GOOD' });
+    const id = sp.register(mira, 'A line to say today.');
+    const [a, b] = await Promise.all([sp.audio(id), sp.audio(id)]);
+    expect(a).toEqual(mp3);
+    expect(b).toEqual(mp3);
+    expect(urls.map((u) => (u.includes('BAD') ? 'BAD' : 'GOOD'))).toEqual(['BAD', 'GOOD']);
+  });
+
+  it('returns null on an HTTP error or a thrown error, and does not hammer a failing call', async () => {
+    const t = fakeTTS(401);
+    const sp = createSpeaker({ apiKey: 'bad', fetchImpl: t.fetchImpl });
+    const id = sp.register(mira, 'Another line to say.');
+    expect(await sp.audio(id)).toBeNull();
+    expect(await sp.audio(id)).toBeNull();
+    expect(t.seen.calls).toHaveLength(1);
+    const boom = createSpeaker({ apiKey: 'k', fetchImpl: (async () => { throw new Error('offline'); }) as unknown as typeof fetch });
+    expect(await boom.audio(boom.register(mira, 'Yet another line to say.'))).toBeNull();
+  });
+
+  it('stops making audio once the per-minute budget is spent, and resumes a minute later', async () => {
+    const t = fakeTTS();
+    let now = 5_000_000;
+    const sp = createSpeaker({ apiKey: 'k', fetchImpl: t.fetchImpl, maxPerMinute: 2, now: () => now });
+    for (const n of [1, 2]) expect(await sp.audio(sp.register(mira, `Line number ${n} for today.`))).toEqual(mp3);
+    expect(await sp.audio(sp.register(mira, 'Line number 3 for today.'))).toBeNull();
+    expect(t.seen.calls).toHaveLength(2);
+    now += 61_000;
+    expect(await sp.audio(sp.register(mira, 'Line number 4 for today.'))).toEqual(mp3);
+  });
+});
+
+describe('/game/voice with audio', () => {
+  it('returns the line and an audio link, serves the audio, and needs a login', async () => {
+    const links: string[] = [];
+    const dir = mkdtempSync(join(tmpdir(), 'nims-audio-'));
+    const mp3 = Buffer.from('ID3-route-bytes');
+    const speaker = createSpeaker({ apiKey: 'k', fetchImpl: (async () => new Response(mp3, { status: 200 })) as unknown as typeof fetch });
+    const app = createApp({
+      auth: new Auth(randomHex(32)),
+      store: new AccountStore(join(dir, 'a.json'), 'oja.testnet', randomHex(32)),
+      chain: { createPlayerAccount: async () => {}, transferItem: async () => {}, itemBalance: async () => 0 },
+      mailer: { sendLoginLink: async (_e, l) => void links.push(l) },
+      baseUrl: 'http://localhost:0',
+      merchantParent: 'run.oja.testnet',
+      game: new Game(3),
+      devLinks: true,
+      voice: { say: async () => 'I only have 5 tomatoes, so it is dear.' },
+      speaker,
+    });
+    const server = await app.listen(0);
+    const base = `http://localhost:${(server.address() as { port: number }).port}`;
+    const r = await (await fetch(base + '/auth/request', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: 'ada@example.com' }) })).json();
+    const cookie = (await fetch(r.devLink.replace('http://localhost:0', base))).headers.get('set-cookie')!.split(';')[0];
+
+    const v = await (await fetch(base + '/game/voice?merchant=mira&item=tomatoes', { headers: { cookie } })).json();
+    expect(v.text).toBe('I only have 5 tomatoes, so it is dear.');
+    expect(v.audio).toMatch(/^\/game\/voice\/audio\?id=[0-9a-f]+$/);
+    expect((await fetch(base + v.audio)).status).toBe(401);
+    const a = await fetch(base + v.audio, { headers: { cookie } });
+    expect(a.status).toBe(200);
+    expect(a.headers.get('content-type')).toBe('audio/mpeg');
+    expect(Buffer.from(await a.arrayBuffer())).toEqual(mp3);
+    expect((await fetch(base + '/game/voice/audio?id=nope', { headers: { cookie } })).status).toBe(404);
+    server.close();
   });
 });

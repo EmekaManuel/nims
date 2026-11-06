@@ -121,6 +121,8 @@ async function json<T>(path: string, init?: RequestInit): Promise<{ status: numb
 
 const post = (path: string, body: unknown) => json<ActionResponse>(path, { method: 'POST', body: JSON.stringify(body) });
 
+export interface VoiceReply { text: string | null; audio: string | null }
+
 export interface ChainProof { account: string; explorer: string; behind: number }
 
 export const api = {
@@ -130,13 +132,16 @@ export const api = {
     return r && r.status === 200 ? r.body : null;
   },
 
-  /** A merchant's price reasoning in their own words (written by NEAR AI Cloud), or null to keep the plain line. Never throws. */
-  async voice(merchant: string, item: Item): Promise<string | null> {
+  /**
+   * A merchant's price reasoning in their own words (`text`, written by NEAR AI Cloud) and a link to natural speech for it
+   * (`audio`). Either may be null: null text keeps the plain line, null audio means the browser's own voice is used. Never throws.
+   */
+  async voice(merchant: string, item: Item): Promise<VoiceReply> {
     try {
-      const r = await json<{ text?: string | null }>(`/game/voice?merchant=${encodeURIComponent(merchant)}&item=${encodeURIComponent(item)}`);
-      return r.status === 200 ? r.body.text ?? null : null;
+      const r = await json<Partial<VoiceReply>>(`/game/voice?merchant=${encodeURIComponent(merchant)}&item=${encodeURIComponent(item)}`);
+      return r.status === 200 ? { text: r.body.text ?? null, audio: r.body.audio ?? null } : { text: null, audio: null };
     } catch {
-      return null;
+      return { text: null, audio: null };
     }
   },
 

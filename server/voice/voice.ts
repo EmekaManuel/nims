@@ -14,6 +14,8 @@
 import type { Personality } from '../../merchants/pricing';
 
 export interface VoiceFacts {
+  /** The merchant's id (mira, lena, ...), used to pick their spoken voice. */
+  id: string;
   merchant: string;
   personality: Personality;
   item: string;

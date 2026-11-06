@@ -13,6 +13,7 @@ import { Auth, looksLikeEmail, normaliseEmail } from './auth';
 import { ChainPort } from '../chain/relayer';
 import { Game } from '../game/game';
 import type { Voice } from '../voice/voice';
+import type { Speaker } from '../voice/speaker';
 import { runFastForward, sanitize, FastForwardResult } from '../../sim/fastforward';
 import { BASE_PRICE, createMerchants } from '../../sim/world';
 
@@ -39,6 +40,8 @@ export interface AppDeps {
   chainProof?: (email: string) => unknown;
   /** Optional: writes each merchant's price reasoning in their own words. Without it the plain templated line is used. */
   voice?: Voice;
+  /** Optional: turns those lines into natural speech (ElevenLabs). Without it the browser's own speech is used. */
+  speaker?: Speaker;
   /** Folder of the built web app (web/dist). When set, this server also serves the game's pages, so one process hosts everything. */
   staticDir?: string;
   /** Minimum gap between two different fast-forward runs. Default 500ms; tests set 0. */
@@ -207,10 +210,20 @@ export function createApp(d: AppDeps) {
       const g = d.game;
       if (req.method === 'GET' && url.pathname === '/game/state') return send(res, 200, g.state(email));
       if (req.method === 'GET' && url.pathname === '/game/chain') return send(res, 200, d.chainProof?.(email) ?? null);
-      // Lazy and optional: the page asks only when a price is hovered, and `text: null` means "keep the plain line".
+      // Lazy and optional: the page asks only when a price is hovered. `text: null` means "keep the plain line";
+      // `audio` is a link to natural speech for what should be said, or null (the browser's own speech is used).
       if (req.method === 'GET' && url.pathname === '/game/voice') {
-        const facts = d.voice ? g.voiceFacts(email, url.searchParams.get('merchant') ?? '', url.searchParams.get('item') ?? '') : null;
-        return send(res, 200, { text: facts && d.voice ? await d.voice.say(facts) : null });
+        const facts = d.voice || d.speaker ? g.voiceFacts(email, url.searchParams.get('merchant') ?? '', url.searchParams.get('item') ?? '') : null;
+        if (!facts) return send(res, 200, { text: null, audio: null });
+        const text = d.voice ? await d.voice.say(facts) : null;
+        const id = d.speaker?.register(facts, text ?? facts.tooltip);
+        return send(res, 200, { text, audio: id ? `/game/voice/audio?id=${id}` : null });
+      }
+      if (req.method === 'GET' && url.pathname === '/game/voice/audio') {
+        const mp3 = d.speaker ? await d.speaker.audio(url.searchParams.get('id') ?? '') : null;
+        if (!mp3) return send(res, 404, { error: 'No audio.' });
+        res.writeHead(200, { 'content-type': 'audio/mpeg', 'content-length': mp3.length, 'cache-control': 'private, max-age=600' });
+        return void res.end(mp3);
       }
       if (req.method === 'POST') {
         const b = await readJson(req);

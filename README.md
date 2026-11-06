@@ -8,7 +8,7 @@
 
 [Play it live](https://nims-app.up.railway.app) · [Demo video (100 s)](docs/nims-demo.mp4) · [Judge walk-through](docs/DEMO.md) · Contract: `oja-items.testnet`
 
-![NEAR testnet](https://img.shields.io/badge/NEAR-testnet-00ec97) ![NEP-245](https://img.shields.io/badge/items-NEP--245-blue) ![tests](https://img.shields.io/badge/tests-300%20passing-brightgreen) ![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)
+![NEAR testnet](https://img.shields.io/badge/NEAR-testnet-00ec97) ![NEP-245](https://img.shields.io/badge/items-NEP--245-blue) ![tests](https://img.shields.io/badge/tests-311%20passing-brightgreen) ![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)
 
 </div>
 
@@ -45,7 +45,7 @@ The chain is invisible: email sign-in, no wallet, no seed phrase, no gas prompt.
 | Gas | A relayer pays through **NEP-366** delegate actions | [`server/chain/relayer.ts`](server/chain/relayer.ts) |
 | Merchant agents | Each has its own account and signs its own transfers | [`merchants/agents/`](merchants/agents/), [`server/chain/rounds.ts`](server/chain/rounds.ts) |
 | Settlement | Trades apply instantly in the game, then settle to the chain in merged batches with per-signer sequence numbers, so a retry can never apply twice | [`server/chain/chainsync.ts`](server/chain/chainsync.ts) |
-| Merchant voice (optional) | **NEAR AI Cloud** (OpenAI-compatible API) rewrites a merchant's price reasoning in their own words when a player hovers a price. Prices never depend on it: the reply is used only if every number matches `pricing.ts`, and the plain explanation shows otherwise. Set `NEAR_AI_API_KEY` to turn it on. The line is also spoken aloud with the browser's built-in speech (one steady voice per merchant, paced by personality; it follows the sound switch) | [`server/voice/voice.ts`](server/voice/voice.ts) |
+| Merchant voice (optional) | **NEAR AI Cloud** (OpenAI-compatible API) rewrites a merchant's price reasoning in their own words when a player hovers a price. Prices never depend on it: the reply is used only if every number matches `pricing.ts`, and the plain explanation shows otherwise. Set `NEAR_AI_API_KEY` to turn it on. The line is also spoken aloud: with **ElevenLabs** natural voices (one stock voice per merchant) when `ELEVENLABS_API_KEY` is set, otherwise with the browser's built-in speech. It follows the sound switch | [`server/voice/voice.ts`](server/voice/voice.ts) |
 | Delivery orders | Intents-style: state the outcome and a limit price, a solver fills it. Implemented inside the game (`Game.placeOrder`, `fillOrders`) | [`server/game/game.ts`](server/game/game.ts) |
 
 NEAR **testnet only**. No mainnet or real funds are used.
@@ -140,8 +140,8 @@ The full design (world, game loop, on-chain design, balance numbers) is in [DESI
 ## Tests and chain verification
 
 ```bash
-npm test               # economy, pricing, server, API       (179 tests)
-npm run test:web       # the UI against real game state      (121 tests)
+npm test               # economy, pricing, server, API       (185 tests)
+npm run test:web       # the UI against real game state      (126 tests)
 npm run contract:test  # the NEP-245 contract                (needs Rust)
 ```
 

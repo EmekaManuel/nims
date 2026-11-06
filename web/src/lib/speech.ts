@@ -50,3 +50,23 @@ export function speak(text: string, who: string, tone: Tone = 'loyal'): void {
 export function stopSpeaking(): void {
   try { synth()?.cancel(); } catch { /* ignore */ }
 }
+
+/**
+ * Play a natural-speech clip from the server. Returns a function that stops it. If the clip can't play (no audio on the
+ * server, or the browser refuses to start sound), `onFail` runs so the caller can fall back to the browser's own voice.
+ */
+export function playClip(url: string, onFail: () => void): () => void {
+  if (!soundOn() || typeof Audio === 'undefined') return () => {};
+  let stopped = false;
+  const fail = () => { if (!stopped) { stopped = true; onFail(); } };
+  try {
+    const a = new Audio(url);
+    a.volume = 0.95;
+    a.addEventListener('error', fail);
+    void Promise.resolve(a.play()).catch(fail);
+    return () => { stopped = true; try { a.pause(); a.removeAttribute('src'); } catch { /* ignore */ } };
+  } catch {
+    fail();
+    return () => { stopped = true; };
+  }
+}

@@ -1,19 +1,19 @@
 import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { ActionResponse, api, ChainProof, coins, Focus, GameState, GoalKind } from './api';
-import { DistrictMap, Popup, Selection, spotOf } from './Map';
-import { Confetti, Dock, Drawer, Tab } from './Dock';
-import { rankOf } from './rank';
-import { setSound, sfx, soundOn } from './sfx';
-import { SourcePanel, StallPanel, Actions } from './Panels';
-import { Deals, Mission } from './Mission';
-import { AwayModal, GoalPicker, HowToPlay } from './Modals';
-import { BusinessPanel, StallOffer } from './Business';
-import { Hud } from './Hud';
-import { PriceBoard } from './PriceBoard';
-import { IconSprite } from './icons';
-import { Mascot } from './Mascot';
+import { DistrictMap, Popup, Selection, spotOf } from './game/Map';
+import { Confetti, Dock, Drawer, Tab } from './game/Dock';
+import { rankOf } from './lib/rank';
+import { setSound, sfx, soundOn } from './lib/sfx';
+import { SourcePanel, StallPanel, Actions } from './game/Panels';
+import { Deals, Mission } from './game/Mission';
+import { AwayModal, GoalPicker, HowToPlay } from './game/Modals';
+import { BusinessPanel, StallOffer } from './game/Business';
+import { Hud } from './game/Hud';
+import { PriceBoard } from './game/PriceBoard';
+import { IconSprite } from './art/icons';
+import { Mascot } from './art/Mascot';
 import { TextField } from './ui';
-import { FastForwardPage } from './Fastforward';
+import { FastForwardPage } from './sim/Fastforward';
 
 function Login({ onIn }: { onIn: () => void }) {
   const [email, setEmail] = useState('');

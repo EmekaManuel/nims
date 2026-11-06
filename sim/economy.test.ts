@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { Game } from '../server/game';
+import { Game } from '../server/game/game';
 import { act, newPlayer } from './players';
 import { tick } from './engine';
 import { DEFAULT_PARAMS, runFastForward } from './fastforward';

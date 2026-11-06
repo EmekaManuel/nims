@@ -125,7 +125,7 @@ export type Token = Item | 'coins';
 export const COINS = 'coins' as const;
 
 /**
- * Everything that moved goods or coins, in order. server/settle.ts turns this into on-chain batches.
+ * Everything that moved goods or coins, in order. server/chain/settle.ts turns this into on-chain batches.
  * It is self-contained: it starts with what every account was given when the world was made, so replaying it
  * from the beginning reproduces every balance exactly (a test checks that).
  *

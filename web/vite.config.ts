@@ -5,5 +5,5 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   server: { port: 5173, proxy: { '/sim': 'http://localhost:3000', '/auth': 'http://localhost:3000', '/me': 'http://localhost:3000', '/game': 'http://localhost:3000' } },
-  test: { setupFiles: ['./src/test-setup.ts'] },
+  test: { setupFiles: ['./src/test/test-setup.ts'] },
 });

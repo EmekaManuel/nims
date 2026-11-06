@@ -41,12 +41,12 @@ The chain is invisible: email sign-in, no wallet, no seed phrase, no gas prompt.
 | Piece | NEAR feature | Where |
 |---|---|---|
 | Every good and the `coins` token | One **NEP-245** multi-token contract (no per-item contracts), deployed as `oja-items.testnet` | [`contracts/items/`](contracts/items/) |
-| Player accounts | Created behind email sign-in; keys held encrypted by the server | [`server/accounts.ts`](server/accounts.ts) |
-| Gas | A relayer pays through **NEP-366** delegate actions | [`server/relayer.ts`](server/relayer.ts) |
-| Merchant agents | Each has its own account and signs its own transfers | [`merchants/agents/`](merchants/agents/), [`server/rounds.ts`](server/rounds.ts) |
-| Settlement | Trades apply instantly in the game, then settle to the chain in merged batches with per-signer sequence numbers, so a retry can never apply twice | [`server/chainsync.ts`](server/chainsync.ts) |
-| Merchant voice (optional) | **NEAR AI Cloud** (OpenAI-compatible API) rewrites a merchant's price reasoning in their own words when a player hovers a price. Prices never depend on it: the reply is used only if every number matches `pricing.ts`, and the plain explanation shows otherwise. Set `NEAR_AI_API_KEY` to turn it on | [`server/voice.ts`](server/voice.ts) |
-| Delivery orders | Intents-style: state the outcome and a limit price, a solver fills it. Implemented inside the game (`Game.placeOrder`, `fillOrders`) | [`server/game.ts`](server/game.ts) |
+| Player accounts | Created behind email sign-in; keys held encrypted by the server | [`server/accounts/accounts.ts`](server/accounts/accounts.ts) |
+| Gas | A relayer pays through **NEP-366** delegate actions | [`server/chain/relayer.ts`](server/chain/relayer.ts) |
+| Merchant agents | Each has its own account and signs its own transfers | [`merchants/agents/`](merchants/agents/), [`server/chain/rounds.ts`](server/chain/rounds.ts) |
+| Settlement | Trades apply instantly in the game, then settle to the chain in merged batches with per-signer sequence numbers, so a retry can never apply twice | [`server/chain/chainsync.ts`](server/chain/chainsync.ts) |
+| Merchant voice (optional) | **NEAR AI Cloud** (OpenAI-compatible API) rewrites a merchant's price reasoning in their own words when a player hovers a price. Prices never depend on it: the reply is used only if every number matches `pricing.ts`, and the plain explanation shows otherwise. Set `NEAR_AI_API_KEY` to turn it on | [`server/voice/voice.ts`](server/voice/voice.ts) |
+| Delivery orders | Intents-style: state the outcome and a limit price, a solver fills it. Implemented inside the game (`Game.placeOrder`, `fillOrders`) | [`server/game/game.ts`](server/game/game.ts) |
 
 NEAR **testnet only**. No mainnet or real funds are used.
 
@@ -101,12 +101,26 @@ Below its cash floor a merchant stops buying; at zero cash with nothing to sell 
 - Testnet only: the chain client refuses any other network. Secrets live in `.env`; only `.env.example` is committed.
 
 ```
-merchants/pricing.ts   The one pricing file
-merchants/agents/      Merchant agent: reviews its own settlement legs before signing
+merchants/
+  pricing.ts           The one pricing file
+  agents/              Merchant agent: reviews its own settlement legs before signing
 sim/                   Headless economy: engine, world, simulated players, fast-forward
-server/                Game state, login, relayer, batch settlement, HTTP API, saving
+server/
+  main.ts              Entry point: wires everything and starts the server
+  http/                HTTP API, email-link login, mailer
+  game/                Live game state and saving
+  chain/               NEAR client, relayer, settlement batches, rounds, live settler
+  accounts/            Player accounts, merchant wallets, key encryption, secrets
+  voice/               Merchant voice via NEAR AI Cloud (optional)
+  scripts/             Testnet deploy and live-check scripts
 contracts/items/       The NEP-245 contract (Rust, near-sdk)
-web/                   The game and dashboard (Vite, React, SVG, Radix UI)
+web/src/
+  main.tsx, App.tsx    Entry and top-level screen
+  api/                 Typed client for the game server
+  game/                The play screen: map, HUD, stall panels, price board, tooltips
+  sim/                 Fast-forward dashboard and charts
+  ui/                  Small shared inputs (select, number field, slider, ...)
+  art/, lib/, test/    Icons and mascot; rank and sound helpers; fixtures
 video/                 The demo video, built with Remotion (see video/README.md)
 docs/                  Judge walk-through, deploy notes, voice-over script, demo video, images
 ```
@@ -137,9 +151,9 @@ To verify the chain side, copy `.env.example` to `.env` with a testnet account, 
 
 ```bash
 npm run contract:build && npm run chain:deploy        # deploy the items contract
-npx tsx server/run-live-check.ts 30   # play 30 game hours, settle to testnet, check every balance on chain equals the game's
-npx tsx server/run-m4-check.ts 12     # 12 hours where every merchant and player signs its own transfers; compare stock to the sim
-npx tsx server/run-m3-check.ts        # a new email-only player gets an account and moves items with no wallet step
+npx tsx server/scripts/run-live-check.ts 30   # play 30 game hours, settle to testnet, check every balance on chain equals the game's
+npx tsx server/scripts/run-m4-check.ts 12     # 12 hours where every merchant and player signs its own transfers; compare stock to the sim
+npx tsx server/scripts/run-m3-check.ts        # a new email-only player gets an account and moves items with no wallet step
 ```
 
 With credentials in `.env`, `npm run server` streams the running game to the chain in the background (`CHAIN_SYNC=0` turns that off).

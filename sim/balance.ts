@@ -6,7 +6,7 @@
  *
  *   npm run balance
  */
-import { Game } from '../server/game';
+import { Game } from '../server/game/game';
 import { BASE_PRICE, Item } from './world';
 
 function play(seed: number, rate: number, hours: number, actionsPerHour: number) {

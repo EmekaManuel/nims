@@ -42,7 +42,7 @@ Nothing above showed a wallet, a seed phrase, a signature or a gas prompt. Your 
 To prove the chain side (needs a testnet `.env`, see the README):
 
 ```bash
-npx tsx server/run-live-check.ts 30
+npx tsx server/scripts/run-live-check.ts 30
 ```
 
 It plays 30 game hours and streams them to NEAR testnet, where every merchant and player signs its own transfers, goods and coins alike. It ends with *"OK: all N balances on the chain match the game."* Everything lives in one NEP-245 contract, `oja-items.testnet`. When the server runs with credentials it does this continuously in the background; open **News** in the game for the link to your own account on the public ledger.
@@ -60,4 +60,4 @@ It plays 30 game hours and streams them to NEAR testnet, where every merchant an
 - `sim/engine.ts`: trades, shocks, closures, community funds, shares, dividends
 - `sim/fastforward.ts`: the headless week
 - `contracts/items/src/lib.rs`: the NEP-245 contract
-- `server/rounds.ts`: how self-signed settlements stay in a safe order
+- `server/chain/rounds.ts`: how self-signed settlements stay in a safe order

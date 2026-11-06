@@ -1,20 +1,20 @@
 /** Dev server: `npm run server`. Login links are printed to the console instead of emailed. */
 import 'dotenv/config';
-import { AccountStore } from './accounts';
-import { createApp } from './api';
-import { Auth } from './auth';
-import { Game } from './game';
-import { loadGame, saveGame } from './store';
-import { loadEnv } from './chain';
-import { ChainPort, offlineChain, realChain } from './relayer';
-import { loadSecrets } from './secrets';
-import { agentChain } from './agent-chain';
-import { ChainSync } from './chainsync';
-import { WalletStore } from './wallets';
+import { AccountStore } from './accounts/accounts';
+import { createApp } from './http/api';
+import { Auth } from './http/auth';
+import { Game } from './game/game';
+import { loadGame, saveGame } from './game/store';
+import { loadEnv } from './chain/chain';
+import { ChainPort, offlineChain, realChain } from './chain/relayer';
+import { loadSecrets } from './accounts/secrets';
+import { agentChain } from './chain/agent-chain';
+import { ChainSync } from './chain/chainsync';
+import { WalletStore } from './accounts/wallets';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { resendMailer } from './mailer';
-import { createVoice } from './voice';
+import { resendMailer } from './http/mailer';
+import { createVoice } from './voice/voice';
 
 /** The built web app. When it exists this server serves the game's pages too (see Dockerfile). */
 const WEB_DIST = resolve('web/dist');

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { Game } from '../server/game';
+import { Game } from '../server/game/game';
 import { refreshState, transferCoins } from './engine';
 import { runWeek } from './run';
 import { COINS, LedgerEntry, World } from './world';

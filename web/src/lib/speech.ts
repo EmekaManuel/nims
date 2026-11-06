@@ -70,3 +70,13 @@ export function playClip(url: string, onFail: () => void): () => void {
     return () => { stopped = true; };
   }
 }
+
+/** Say a reply out loud: the natural-speech clip if there is one (falling back to the browser's voice if it won't play), else the browser's voice. */
+export function sayReply(text: string, audio: string | null, who: string, tone: Tone): () => void {
+  if (audio) {
+    const stop = playClip(audio, () => speak(text, who, tone));
+    return () => { stop(); stopSpeaking(); };
+  }
+  speak(text, who, tone);
+  return stopSpeaking;
+}

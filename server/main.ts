@@ -16,6 +16,7 @@ import { resolve } from 'node:path';
 import { resendMailer } from './http/mailer';
 import { createChat } from './voice/llm';
 import { createGazette } from './voice/gazette';
+import { createHaggler } from './voice/haggle';
 import { createVoice } from './voice/voice';
 import { createSpeaker } from './voice/speaker';
 
@@ -85,6 +86,7 @@ const app = createApp({
   speaker: process.env.ELEVENLABS_API_KEY?.trim() ? createSpeaker({ apiKey: process.env.ELEVENLABS_API_KEY.trim().split(/\s+/)[0], voices: process.env.ELEVENLABS_VOICES ? JSON.parse(process.env.ELEVENLABS_VOICES) : undefined, defaultVoice: process.env.ELEVENLABS_VOICE || undefined, model: process.env.ELEVENLABS_MODEL || undefined }) : undefined,
   voice: ai ? createVoice({ chat: ai }) : undefined,
   gazette: ai ? createGazette({ chat: ai }) : undefined,
+  haggler: ai ? createHaggler({ chat: ai }) : undefined,
   mailer: process.env.RESEND_API_KEY ? resendMailer(process.env.RESEND_API_KEY, process.env.MAIL_FROM ?? 'Nims <onboarding@resend.dev>') : {
     async sendLoginLink(email, link) {
       console.log(`[dev mailer] login link for ${email}: ${link}`);

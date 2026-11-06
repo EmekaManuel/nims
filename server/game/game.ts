@@ -14,9 +14,10 @@ import {
   activeShock, addNote, buyFromMerchant, buyShares, carryCost, contributeToFund, gatherRate, merchantItems, openOwnerStall, ownerStallOf,
   publicSharesLeft, quoteFor, refreshState, sellShares, sellToMerchant, sharePrice, STALL_COST, STALL_MARKETS, tick, transferCoins,
 } from '../../sim/engine';
-import { clampPlayerPrice, MAX_MULT, MIN_MULT } from '../../merchants/pricing';
+import { clampPlayerPrice, MAX_MULT, MIN_MULT, type Personality } from '../../merchants/pricing';
 import type { VoiceFacts } from '../voice/voice';
 import type { GazetteFacts } from '../voice/gazette';
+import type { HaggleFacts } from '../voice/haggle';
 import { gather } from '../../sim/players';
 import { addPlayer, BASE_PRICE, CAPACITY, CARRY_VALUE, createWorld, Item, MARKETS, MarketId, Merchant, Player, Vehicle, World } from '../../sim/world';
 
@@ -93,6 +94,8 @@ export interface ActionResult {
   ok: boolean;
   /** Plain-English line to show the player. */
   message: string;
+  /** Set when the player won a haggle, so the page can ask for the merchant's reaction. */
+  haggled?: { merchant: string; name: string; personality: Personality };
 }
 
 const fail = (message: string): ActionResult => ({ ok: false, message });
@@ -103,6 +106,8 @@ export class Game {
   private humans = new Map<string, Player>();
   /** player id -> merchant id -> hour of the last haggle (one haggle per merchant per hour). */
   private haggled = new Map<string, number>();
+  /** email -> the last haggle they won, so the merchant's reaction can be written from facts the server holds (not from anything the page sends). Not saved. */
+  private lastHaggle = new Map<string, HaggleFacts>();
   private progress = new Map<string, Progress>();
   /** email -> delivery orders (open ones, and recent finished ones for display). */
   private orders = new Map<string, Order[]>();
@@ -408,11 +413,12 @@ export class Game {
     if (trip) return trip;
     const sold = sellToMerchant(this.w, p, m, item, Math.min(units, have), 0, mult);
     if (sold === 0) return fail(`${m.name} could not take any ${item} right now.`);
+    if (haggle) this.lastHaggle.set(email, { id: m.id, merchant: m.name, personality: m.personality, item, side: 'sold', units: sold, usual: q.buyPrice, deal: Math.round(q.buyPrice * mult), pct: Math.round((mult - 1) * 100) });
     const fareTaken = this.settleFare(p);
     this.prog(email).marketsSold.add(m.market);
     this.checkDone(email);
     this.tellOwner(m, p, `bought ${sold} ${item} from`, `sold you`, sold, item, 'sell');
-    return ok(`Sold ${sold} ${item} to ${m.name}.${haggle ? ` You haggled a ${Math.round((mult - 1) * 100)}% better price.` : ''}${fareTaken > 0 ? ` The fare for the trip (${fareTaken} coins) came out of the sale.` : ''}${(p.fareOwed ?? 0) > 0 ? ` You still owe ${p.fareOwed} coins for the trip.` : ''}`);
+    return this.withHaggle(ok(`Sold ${sold} ${item} to ${m.name}.${haggle ? ` You haggled a ${Math.round((mult - 1) * 100)}% better price.` : ''}${fareTaken > 0 ? ` The fare for the trip (${fareTaken} coins) came out of the sale.` : ''}${(p.fareOwed ?? 0) > 0 ? ` You still owe ${p.fareOwed} coins for the trip.` : ''}`), haggle, m);
   }
 
   buy(email: string, merchantId: string, item: Item, units: number, haggle = false): ActionResult {
@@ -428,10 +434,22 @@ export class Game {
     if (haggle && mult === 1) return fail('You already haggled with them this hour.');
     const trip = this.travelTo(p, m.market, false);
     if (trip) return trip;
+    const q = quoteFor(this.w, m, item, p);
     const bought = buyFromMerchant(this.w, p, m, item, Math.min(units, room), Infinity, mult);
     if (bought === 0) return fail(`You could not buy any ${item} (out of stock, or not enough cash).`);
+    if (haggle) this.lastHaggle.set(email, { id: m.id, merchant: m.name, personality: m.personality, item, side: 'bought', units: bought, usual: q.sellPrice, deal: Math.round(q.sellPrice / mult), pct: Math.round((mult - 1) * 100) });
     this.tellOwner(m, p, '', '', bought, item, 'buy');
-    return ok(`Bought ${bought} ${item} from ${m.name}.`);
+    return this.withHaggle(ok(`Bought ${bought} ${item} from ${m.name}.`), haggle, m);
+  }
+
+  /** Tag a successful haggle so the page can ask for the merchant's reaction. */
+  private withHaggle(r: ActionResult, haggle: boolean, m: Merchant): ActionResult {
+    return haggle ? { ...r, haggled: { merchant: m.id, name: m.name, personality: m.personality } } : r;
+  }
+
+  /** The facts of this player's last won haggle, for the merchant's reaction. */
+  haggleFacts(email: string): HaggleFacts | null {
+    return this.lastHaggle.get(email) ?? null;
   }
 
   /** One haggle per merchant per in-game hour. A regular gets a bigger swing (2%–8%). Returns 1 if not allowed. */

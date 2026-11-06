@@ -15,6 +15,7 @@ import { Game } from '../game/game';
 import type { Voice } from '../voice/voice';
 import type { Speaker } from '../voice/speaker';
 import type { Gazette } from '../voice/gazette';
+import type { Haggler } from '../voice/haggle';
 import { runFastForward, sanitize, FastForwardResult } from '../../sim/fastforward';
 import { BASE_PRICE, createMerchants } from '../../sim/world';
 
@@ -45,6 +46,8 @@ export interface AppDeps {
   speaker?: Speaker;
   /** Optional: headlines for the town's recent events. Without it the News tab shows only the plain list. */
   gazette?: Gazette;
+  /** Optional: the merchant's reaction after the player wins a haggle. Without it the plain result stands. */
+  haggler?: Haggler;
   /** Folder of the built web app (web/dist). When set, this server also serves the game's pages, so one process hosts everything. */
   staticDir?: string;
   /** Minimum gap between two different fast-forward runs. Default 500ms; tests set 0. */
@@ -220,6 +223,13 @@ export function createApp(d: AppDeps) {
         if (!facts) return send(res, 200, { text: null, audio: null });
         const text = d.voice ? await d.voice.say(facts) : null;
         const id = d.speaker?.register(facts, text ?? facts.tooltip);
+        return send(res, 200, { text, audio: id ? `/game/voice/audio?id=${id}` : null });
+      }
+      // The merchant's reaction to the player's last won haggle. Written from facts the server stored, never from the request.
+      if (req.method === 'GET' && url.pathname === '/game/haggle') {
+        const facts = d.haggler ? g.haggleFacts(email) : null;
+        const text = facts && d.haggler ? await d.haggler.reply(facts) : null;
+        const id = text && facts ? d.speaker?.register({ id: facts.id, personality: facts.personality }, text) : null;
         return send(res, 200, { text, audio: id ? `/game/voice/audio?id=${id}` : null });
       }
       if (req.method === 'GET' && url.pathname === '/game/gazette') {

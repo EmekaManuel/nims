@@ -112,6 +112,8 @@ export interface ActionResponse {
   ok: boolean;
   message: string;
   state?: GameState;
+  /** Set when the player won a haggle: ask for the merchant's reaction. */
+  haggled?: { merchant: string; name: string; personality: 'cautious' | 'greedy' | 'loyal' };
 }
 
 async function json<T>(path: string, init?: RequestInit): Promise<{ status: number; body: T }> {
@@ -139,6 +141,16 @@ export const api = {
   async voice(merchant: string, item: Item): Promise<VoiceReply> {
     try {
       const r = await json<Partial<VoiceReply>>(`/game/voice?merchant=${encodeURIComponent(merchant)}&item=${encodeURIComponent(item)}`);
+      return r.status === 200 ? { text: r.body.text ?? null, audio: r.body.audio ?? null } : { text: null, audio: null };
+    } catch {
+      return { text: null, audio: null };
+    }
+  },
+
+  /** The merchant's reaction to the player's last won haggle (`text`, plus `audio` natural speech), or nulls. Never throws. */
+  async haggle(): Promise<VoiceReply> {
+    try {
+      const r = await json<Partial<VoiceReply>>('/game/haggle');
       return r.status === 200 ? { text: r.body.text ?? null, audio: r.body.audio ?? null } : { text: null, audio: null };
     } catch {
       return { text: null, audio: null };

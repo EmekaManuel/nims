@@ -266,6 +266,7 @@ th { font-size: .7rem; letter-spacing: .06em; text-transform: uppercase; color: 
 
 /* ---- toasts, dialogs, login ---- */
 .toast { position: fixed; z-index: 20; left: 50%; bottom: 88px; transform: translateX(-50%); max-width: min(32rem, 92vw); padding: .7rem 1.1rem; border-radius: 12px; font-weight: 600; box-shadow: var(--shadow-lg); background: var(--ink); color: #fff; border-left: 5px solid var(--good); }
+.toast .toastline { margin-top: .35rem; font-weight: 500; font-style: italic; opacity: .92; }
 .toast.bad { border-left-color: #ff7a7a; }
 .aria-live { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 .scrim { position: fixed; inset: 0; z-index: 30; background: rgba(15, 26, 42, .55); backdrop-filter: blur(3px); display: grid; place-items: center; padding: 16px; overflow: auto; }

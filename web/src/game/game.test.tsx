@@ -9,6 +9,7 @@ import { Mascot } from '../art/Mascot';
 import { Mission } from './Mission';
 import { setSound, sfx, soundOn } from '../lib/sfx';
 import type { Actions } from './Panels';
+import { merchantReaction } from '../lib/haggle';
 
 const state = fixture as unknown as GameState;
 const act = (): Actions => new Proxy({}, { get: () => vi.fn() }) as Actions;
@@ -159,5 +160,21 @@ describe('sound effects', () => {
   it('never breaks the game when audio is unavailable', () => {
     vi.stubGlobal('AudioContext', undefined);
     expect(() => { sfx.coin(); sfx.pop(); sfx.error(); sfx.win(); }).not.toThrow();
+  });
+});
+
+describe('merchant reaction to a haggle', () => {
+  const who = { merchant: 'anil', name: 'Anil Metals', personality: 'greedy' as const };
+  it('returns the line to show and says it in the merchant\'s voice', async () => {
+    const say = vi.fn();
+    const line = await merchantReaction(who, () => Promise.resolve({ text: 'You drive a hard bargain, friend.', audio: '/game/voice/audio?id=abc' }), say);
+    expect(line).toBe('Anil Metals: \u201cYou drive a hard bargain, friend.\u201d');
+    expect(say).toHaveBeenCalledWith('You drive a hard bargain, friend.', '/game/voice/audio?id=abc', 'Anil Metals', 'greedy');
+  });
+  it('shows and says nothing when there is no reaction, or the request fails', async () => {
+    const say = vi.fn();
+    expect(await merchantReaction(who, () => Promise.resolve({ text: null, audio: null }), say)).toBeNull();
+    expect(await merchantReaction(who, () => Promise.reject(new Error('down')), say)).toBeNull();
+    expect(say).not.toHaveBeenCalled();
   });
 });

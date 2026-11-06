@@ -2,6 +2,7 @@ import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { ActionResponse, api, ChainProof, coins, Focus, GameState, GoalKind } from './api';
 import { DistrictMap, Popup, Selection, spotOf } from './game/Map';
 import { Confetti, Dock, Drawer, Tab } from './game/Dock';
+import { merchantReaction } from './lib/haggle';
 import { rankOf } from './lib/rank';
 import { setSound, sfx, soundOn } from './lib/sfx';
 import { SourcePanel, StallPanel, Actions } from './game/Panels';
@@ -107,7 +108,7 @@ function Game() {
   const [checked, setChecked] = useState(false);
   const [selected, setSelected] = useState<Selection>(null);
   const [tab, setTab] = useState<Tab | null>(null);
-  const [toast, setToast] = useState<{ ok: boolean; text: string } | null>(null);
+  const [toast, setToast] = useState<{ ok: boolean; text: string; line?: string } | null>(null);
   const [popups, setPopups] = useState<Popup[]>([]);
   const [confetti, setConfetti] = useState(0);
   const [sound, setSoundState] = useState(soundOn());
@@ -196,6 +197,15 @@ function Game() {
       setToast({ ok: r.ok, text: r.message });
       window.clearTimeout(timer.current);
       timer.current = window.setTimeout(() => setToast(null), 5000);
+      // Won a haggle? The merchant reacts in their own words, a moment later. The plain result above never waits for it.
+      if (r.ok && r.haggled) {
+        void merchantReaction(r.haggled, api.haggle).then((line) => {
+          if (!line) return;
+          setToast((t) => (t ? { ...t, line } : t));
+          window.clearTimeout(timer.current);
+          timer.current = window.setTimeout(() => setToast(null), 7000);
+        });
+      }
     });
   }, [addPopup]);
 
@@ -265,8 +275,8 @@ function Game() {
         {drawer && <Drawer title={drawer.title} onClose={() => (selected ? setSelected(null) : setTab(null))}>{drawer.body}</Drawer>}
       </main>
       <Dock tab={selected ? null : tab} onTab={openTab} newsCount={newsCount} />
-      <div className="aria-live" aria-live="polite">{toast?.text}</div>
-      {toast && <div className={`toast ${toast.ok ? 'good' : 'bad'}`}>{toast.text}</div>}
+      <div className="aria-live" aria-live="polite">{toast?.text} {toast?.line}</div>
+      {toast && <div className={`toast ${toast.ok ? 'good' : 'bad'}`}>{toast.text}{toast.line && <div className="toastline">{toast.line}</div>}</div>}
       {confetti > 0 && <Confetti key={confetti} />}
       {help && <HowToPlay onClose={closeHelp} />}
       {!help && state.away && <AwayModal away={state.away} onClose={() => act.ack()} />}

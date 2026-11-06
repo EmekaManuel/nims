@@ -66,3 +66,15 @@ export function createChat(o: ChatOptions): Chat {
     },
   };
 }
+
+/**
+ * Clean up a model's reply and keep it only if it is safe to show: one short line, every number in it taken from
+ * `facts` (the text the model was given), and none of the forbidden words. Returns null otherwise.
+ */
+export function acceptLine(raw: string, facts: string, max = 260): string | null {
+  let t = raw.replace(/<think>[\s\S]*?<\/think>/gi, ' ').replace(/\s+/g, ' ').trim();
+  t = t.replace(/^["“”']+|["“”']+$/g, '').trim();
+  if (t.length < 12 || t.length > max || FORBIDDEN.test(t)) return null;
+  const allowed = new Set(numbersIn(facts));
+  return numbersIn(t).every((n) => allowed.has(n)) ? t : null;
+}

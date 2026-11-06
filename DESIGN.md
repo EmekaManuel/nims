@@ -159,3 +159,12 @@ The economy is the gameplay, so it has to stay healthy without a human in it. Th
 | Ranks | 3,000 / 7,000 / 15,000 / 35,000 | A new rank every few minutes early on. |
 
 Before this pass a calm player reached the goal in about 40 seconds and Tycoon in 2.5 minutes: free goods plus an oversupplied market made money a fountain. After it, the same bot takes about 12 to 20 minutes for the goal.
+
+## 9. Getting back up when broke
+
+A player with no coins, nothing carried and no shares would be stuck: sources sell at wholesale, so nothing is free. Two small, capped ways back:
+
+- **Scrap heap.** When you hold under twice the cheapest wholesale price and carry nothing, you can search for one piece of iron, at most once every 3 in-game hours. Holding the iron (or having the coins) ends eligibility, so it cannot be farmed.
+- **Odd jobs board.** Merchants are nearly always a little under their target stock, and the farms, scrap spots and wholesaler have goods to spare. A short merchant posts a job: collect up to 5 units at the source (free for the courier, taken from the source's stock, reserved so they cannot be sold elsewhere), carry them over, and on delivery the merchant pays the goods' cost to the town plus a reward (about 10% of the usual price per unit, plus a flat 30). Nothing is printed: the merchant's own cash pays. Jobs are open only while you hold under 10 times the cheapest wholesale price, one at a time, and one every 8 in-game hours. A job that is dropped or lapses (48 hours) sends the goods back to the source.
+
+Measured: from 5 coins a player is back above 600 within 3 to 5 minutes at the default tick, and jobs then close to them. A deliberate exploiter who parks coins in shares to stay eligible gains about 5,000 net worth per hour. `server/game/recovery.test.ts` guards the ledger balance, the reservation and the farming cap.

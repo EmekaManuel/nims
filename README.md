@@ -8,7 +8,7 @@
 
 [Play it live](https://nims-app.up.railway.app) · [Demo video (100 s)](docs/nims-demo.mp4) · [Judge walk-through](docs/DEMO.md) · Contract: `oja-items.testnet`
 
-![NEAR testnet](https://img.shields.io/badge/NEAR-testnet-00ec97) ![NEP-245](https://img.shields.io/badge/items-NEP--245-blue) ![tests](https://img.shields.io/badge/tests-333%20passing-brightgreen) ![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)
+![NEAR testnet](https://img.shields.io/badge/NEAR-testnet-00ec97) ![NEP-245](https://img.shields.io/badge/items-NEP--245-blue) ![tests](https://img.shields.io/badge/tests-357%20passing-brightgreen) ![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)
 
 </div>
 
@@ -22,6 +22,7 @@ Game economies are usually scripts: prices follow a table, NPCs trade nothing, a
 - **Prices explain themselves.** Hover a price and the merchant says why: *"I'm holding 140 iron and I only want 50. Four people sold me iron this hour."*
 - **Players move markets.** Flooding one good crashes its price for everyone. A merchant with no cash closes; a community fund can reopen it.
 - **Players own parts of the economy.** Buy up to 49% of a merchant for a share of its nightly profit, or open a stall and set your own prices.
+- **A way back from broke.** Nearly out of coins with nothing to sell? Search the scrap heap, or take an odd job: a merchant who is short of a good pays you to fetch it, and pays the cost and your reward from their own till. Jobs are open only while you are short of coins, with a cooldown, so they are a way back up and not a way to farm.
 - **Delivery orders.** State the goods and the lowest price you will take; the town's carriers (a solver run by the game) sell for you when the price allows.
 
 The chain is invisible: email sign-in, no wallet, no seed phrase, no gas prompt.
@@ -142,8 +143,8 @@ The full design (world, game loop, on-chain design, balance numbers) is in [DESI
 ## Tests and chain verification
 
 ```bash
-npm test               # economy, pricing, server, API       (203 tests)
-npm run test:web       # the UI against real game state      (130 tests)
+npm test               # economy, pricing, server, API       (221 tests)
+npm run test:web       # the UI against real game state      (136 tests)
 npm run contract:test  # the NEP-245 contract                (needs Rust)
 ```
 

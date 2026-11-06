@@ -11,6 +11,7 @@ import { setSound, sfx, soundOn } from '../lib/sfx';
 import type { Actions } from './Panels';
 import { merchantReaction } from '../lib/haggle';
 import { Recovery } from './Recovery';
+import { DealsDrawer } from './DealsDrawer';
 import type { JobView } from '../api';
 
 const state = fixture as unknown as GameState;
@@ -233,5 +234,71 @@ describe('the way back from broke', () => {
   it('works with an older server that sends neither field', () => {
     const { container } = render(<Recovery state={state} act={acts()} />);
     expect(container.textContent).toBe('');
+  });
+});
+
+describe('the deals drawer tabs', () => {
+  const job = (o: Partial<JobView> = {}): JobView => ({ id: 7, item: 'iron', units: 4, reward: 150, from: { id: 'iron', name: 'Scrap spot (iron)' }, to: { id: 'diego', name: 'Diego Hardware' }, hoursLeft: 30, ...o });
+  const st = (o: Partial<GameState>): GameState => ({ ...state, ...o });
+  const acts = () => ({ scavenge: vi.fn(), takeJob: vi.fn(), deliverJob: vi.fn(), dropJob: vi.fn() });
+  const fine = { help: { needed: false, scavengeIn: 0, canWork: false, workIn: 0 }, jobs: { board: [job()], active: null } };
+  const lowOnCoins = { help: { needed: false, scavengeIn: 0, canWork: true, workIn: 0 }, jobs: { board: [job(), job({ id: 8 })], active: null } };
+  const broke = { help: { needed: true, scavengeIn: 0, canWork: true, workIn: 0 }, jobs: { board: [job()], active: null } };
+  const selected = () => screen.getAllByRole('tab').find((t) => t.getAttribute('aria-selected') === 'true')!.textContent;
+
+  it('opens on the best deals when you are doing fine, and switches to the odd jobs and back', () => {
+    render(<DealsDrawer state={st(lowOnCoins)} act={acts()} onFocus={vi.fn()} />);
+    expect(screen.getAllByRole('tab').map((t) => t.textContent?.replace(/\d+$/, ''))).toEqual(['Best deals', 'Odd jobs']);
+    expect(selected()).toBe('Best deals');
+    expect(screen.getByText('Best deals right now')).toBeTruthy();
+    fireEvent.click(screen.getByRole('tab', { name: /Odd jobs/ }));
+    expect(selected()).toMatch(/Odd jobs/);
+    expect(screen.getAllByRole('button', { name: 'Take this job' })).toHaveLength(2);
+    expect(screen.queryByText('Best deals right now')).toBeNull();
+    fireEvent.click(screen.getByRole('tab', { name: 'Best deals' }));
+    expect(screen.getByText('Best deals right now')).toBeTruthy();
+  });
+
+  it('opens on the odd jobs when you need a hand, or hold a job', () => {
+    const { unmount } = render(<DealsDrawer state={st(broke)} act={acts()} onFocus={vi.fn()} />);
+    expect(selected()).toMatch(/Odd jobs/);
+    expect(screen.getByText('Need a hand?')).toBeTruthy();
+    unmount();
+    render(<DealsDrawer state={st({ help: { needed: false, scavengeIn: 0, canWork: false, workIn: 0 }, jobs: { board: [], active: job() } })} act={acts()} onFocus={vi.fn()} />);
+    expect(selected()).toMatch(/Odd jobs/);
+    expect(screen.getByRole('button', { name: 'Deliver to Diego Hardware' })).toBeTruthy();
+  });
+
+  it('badges the odd jobs tab with how many there are, in red when you need them', () => {
+    const { unmount } = render(<DealsDrawer state={st(lowOnCoins)} act={acts()} onFocus={vi.fn()} />);
+    expect(screen.getByLabelText('2 jobs').className).not.toContain('urgent');
+    unmount();
+    render(<DealsDrawer state={st(broke)} act={acts()} onFocus={vi.fn()} />);
+    expect(screen.getByLabelText('1 job').className).toContain('urgent');
+  });
+
+  it('shows no badge and a friendly note to someone who is doing fine', () => {
+    render(<DealsDrawer state={st(fine)} act={acts()} onFocus={vi.fn()} />);
+    expect(screen.queryByLabelText(/job/)).toBeNull();
+    fireEvent.click(screen.getByRole('tab', { name: /Odd jobs/ }));
+    expect(screen.getByText(/Nothing for you right now/)).toBeTruthy();
+  });
+
+  it('works with the arrow keys, and only the selected tab is in the tab order', () => {
+    render(<DealsDrawer state={st(lowOnCoins)} act={acts()} onFocus={vi.fn()} />);
+    const [deals, jobs] = screen.getAllByRole('tab') as HTMLButtonElement[];
+    expect(deals.tabIndex).toBe(0);
+    expect(jobs.tabIndex).toBe(-1);
+    fireEvent.keyDown(deals, { key: 'ArrowRight' });
+    expect(selected()).toMatch(/Odd jobs/);
+    expect(document.activeElement).toBe(jobs);
+    fireEvent.keyDown(jobs, { key: 'ArrowLeft' });
+    expect(selected()).toBe('Best deals');
+  });
+
+  it('works with an older server that sends neither field', () => {
+    render(<DealsDrawer state={state} act={acts()} onFocus={vi.fn()} />);
+    fireEvent.click(screen.getByRole('tab', { name: /Odd jobs/ }));
+    expect(screen.getByText(/Nothing for you right now/)).toBeTruthy();
   });
 });

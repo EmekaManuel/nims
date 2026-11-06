@@ -12,13 +12,20 @@ const left = (h: number) => (h >= 24 ? `${Math.round(h / 24)} day${Math.round(h 
  * board that is always there. A job is carried from a merchant who has too much of a good to one who is short of it,
  * and the short merchant pays the reward from their own till.
  */
-export function Recovery({ state, act }: { state: GameState; act: Act }) {
+/** What the Odd jobs tab has to show: a hand for someone nearly broke, and the board for anyone short of coins (or holding a job). */
+export function recoveryView(state: GameState) {
   const help = state.help;
   const board = state.jobs?.board ?? [];
   const mine = state.jobs?.active ?? null;
   // Jobs are for people short of coins (or already holding one). Everyone else just trades.
   const canWork = help ? help.canWork : true;
   const showJobs = !!mine || (canWork && board.length > 0);
+  const showHelp = !!help?.needed;
+  return { help, board, mine, showJobs, showHelp, any: showHelp || showJobs, urgent: showHelp || !!mine };
+}
+
+export function Recovery({ state, act }: { state: GameState; act: Act }) {
+  const { help, board, mine, showJobs } = recoveryView(state);
   if (!help?.needed && !showJobs) return null;
   return (
     <>

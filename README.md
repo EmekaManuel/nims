@@ -8,7 +8,7 @@
 
 [Play it live](https://nims-app.up.railway.app) · [Demo video (100 s)](docs/nims-demo.mp4) · [Judge walk-through](docs/DEMO.md) · Contract: `oja-items.testnet`
 
-![NEAR testnet](https://img.shields.io/badge/NEAR-testnet-00ec97) ![NEP-245](https://img.shields.io/badge/items-NEP--245-blue) ![tests](https://img.shields.io/badge/tests-357%20passing-brightgreen) ![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)
+![NEAR testnet](https://img.shields.io/badge/NEAR-testnet-00ec97) ![NEP-245](https://img.shields.io/badge/items-NEP--245-blue) ![tests](https://img.shields.io/badge/tests-363%20passing-brightgreen) ![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)
 
 </div>
 
@@ -144,7 +144,7 @@ The full design (world, game loop, on-chain design, balance numbers) is in [DESI
 
 ```bash
 npm test               # economy, pricing, server, API       (221 tests)
-npm run test:web       # the UI against real game state      (136 tests)
+npm run test:web       # the UI against real game state      (142 tests)
 npm run contract:test  # the NEP-245 contract                (needs Rust)
 ```
 

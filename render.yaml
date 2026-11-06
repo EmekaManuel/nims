@@ -26,3 +26,7 @@ services:
         sync: false
       - key: CONTRACT_ID
         sync: false
+      - key: NEAR_AI_API_KEY   # optional: merchant voice, gazette, haggling reactions
+        sync: false
+      - key: ELEVENLABS_API_KEY  # optional: natural spoken merchants
+        sync: false

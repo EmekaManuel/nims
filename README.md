@@ -72,6 +72,16 @@ npm run setup     # installs the server and the web app
 npm run dev       # starts both; open the address Vite prints (usually http://localhost:5173)
 ```
 
+**Optional extras** (all off unless you set them in `.env`; see `.env.example`):
+
+| Variable | What it turns on |
+|---|---|
+| `NEAR_AI_API_KEY` | NEAR AI Cloud writes the merchant voice, the town gazette and haggling reactions. Key from [cloud.near.ai](https://cloud.near.ai). Optional `NEAR_AI_MODEL`. |
+| `ELEVENLABS_API_KEY` | Natural spoken merchants (one stock voice each). Without it the browser's own voice is used. Optional `ELEVENLABS_VOICES`, `ELEVENLABS_VOICE`, `ELEVENLABS_MODEL`. |
+| `TICK_MS` | Real milliseconds per game hour (default 10000). Lower is a faster, twitchier market. |
+
+Every one of these falls back to plain text and the browser voice, so the game plays the same without them.
+
 No `.env` is needed. Without testnet credentials the game plays the same and does not settle to a chain. The game saves to `server/data/game.json` and resumes after a restart. In development the sign-in link is shown on screen instead of emailed.
 
 ## How it works
@@ -111,10 +121,10 @@ sim/                   Headless economy: engine, world, simulated players, fast-
 server/
   main.ts              Entry point: wires everything and starts the server
   http/                HTTP API, email-link login, mailer
-  game/                Live game state and saving
+  game/                Live game state, saving, and the odd jobs board
   chain/               NEAR client, relayer, settlement batches, rounds, live settler
   accounts/            Player accounts, merchant wallets, key encryption, secrets
-  voice/               Merchant voice via NEAR AI Cloud (optional)
+  voice/               Optional NEAR AI Cloud writing (merchant voice, gazette, haggling) and ElevenLabs speech
   scripts/             Testnet deploy and live-check scripts
 contracts/items/       The NEP-245 contract (Rust, near-sdk)
 web/src/

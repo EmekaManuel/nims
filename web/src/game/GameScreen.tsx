@@ -1,3 +1,4 @@
+import { lazy, Suspense, useState } from 'react';
 import type { Actions } from './Panels';
 import type { Focus, GameState } from '../api';
 import { BusinessPanel, StallOffer } from './Business';
@@ -9,6 +10,8 @@ import { Mission } from './Mission';
 import { NewsFeed } from './NewsFeed';
 import { SourcePanel, StallPanel } from './Panels';
 import { PriceBoard } from './PriceBoard';
+
+const DistrictMap3D = lazy(() => import('./Map3D').then((m) => ({ default: m.DistrictMap3D })));
 
 export interface ToastView { ok: boolean; text: string; line?: string }
 
@@ -45,6 +48,8 @@ export interface GameScreenProps {
  */
 export function GameScreen(p: GameScreenProps) {
   const { state, act } = p;
+  const [view3d, setView3d] = useState(() => { try { return localStorage.getItem('nims-3d') === '1'; } catch { return false; } });
+  const toggle3d = () => setView3d((v) => { try { localStorage.setItem('nims-3d', v ? '0' : '1'); } catch { /* ignore */ } return !v; });
   const sel = p.selected;
   const stall = sel?.kind === 'stall' ? state.stalls.find((s) => s.id === sel.id) : undefined;
 
@@ -64,7 +69,12 @@ export function GameScreen(p: GameScreenProps) {
       <Hud state={state} act={act} onHelp={p.onHelp} sound={p.sound} onSound={p.onSound} peakWorth={p.peakWorth} />
       <main className="stage">
         <div className="viewport">
-          <div className="mapscroll"><DistrictMap state={state} selected={p.selected} onSelect={p.onSelect} popups={p.popups} /></div>
+          <div className="mapscroll">
+            {view3d
+              ? <Suspense fallback={<div className="map map3d-loading">Loading 3D town…</div>}><DistrictMap3D state={state} selected={p.selected} onSelect={p.onSelect} popups={p.popups} /></Suspense>
+              : <DistrictMap state={state} selected={p.selected} onSelect={p.onSelect} popups={p.popups} />}
+            <button type="button" className="view-toggle" onClick={toggle3d} aria-pressed={view3d}>{view3d ? '2D map' : '3D view'}</button>
+          </div>
           <Mission state={state} onFocus={p.onFocus} onPickGoal={p.onPickGoal} />
         </div>
         {drawer && <Drawer title={drawer.title} onClose={p.onDrawerClose}>{drawer.body}</Drawer>}

@@ -30,3 +30,7 @@ services:
         sync: false
       - key: ELEVENLABS_API_KEY  # optional: natural spoken merchants
         sync: false
+      - key: SPUTNIK_DAO_ID    # optional: record each council vote on this testnet SputnikDAO
+        sync: false
+      - key: OUTLAYER_API_KEY  # optional secret: OutLayer-custodied Town Clerk signs the DAO record (set in the dashboard only)
+        sync: false

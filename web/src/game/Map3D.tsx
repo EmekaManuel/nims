@@ -1,10 +1,11 @@
-import { useMemo, useRef, useState } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
+import { createContext, useContext, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Html, OrbitControls, RoundedBox } from '@react-three/drei';
+import { Color } from 'three';
 import type * as THREE from 'three';
 import type { GameState, Item, MarketId, Stall } from '../api';
 import { PLOTS, STALL_POS, ZONES, crateCount, lightAt, type Popup, type Selection } from './Map';
-import { EDGES, LAMPS, newWalk, NODES, SOURCE_POS, SOURCE_STOP, stepWalk, stopForStall, TREES, U, wx, wz, type Stop, type Walk } from './paths';
+import { EDGES, LAMPS, newWalk, NODES, seeded, SOURCE_POS, SOURCE_STOP, stepWalk, stopForStall, TREES, U, walkAt, wx, wz, type Stop, type Walk } from './paths';
 
 const SOURCE_COLOR: Record<string, string> = {
   tomatoes: '#d93b2b', pepper: '#e24a22', iron: '#8e99a8', 'copper wire': '#c8782e', cotton: '#e6ebf3',
@@ -19,6 +20,36 @@ const AVATARS = ['#2f9e5f', '#e2557b', '#7b4de0', '#eb6834', '#18a999', '#2a6fdb
 const avatarColor = (id: string) => AVATARS[[...id].reduce((a, c) => a + c.charCodeAt(0), 0) % AVATARS.length];
 
 const WALKER_COLORS = ['#e2557b', '#eb6834', '#2a6fdb', '#0e9fb0', '#7b4de0', '#c98a00', '#18a999'];
+
+/**
+ * The demo video drives the town from outside: the time, the camera, and when a frame has been drawn. In the live game none of this
+ * is set and everything runs on the clock as before. In the video every moving part is a pure function of `t`, so a frame can be
+ * drawn on its own, in any order.
+ */
+export interface VideoDrive {
+  /** Seconds since the start of the video's scene. */
+  t: number;
+  camera: { position: [number, number, number]; target: [number, number, number]; fov?: number };
+  /** Where the townsfolk shop. Fixed for the whole video, so a walker's route does not change when the picture cuts to another shot. */
+  walkStops?: Stop[];
+  /** Pixel ratio of the canvas: 2 keeps it sharp when the video zooms in. */
+  dpr?: number;
+  /** Show the markets' name banners high above them (clear in wide shots, but they float over stalls in a close-up). */
+  banners?: boolean;
+  /** Called once the frame has been drawn. */
+  onDrawn?: () => void;
+}
+const Drive = createContext<VideoDrive | null>(null);
+
+/** Run `cb` every frame with the time in seconds: the live clock in the game, the video's own time in the video. */
+function useTick(cb: (t: number) => void) {
+  const drive = useContext(Drive);
+  useFrame((state) => { if (!drive) cb(state.clock.elapsedTime); });
+  useLayoutEffect(() => { if (drive) cb(drive.t); });
+}
+
+/** A colour part of the way from `a` to `b`. */
+const mix = (a: string, b: string, k: number) => `#${new Color(a).lerp(new Color(b), k).getHexString()}`;
 
 const label: React.CSSProperties = {
   background: 'rgba(22,38,74,.92)', color: '#fff', font: '600 12px system-ui, sans-serif', padding: '3px 8px',
@@ -40,8 +71,8 @@ function Person({ id, shirt, scale = 1, mode = 'idle', apron, cap }: { id: strin
   const legL = useRef<THREE.Group>(null), legR = useRef<THREE.Group>(null);
   const armL = useRef<THREE.Group>(null), armR = useRef<THREE.Group>(null);
   const body = useRef<THREE.Group>(null);
-  useFrame(({ clock }) => {
-    const t = clock.elapsedTime + (h % 10);
+  useTick((time) => {
+    const t = time + (h % 10);
     if (mode === 'walk') {
       const sw = Math.sin(t * 7) * 0.7;
       if (legL.current) legL.current.rotation.x = sw;
@@ -160,6 +191,12 @@ function Walker({ id, color, stops, speed, seed }: { id: string; color: string; 
   return <group ref={ref}><Person id={id} shirt={color} mode={mode} scale={1.1} /></group>;
 }
 
+/** The same shopper in the video: their place at time t is looked up, not accumulated. */
+function VideoWalker({ id, color, stops, speed, seed, t }: { id: string; color: string; stops: Stop[]; speed: number; seed: number; t: number }) {
+  const w = walkAt(seed, stops, speed, t);
+  return <group position={[w.x, 0, w.z]} rotation={[0, w.yaw, 0]}><Person id={id} shirt={color} mode={w.moving ? 'walk' : 'idle'} scale={1.1} /></group>;
+}
+
 /** The paved walkways, drawn along the same lines the walkers follow. */
 function Walkways() {
   return (
@@ -182,10 +219,10 @@ function Walkways() {
 /** A delivery truck driving the far south road. */
 function Truck() {
   const ref = useRef<THREE.Group>(null);
-  useFrame(({ clock }) => {
+  useTick((time) => {
     const g = ref.current;
     if (!g) return;
-    const t = ((clock.elapsedTime / 38) + 0.2) % 1;
+    const t = ((time / 38) + 0.2) % 1;
     g.position.set(wx(30 + 940 * t), 0, wz(730)); // the far south road, beyond every tree and stall
   });
   return <group ref={ref} rotation={[0, Math.PI / 2, 0]}><Vehicle kind="van" color="#d6336c" /></group>;
@@ -194,9 +231,9 @@ function Truck() {
 function Lamp({ x, z, on }: { x: number; z: number; on: boolean }) {
   return (
     <group position={[x, 0, z]}>
-      <mesh position={[0, 0.8, 0]} castShadow><cylinderGeometry args={[0.025, 0.035, 1.6, 8]} /><meshStandardMaterial color="#26364a" /></mesh>
+      <mesh position={[0, 0.8, 0]} castShadow><cylinderGeometry args={[0.025, 0.035, 1.6, 8]} /><meshStandardMaterial color="#556277" /></mesh>
       <mesh position={[0, 1.65, 0]}><sphereGeometry args={[0.1, 12, 12]} /><meshStandardMaterial color="#ffe3a0" emissive="#ffc861" emissiveIntensity={on ? 2.2 : 0.15} /></mesh>
-      {on && <pointLight position={[0, 1.65, 0]} intensity={6} distance={5} color="#ffc861" />}
+      {on && <pointLight position={[0, 1.65, 0]} intensity={10} distance={7} color="#ffc861" />}
     </group>
   );
 }
@@ -204,7 +241,7 @@ function Lamp({ x, z, on }: { x: number; z: number; on: boolean }) {
 /** Festive season: bunting strung over the fabric market, with drifting confetti. */
 function Festive() {
   const ref = useRef<THREE.Group>(null);
-  useFrame(({ clock }) => { if (ref.current) ref.current.rotation.y = Math.sin(clock.elapsedTime * 0.4) * 0.02; });
+  useTick((time) => { if (ref.current) ref.current.rotation.y = Math.sin(time * 0.4) * 0.02; });
   const cols = ['#f2a900', '#d6336c', '#2a6fdb', '#2f8f4e'];
   return (
     <group ref={ref}>
@@ -314,7 +351,7 @@ function StallModel({ s, pos, selected, next, onSelect }: { s: Stall; pos: [numb
   const [a, b] = s.owner ? ['#f2b01e', '#fff8e6'] : CANOPY[s.market];
   const stripes = 10;
   const wood = '#8b6b4a';
-  const roofY = 1.55;
+  const roofY = 1.95; // tall enough that the shopkeeper's face shows under the awning
   return (
     <group position={[wx(pos[0]), 0, wz(pos[1])]} onClick={(e) => { e.stopPropagation(); onSelect(); }}
       onPointerOver={() => { document.body.style.cursor = 'pointer'; }} onPointerOut={() => { document.body.style.cursor = ''; }}>
@@ -326,8 +363,8 @@ function StallModel({ s, pos, selected, next, onSelect }: { s: Stall; pos: [numb
       {[-1.3, 1.3].map((x) => [-0.6, 0.6].map((z) => (
         <mesh key={`${x}${z}`} position={[x, roofY / 2, z]} castShadow><boxGeometry args={[0.07, roofY, 0.07]} /><meshStandardMaterial color={wood} /></mesh>
       )))}
-      <mesh position={[0, 0.95, -0.6]} castShadow><boxGeometry args={[2.6, 1.0, 0.04]} /><meshStandardMaterial color="#d8c3a0" /></mesh>
-      {[0.55, 0.85, 1.15].map((y) => <mesh key={y} position={[0, y, -0.57]}><boxGeometry args={[2.4, 0.03, 0.03]} /><meshStandardMaterial color={wood} /></mesh>)}
+      <mesh position={[0, 1.2, -0.6]} castShadow><boxGeometry args={[2.6, 1.5, 0.04]} /><meshStandardMaterial color="#d8c3a0" /></mesh>
+      {[0.55, 0.9, 1.25, 1.6].map((y) => <mesh key={y} position={[0, y, -0.57]}><boxGeometry args={[2.4, 0.03, 0.03]} /><meshStandardMaterial color={wood} /></mesh>)}
       {/* striped awning with a scalloped valance */}
       {Array.from({ length: stripes }, (_, i) => {
         const w = 2.8 / stripes;
@@ -353,10 +390,10 @@ function StallModel({ s, pos, selected, next, onSelect }: { s: Stall; pos: [numb
         </>
       )}
       {/* hanging sign */}
-      <mesh position={[0, 1.38, 0.78]}><boxGeometry args={[0.8, 0.14, 0.02]} /><meshStandardMaterial color="#16264a" /></mesh>
+      <mesh position={[0, 1.7, 0.8]}><boxGeometry args={[0.8, 0.14, 0.02]} /><meshStandardMaterial color="#16264a" /></mesh>
       {selected && <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}><ringGeometry args={[1.9, 2.05, 48]} /><meshBasicMaterial color="#f2b01e" /></mesh>}
       {next && <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}><ringGeometry args={[2.1, 2.25, 48]} /><meshBasicMaterial color="#d6336c" /></mesh>}
-      <Html zIndexRange={[5, 0]} position={[0, 2.2, 0]} center style={{ pointerEvents: 'none' }}>
+      <Html zIndexRange={[5, 0]} position={[0, 2.6, 0]} center style={{ pointerEvents: 'none' }}>
         <div style={label}>
           {s.owner?.mine && <span style={{ color: '#f2b01e' }}>YOURS · </span>}{s.name}
           <div style={{ fontSize: 10, color: closed ? '#ff9a9a' : s.state === 'struggling' ? '#ffc861' : '#7fe0a0' }}>
@@ -381,7 +418,7 @@ function PlotModel({ market, on, onSelect }: { market: MarketId; on: boolean; on
   );
 }
 
-function SourceModel({ item, label: text, detail, on, next, onSelect }: { item: Item; label: string; detail: string; on: boolean; next: boolean; onSelect: () => void }) {
+function SourceModel({ item, label: text, detail, on, next, onSelect, lit }: { item: Item; label: string; detail: string; on: boolean; next: boolean; onSelect: () => void; lit?: boolean }) {
   const p = SOURCE_POS[item];
   if (!p) return null;
   const crop = item === 'tomatoes' || item === 'pepper';
@@ -408,7 +445,11 @@ function SourceModel({ item, label: text, detail, on, next, onSelect }: { item: 
         <>
           {/* cotton shed full of fluffy bales */}
           <mesh position={[0, 0.5, 0]} castShadow><boxGeometry args={[2, 1, 1.2]} /><meshStandardMaterial color="#e6ebf3" /></mesh>
-          <mesh position={[0, 1.2, 0]} rotation={[0, 0, Math.PI / 4]} castShadow><boxGeometry args={[1.02, 1.02, 1.3]} /><meshStandardMaterial color="#2a6fdb" /></mesh>
+          {/* a gabled roof: two sloping panels meeting at a ridge */}
+          {[-1, 1].map((side) => (
+            <mesh key={side} position={[side * 0.52, 1.28, 0]} rotation={[0, 0, -side * 0.5]} castShadow><boxGeometry args={[1.2, 0.07, 1.34]} /><meshStandardMaterial color="#4a8bff" emissive="#1b3a7a" emissiveIntensity={0.5} /></mesh>
+          ))}
+          <mesh position={[0, 1.52, 0]}><boxGeometry args={[0.1, 0.07, 1.36]} /><meshStandardMaterial color="#2d63c8" emissive="#1b3a7a" emissiveIntensity={0.4} /></mesh>
           <mesh position={[0, 0.4, 0.62]}><boxGeometry args={[0.9, 0.8, 0.03]} /><meshStandardMaterial color="#16264a" /></mesh>
           {[-0.5, 0.5].map((x) => <group key={x} position={[x, 0.16, 0.9]}><mesh castShadow><boxGeometry args={[0.45, 0.3, 0.4]} /><meshStandardMaterial color="#fbfbf7" /></mesh></group>)}
         </>
@@ -421,6 +462,7 @@ function SourceModel({ item, label: text, detail, on, next, onSelect }: { item: 
           <group position={[0.1, 0.95, 0.2]} scale={2.2}><Good item={item} /></group>
         </>
       )}
+      {lit && <pointLight position={[item === 'cotton' ? -1.2 : 1.2, 1.6, 1.4]} intensity={9} distance={6} color="#ffc861" />}
       {on && <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}><ringGeometry args={[1.35, 1.5, 48]} /><meshBasicMaterial color="#f2b01e" /></mesh>}
       <Html zIndexRange={[5, 0]} position={[0, 1.9, 0]} center style={{ pointerEvents: 'none' }}>
         <div style={label}>{text}<div style={{ fontSize: 10, color: '#ffc861' }}>{detail}</div>{next && <div style={{ background: '#d6336c', borderRadius: 6, marginTop: 2 }}>▼ NEXT</div>}</div>
@@ -431,27 +473,32 @@ function SourceModel({ item, label: text, detail, on, next, onSelect }: { item: 
 
 function Rain() {
   const ref = useRef<THREE.Points>(null);
-  const pos = useMemo(() => {
+  // Where each drop starts (fixed, so the rain looks the same in every frame of the video), and where it is at time t.
+  const start = useMemo(() => {
     const a = new Float32Array(600 * 3);
-    for (let i = 0; i < 600; i++) { a[i * 3] = (Math.random() - 0.5) * 22; a[i * 3 + 1] = Math.random() * 8; a[i * 3 + 2] = (Math.random() - 0.5) * 15; }
+    const rng = seeded(7);
+    for (let i = 0; i < 600; i++) { a[i * 3] = (rng() - 0.5) * 22; a[i * 3 + 1] = rng() * 8; a[i * 3 + 2] = (rng() - 0.5) * 15; }
     return a;
   }, []);
-  useFrame((_, dt) => {
+  const pos = useMemo(() => start.slice(), [start]);
+  useTick((time) => {
     const attr = ref.current?.geometry.attributes.position;
     if (!attr) return;
     const arr = attr.array as Float32Array;
-    for (let i = 0; i < 600; i++) { arr[i * 3 + 1] -= dt * 7; if (arr[i * 3 + 1] < 0) arr[i * 3 + 1] = 8; }
+    for (let i = 0; i < 600; i++) arr[i * 3 + 1] = (((start[i * 3 + 1] - time * 7) % 8) + 8) % 8;
     attr.needsUpdate = true;
   });
   return <points ref={ref}><bufferGeometry><bufferAttribute attach="attributes-position" array={pos} count={600} itemSize={3} /></bufferGeometry><pointsMaterial color="#a8c4f0" size={0.06} /></points>;
 }
 
 function Scene({ state, selected, onSelect, popups, animate }: { state: GameState; selected: Selection; onSelect: (s: Selection) => void; popups: Popup[]; animate: boolean }) {
+  const drive = useContext(Drive);
   const light = lightAt(state.hour);
   const focus = state.coach.focus;
   const you = AVATAR_AT[state.you.at ?? 'produce'];
   const rain = state.shocks.some((x) => x.kind === 'rain');
   const night = light.opacity;
+  const dark = Math.min(1, night / 0.5); // 0 in daylight, 1 in the dead of night
   // Where townsfolk go shopping: in front of every stall that is open, and at every source.
   const stops = useMemo(() => [
     ...state.stalls.filter((x) => x.state !== 'closed').map((x) => stopForStall(x.id, x.market)),
@@ -459,13 +506,15 @@ function Scene({ state, selected, onSelect, popups, animate }: { state: GameStat
   ].filter((x): x is Stop => !!x), [state.stalls, state.sources]);
   return (
     <>
-      <color attach="background" args={[night > 0.2 ? '#1a2548' : '#dfe5ee']} />
-      <ambientLight intensity={0.95 - night * 1.1} color={night > 0 ? light.color === '#ffffff' ? '#ffffff' : '#c8d0ff' : '#ffffff'} />
-      <directionalLight position={[6, 10, 5]} intensity={1.3 - night * 1.6} castShadow shadow-mapSize={[1024, 1024]}
+      {/* day, dusk and night: a moonlit blue town with warm pools of light under the stalls and lamps */}
+      <color attach="background" args={[mix('#dfe5ee', '#080d24', dark)]} />
+      <fog attach="fog" args={[mix('#dfe5ee', '#080d24', dark), 24 - dark * 6, 60 - dark * 14]} />
+      <ambientLight intensity={0.95 - dark * 0.68} color={mix('#ffffff', '#7f93ff', dark)} />
+      <directionalLight position={[6, 10, 5]} intensity={1.3 - dark * 0.95} color={mix('#ffffff', '#a9bcff', dark)} castShadow shadow-mapSize={[1024, 1024]}
         shadow-camera-left={-12} shadow-camera-right={12} shadow-camera-top={9} shadow-camera-bottom={-9} />
 
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0]} receiveShadow onClick={() => onSelect(null)}>
-        <planeGeometry args={[24, 17]} /><meshStandardMaterial color="#dfe5ee" />
+        <planeGeometry args={[24, 17]} /><meshStandardMaterial color={mix('#dfe5ee', '#262f52', dark)} />
       </mesh>
 
       {(Object.keys(ZONES) as MarketId[]).map((id) => {
@@ -475,7 +524,8 @@ function Scene({ state, selected, onSelect, popups, animate }: { state: GameStat
             <RoundedBox args={[z.w / U, 0.06, z.h / U]} radius={0.03} position={[wx(z.x + z.w / 2), 0.02, wz(z.y + z.h / 2)]} receiveShadow>
               <meshStandardMaterial color={GROUND[id]} />
             </RoundedBox>
-            <Html zIndexRange={[5, 0]} position={[wx(z.x + 90), 0.15, wz(z.y + 28)]} center style={{ pointerEvents: 'none' }}><div style={{ ...label, background: 'rgba(22,38,74,.75)' }}>{z.label}</div></Html>
+            {/* the market's name hangs high above it, clear of the stalls' own labels */}
+            {(!drive || drive.banners) && <Html zIndexRange={[5, 0]} position={[wx(z.x + z.w / 2), 4, wz(z.y + 40)]} center style={{ pointerEvents: 'none' }}><div style={{ ...label, background: 'rgba(22,38,74,.55)', font: '700 15px system-ui, sans-serif', letterSpacing: 1.5, padding: '4px 14px', border: '1px solid rgba(255,255,255,.35)' }}>{z.label.toUpperCase()}</div></Html>}
           </group>
         );
       })}
@@ -483,7 +533,7 @@ function Scene({ state, selected, onSelect, popups, animate }: { state: GameStat
       <Walkways />
       {TREES.map(([x, y, sc], i) => <Tree key={i} x={x} y={y} s={sc} />)}
       {/* a ring of small buildings around the district to give it a skyline */}
-      {[[-11, -6.5, 1.6, 2.2, '#c98a6a'], [-9, -7, 1.2, 1.6, '#d9b88f'], [11, -6.5, 1.5, 2.6, '#9fb4cf'], [9.5, -7, 1.4, 1.5, '#cfa7b5'], [-11, 6.5, 1.5, 1.9, '#a8c7a0'], [11, 6.5, 1.6, 2.1, '#d9c27a'], [0, 7.4, 2.4, 1.3, '#b9a9d4']].map(([x, z, w, h, c], i) => (
+      {[[-11, -6.5, 1.6, 2.2, '#c98a6a'], [-9, -7, 1.2, 1.6, '#d9b88f'], [11, -6.5, 1.5, 2.6, '#9fb4cf'], [9.5, -7, 1.4, 1.5, '#cfa7b5'], [-11, 6.5, 1.5, 1.9, '#a8c7a0'], [11, 6.5, 1.6, 2.1, '#d9c27a']].map(([x, z, w, h, c], i) => (
         <group key={i} position={[x as number, 0, z as number]}>
           <mesh position={[0, (h as number) / 2, 0]} castShadow receiveShadow><boxGeometry args={[w as number, h as number, 1.3]} /><meshStandardMaterial color={c as string} /></mesh>
           <mesh position={[0, (h as number) + 0.2, 0]} castShadow><boxGeometry args={[(w as number) + 0.15, 0.12, 1.45]} /><meshStandardMaterial color="#5a4a40" /></mesh>
@@ -503,12 +553,14 @@ function Scene({ state, selected, onSelect, popups, animate }: { state: GameStat
       })}
 
       {state.sources.map((src) => (
-        <SourceModel key={src.item} item={src.item} label={src.item} detail={src.cost > 0 ? `${src.cost} coins each` : `${src.units} free`}
+        <SourceModel key={src.item} lit={night >= 0.28} item={src.item} label={src.item} detail={src.cost > 0 ? `${src.cost} coins each` : `${src.units} free`}
           on={selected?.kind === 'source' && selected.item === src.item} next={focus?.kind === 'source' && focus.id === src.item}
           onSelect={() => onSelect({ kind: 'source', item: src.item })} />
       ))}
 
-      {animate && stops.length > 1 && WALKER_COLORS.map((c, i) => <Walker key={i} id={`walker${i}`} color={c} stops={stops} speed={0.8 + (i % 3) * 0.12} seed={i * 7919 + 13} />)}
+      {animate && (drive?.walkStops ?? stops).length > 1 && WALKER_COLORS.map((c, i) => drive
+        ? <VideoWalker key={i} id={`walker${i}`} color={c} stops={drive.walkStops ?? stops} speed={0.8 + (i % 3) * 0.12} seed={i * 7919 + 13} t={drive.t} />
+        : <Walker key={i} id={`walker${i}`} color={c} stops={stops} speed={0.8 + (i % 3) * 0.12} seed={i * 7919 + 13} />)}
       {animate && <Truck />}
 
       <group position={[wx(you[0]), 0, wz(you[1])]}>
@@ -523,7 +575,7 @@ function Scene({ state, selected, onSelect, popups, animate }: { state: GameStat
       {LAMPS.map(([x, y], i) => <Lamp key={i} x={wx(x)} z={wz(y)} on={night >= 0.28} />)}
       {night >= 0.28 && state.stalls.map((st) => {
         const pos = STALL_POS[st.id] ?? PLOTS[st.market];
-        return pos && st.state !== 'closed' ? <pointLight key={st.id} position={[wx(pos[0]), 1.2, wz(pos[1]) + 0.8]} intensity={5} distance={4.5} color="#ffc861" /> : null;
+        return pos && st.state !== 'closed' ? <pointLight key={st.id} position={[wx(pos[0]), 1.2, wz(pos[1]) + 0.8]} intensity={9} distance={6} color="#ffc861" /> : null;
       })}
       {animate && rain && <Rain />}
 
@@ -536,18 +588,47 @@ function Scene({ state, selected, onSelect, popups, animate }: { state: GameStat
   );
 }
 
+/** In the video: put the camera where the script says, and say when the frame has been drawn. */
+function DriveRig({ drive }: { drive: VideoDrive }) {
+  const { camera, invalidate } = useThree();
+  useLayoutEffect(() => {
+    camera.position.set(...drive.camera.position);
+    const cam = camera as THREE.PerspectiveCamera;
+    if (drive.camera.fov) { cam.fov = drive.camera.fov; cam.updateProjectionMatrix(); }
+    camera.lookAt(...drive.camera.target);
+    camera.updateMatrixWorld();
+    invalidate();
+    // two animation frames: the first draws, the second is after the browser has shown it
+    const id = requestAnimationFrame(() => requestAnimationFrame(() => drive.onDrawn?.()));
+    return () => cancelAnimationFrame(id);
+  });
+  return null;
+}
+
 /**
  * The district as a 3D town. Same props as the 2D map, so the screen can swap one for the other:
  * click a stall, plot or source to open its panel; drag to turn the view, scroll to zoom.
+ * With `drive` (the demo video) the time and camera come from outside and nothing is interactive.
  */
-export function DistrictMap3D({ state, selected, onSelect, popups = [], moving }: { state: GameState; selected: Selection; onSelect: (s: Selection) => void; popups?: Popup[]; moving?: boolean }) {
-  const animate = moving ?? !(typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches);
+export function DistrictMap3D({ state, selected, onSelect, popups = [], moving, drive }: { state: GameState; selected: Selection; onSelect: (s: Selection) => void; popups?: Popup[]; moving?: boolean; drive?: VideoDrive }) {
+  const animate = moving ?? (drive ? true : !(typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches));
+  // The canvas is its own React tree, so the drive has to be provided inside it. In the video the whole screen is zoomed with CSS, which a
+  // bounding-box measurement would count twice: the canvas measures its layout size instead (offsetSize).
   return (
     <div className="map map3d" aria-label="3D map of the market district">
-      <Canvas shadows dpr={[1, 2]} camera={{ position: [0, 13, 12], fov: 38 }}>
-        <Scene state={state} selected={selected} onSelect={onSelect} popups={popups} animate={animate} />
-        <OrbitControls makeDefault enablePan={false} minDistance={9} maxDistance={26} minPolarAngle={0.35} maxPolarAngle={1.2} />
-      </Canvas>
+      {drive ? (
+        <Canvas shadows frameloop="demand" dpr={drive.dpr ?? 1} resize={{ offsetSize: true, scroll: false, debounce: 0 }} camera={{ position: drive.camera.position, fov: drive.camera.fov ?? 38 }} gl={{ preserveDrawingBuffer: true, antialias: true }}>
+          <Drive.Provider value={drive}>
+            <Scene state={state} selected={selected} onSelect={onSelect} popups={popups} animate={animate} />
+            <DriveRig drive={drive} />
+          </Drive.Provider>
+        </Canvas>
+      ) : (
+        <Canvas shadows dpr={[1, 2]} camera={{ position: [0, 13, 12], fov: 38 }}>
+          <Scene state={state} selected={selected} onSelect={onSelect} popups={popups} animate={animate} />
+          <OrbitControls makeDefault enablePan={false} minDistance={9} maxDistance={26} minPolarAngle={0.35} maxPolarAngle={1.2} />
+        </Canvas>
+      )}
     </div>
   );
 }

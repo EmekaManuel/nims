@@ -117,3 +117,17 @@ export const Caption: React.FC<{ s: Scene }> = ({ s }) => {
     </div>
   );
 };
+
+/** The rule a council vote changed: "Stall rent  NORMAL -> LOW", with how the vote went. */
+export const RuleChange: React.FC<{ market: string; rule: string; from: string; to: string; tally: string }> = ({ market, rule, from, to, tally }) => (
+  <Glass style={{ padding: '16px 34px', display: 'flex', alignItems: 'center', gap: 26 }}>
+    <div>
+      <div style={{ font: `700 18px ${BODY}`, color: C.mute, letterSpacing: 3 }}>{market.toUpperCase()} COUNCIL</div>
+      <div style={{ font: `600 22px ${BODY}`, color: C.ink, marginTop: 2 }}>{rule}</div>
+    </div>
+    <div style={{ font: `700 44px/1 ${MONO}`, color: C.mute, textDecoration: 'line-through', textDecorationColor: '#ff7a90' }}>{from.toUpperCase()}</div>
+    <div style={{ font: `700 38px ${MONO}`, color: C.gold }}>→</div>
+    <div style={{ font: `700 54px/1 ${MONO}`, color: C.green }}>{to.toUpperCase()}</div>
+    <div style={{ font: `600 20px ${BODY}`, color: C.mute }}>{tally}</div>
+  </Glass>
+);

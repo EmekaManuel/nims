@@ -196,3 +196,26 @@ export function stepWalk(s: Walk, stops: Stop[], speed: number, dt: number) {
     } else { s.x += (dx / d) * step; s.z += (dz / d) * step; }
   }
 }
+
+// ---- walkers as a pure function of time (for the demo video) ---------------------------------
+
+export interface WalkSample { x: number; z: number; yaw: number; moving: boolean }
+const STEP = 1 / 30;
+const trajectories = new Map<string, { w: Walk; samples: WalkSample[] }>();
+
+/**
+ * Where a walker is at time `t` seconds, always the same answer for the same seed, stops and speed. It plays the walk forward
+ * in 1/30 s steps from the start and remembers the result, so any moment can be asked for in any order. The video renders its
+ * frames out of order and in parallel, so it cannot keep a walker's state from one frame to the next as the live game does.
+ */
+export function walkAt(seed: number, stops: Stop[], speed: number, t: number): WalkSample {
+  const key = `${seed}|${speed}|${stops.map((s) => `${s.node}:${s.facing.toFixed(2)}`).join(',')}`;
+  let tr = trajectories.get(key);
+  if (!tr) { tr = { w: newWalk(seed, stops), samples: [] }; trajectories.set(key, tr); }
+  const want = Math.max(0, Math.floor(t / STEP));
+  while (tr.samples.length <= want) {
+    stepWalk(tr.w, stops, speed, STEP);
+    tr.samples.push({ x: tr.w.x, z: tr.w.z, yaw: tr.w.yaw, moving: tr.w.path.length > 0 });
+  }
+  return tr.samples[want];
+}

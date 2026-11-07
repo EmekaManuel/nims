@@ -21,6 +21,9 @@ export const shot = (id: string): Shot => {
   return s;
 };
 
+/** Shots whose drawer is scrolled to a section (a `data-demo` name), because the part the video is about is below the fold. */
+export const SCROLL: Record<string, string> = { council: 'council:fabric', 'council-open': 'council:fabric', 'council-done': 'council:fabric' };
+
 export interface Rect { x: number; y: number; w: number; h: number }
 /** Where each named element sits on the 1920x1080 screen in each shot (made by `npm run measure`). */
 export const TARGETS = targetsFile as Record<string, Record<string, Rect>>;

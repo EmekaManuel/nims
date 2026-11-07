@@ -2,7 +2,7 @@ import { Easing, interpolate, useCurrentFrame } from 'remotion';
 import { loadFont as loadInter } from '@remotion/google-fonts/Inter';
 
 // One plain sans-serif for everything.
-export const BODY = loadInter('normal', { weights: ['500', '600', '700'] }).fontFamily;
+export const BODY = loadInter('normal', { weights: ['500', '600', '700'], subsets: ['latin'], ignoreTooManyRequestsWarning: true }).fontFamily;
 export const HEAD = BODY;
 export const MONO = BODY;
 

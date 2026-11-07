@@ -18,5 +18,5 @@ export const Measure: React.FC = () => {
     }, 700);
     return () => clearTimeout(t);
   }, [id]);
-  return <AbsoluteFill>{isLogin ? <LoginScreen email="ada@example.com" /> : <Screen shot={shot} hover />}</AbsoluteFill>;
+  return <AbsoluteFill>{isLogin ? <LoginScreen email="ada@example.com" /> : <Screen shot={shot} hover night town={{ t: 0, camera: { position: [0, 9.5, 11], target: [0, 0, -0.5], fov: 38 } }} />}</AbsoluteFill>;
 };

@@ -13,7 +13,7 @@ const tmp = path.resolve('out/measure.png');
 for (let frame = 0; frame < composition.durationInFrames; frame++) {
   let got = null;
   await renderStill({
-    composition, serveUrl, frame, output: tmp, imageFormat: 'png',
+    composition, serveUrl, frame, output: tmp, imageFormat: 'png', chromiumOptions: { gl: 'angle' }, timeoutInMilliseconds: 120000,
     onBrowserLog: (l) => { if (l.text.startsWith('TARGETS ')) got = JSON.parse(l.text.slice(8)); },
   });
   if (!got) throw new Error(`no measurements for frame ${frame}`);

@@ -1,7 +1,7 @@
 // Reads real numbers from the live NEAR testnet contract, for the chain scene. Run before rendering to refresh them.
 import { writeFileSync } from 'node:fs';
 const CONTRACT = process.env.CONTRACT_ID ?? 'oja-items.testnet';
-const rpc = async (method, params) => (await (await fetch('https://rpc.testnet.near.org', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }) })).json()).result;
+const rpc = async (method, params) => (await (await fetch('https://test.rpc.fastnear.com', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }) })).json()).result;
 const acct = await rpc('query', { request_type: 'view_account', finality: 'final', account_id: CONTRACT });
 const seq = await rpc('query', { request_type: 'call_function', finality: 'final', account_id: CONTRACT, method_name: 'mint_seq', args_base64: Buffer.from('{}').toString('base64') });
 const out = {

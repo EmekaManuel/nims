@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { newPlayer } from './players';
 import { buyShares, tick } from './engine';
-import { closingHour, propose, seatsOf, tally, vote, MERCHANT_SEAT } from './council';
+import { closingHour, isRegular, propose, seatsOf, tally, vote, MERCHANT_SEAT } from './council';
 import { COINS, createWorld, MarketId, Player, World } from './world';
 
 const nobody = () => undefined;
@@ -27,9 +27,37 @@ function setup() {
 const toDayEnd = (w: World) => { while (w.hour % 24 !== 23) tick(w, nobody); tick(w, nobody); };
 
 describe('town council', () => {
-  it('you need a share in the market to propose or vote', () => {
+  it('trading in a market gives you a seat there with no shares, and shares add to it', () => {
+    const { w, a, stake } = setup();
+    expect(isRegular(w, 'fabric', 'ada')).toBe(false);
+    a.reputation.omar = 0.002; // what one completed trade with Omar does
+    expect(isRegular(w, 'fabric', 'ada')).toBe(true);
+    expect(seatsOf(w, 'fabric', 'ada')).toBe(1);
+    expect(seatsOf(w, 'produce', 'ada')).toBe(0); // only the market you traded in
+    stake(a, 'omar', 4);
+    expect(seatsOf(w, 'fabric', 'ada')).toBe(5);
+  });
+
+  it('a regular with no shares can propose and vote, and a rent cut they back passes', () => {
     const { w, a } = setup();
-    expect(propose(w, a, 'Ada', 'fabric', 'rent', 'low')).toMatchObject({ error: expect.stringContaining('share') });
+    a.reputation.lena = 0.01;
+    expect('ok' in propose(w, a, 'Ada', 'fabric', 'rent', 'low')).toBe(true); // the merchants back a cut
+    expect('ok' in vote(w, a, 'fabric', true)).toBe(true);
+    toDayEnd(w);
+    expect(w.council.fabric.rent).toBe('low');
+  });
+
+  it('one seat cannot push through a rise the merchants oppose', () => {
+    const { w, a } = setup();
+    a.reputation.lena = 0.01;
+    propose(w, a, 'Ada', 'fabric', 'rent', 'high');
+    toDayEnd(w);
+    expect(w.council.fabric.rent).toBe('normal');
+  });
+
+  it('you need a seat (trade there, or hold a share) to propose or vote', () => {
+    const { w, a } = setup();
+    expect(propose(w, a, 'Ada', 'fabric', 'rent', 'low')).toMatchObject({ error: expect.stringContaining('Trade in the Fabric Market') });
     expect(vote(w, a, 'fabric', true)).toMatchObject({ error: expect.any(String) });
   });
 

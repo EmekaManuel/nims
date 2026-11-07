@@ -84,8 +84,10 @@ export interface CouncilView {
   payout: string;
   effects: string[];
   options: { rent: string[]; payout: string[] };
-  /** Shares you hold in this market's merchants: your weight in a vote. */
+  /** Your weight in a vote here: one seat for trading in the market, and one per share you hold in its merchants. */
   seats: number;
+  /** You have traded here, which gives you a seat even with no shares. */
+  regular?: boolean;
   canPropose: boolean;
   proposal: {
     lever: 'rent' | 'payout';

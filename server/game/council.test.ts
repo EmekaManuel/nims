@@ -5,6 +5,20 @@ const me = 'ada@example.com';
 const rich = (g: Game, email: string) => { g.state(email); g.w.players[g.w.players.length - 1].cash = 500_000; };
 
 describe('town council through the game', () => {
+  it('a new player who has made one sale in a market can propose and vote there, with no shares', () => {
+    const g = new Game(5);
+    me && g.state(me);
+    const mira = g.w.merchants.find((m) => m.id === 'mira')!;
+    expect(g.state(me).council[0]).toMatchObject({ market: 'produce', seats: 0, canPropose: false });
+    expect(g.gather(me, 'tomatoes').ok).toBe(true);
+    expect(g.sell(me, mira.id, 'tomatoes', 1, false).ok).toBe(true);
+    const after = g.state(me).council[0];
+    expect(after).toMatchObject({ seats: 1, regular: true, canPropose: true });
+    expect(g.state(me).council[1].canPropose).toBe(false); // the fabric market is another matter
+    expect(g.councilPropose(me, 'produce', 'rent', 'low').ok).toBe(true);
+    expect(g.councilVote(me, 'produce', true).ok).toBe(true);
+  });
+
   it('every market shows its rules; you can only propose where you hold shares', () => {
     const g = new Game(5);
     const s = g.state(me);

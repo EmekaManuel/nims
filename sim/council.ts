@@ -8,7 +8,8 @@ import { MARKETS, MarketId, Player, World } from './world';
  *           levy, which is paid to shareholders each evening (the merchants carry the cost).
  *   payout  how much of a day's profit a merchant shares out. Leaner keeps cash in the shop.
  *
- * A vote is weighted by the shares you hold in that market's merchants. The merchants themselves have
+ * A vote is weighted by your seats in that market: one for being a regular (you have traded there) and one per share you hold
+ * in its merchants. The merchants themselves have
  * a seat each (a fixed weight) and always side against anything that costs them money, so shareholders
  * have to organise to push a change through. Proposals close at the end of the in-game day.
  */
@@ -68,9 +69,19 @@ const levelIndex = (lever: Lever, v: string) => (LEVELS[lever] as readonly strin
 /** Merchants that sit on the council: open, not player-run. */
 export const seatedMerchants = (w: World, market: MarketId) => w.merchants.filter((m) => m.market === market && !m.owner && m.state !== 'closed');
 
-/** Your say in a market: the shares you hold across its merchants. */
+/** A regular: someone who has traded with a merchant in this market. */
+export function isRegular(w: World, market: MarketId, playerId: string): boolean {
+  const p = w.players.find((x) => x.id === playerId);
+  return !!p && w.merchants.some((m) => m.market === market && !m.owner && (p.reputation[m.id] ?? 0) > 0);
+}
+
+/**
+ * Your say in a market: one seat for being a regular there, plus a seat for every share you hold in its merchants.
+ * Shares are dear in an old town, so the seat for trading keeps a new player from being locked out of the vote.
+ */
 export function seatsOf(w: World, market: MarketId, playerId: string): number {
-  return w.merchants.filter((m) => m.market === market && !m.owner).reduce((n, m) => n + (m.shares[playerId] ?? 0), 0);
+  const shares = w.merchants.filter((m) => m.market === market && !m.owner).reduce((n, m) => n + (m.shares[playerId] ?? 0), 0);
+  return shares + (isRegular(w, market, playerId) ? 1 : 0);
 }
 
 /** Merchants want lower costs, so they back a cut and oppose anything that raises them. */
@@ -108,7 +119,7 @@ export function propose(w: World, p: Player, name: string, market: MarketId, lev
   if (c[lever] === to) return { error: `${lever === 'rent' ? 'Rent' : 'Payout'} is already ${to}.` };
   if (c.proposal) return { error: `The ${MARKETS[market].name} council already has a vote open. Cast yours.` };
   const weight = seatsOf(w, market, p.id);
-  if (weight < 1) return { error: `Hold a share in a ${MARKETS[market].name} merchant to have a say there.` };
+  if (weight < 1) return { error: `Trade in the ${MARKETS[market].name}, or hold a share in one of its merchants, to have a say there.` };
   c.proposal = { lever, to: to as Level, by: p.id, byName: name, openedHour: w.hour, closesHour: closingHour(w.hour), votes: { [p.id]: { yes: true, weight } } };
   return { ok: true };
 }
@@ -118,7 +129,7 @@ export function vote(w: World, p: Player, market: MarketId, yes: boolean): { err
   if (!c) return { error: 'No such market.' };
   if (!c.proposal) return { error: 'There is nothing to vote on right now.' };
   const weight = seatsOf(w, market, p.id);
-  if (weight < 1) return { error: `Hold a share in a ${MARKETS[market].name} merchant to have a say there.` };
+  if (weight < 1) return { error: `Trade in the ${MARKETS[market].name}, or hold a share in one of its merchants, to have a say there.` };
   c.proposal.votes[p.id] = { yes, weight };
   return { ok: true };
 }

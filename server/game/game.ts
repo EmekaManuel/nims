@@ -20,7 +20,7 @@ import type { GazetteFacts } from '../voice/gazette';
 import type { HaggleFacts } from '../voice/haggle';
 import { planBoard, totalDue, type Job } from './jobs';
 import { gather } from '../../sim/players';
-import { EFFECT, LEVELS, MIN_VOTING_HOURS, newCouncils, propose, seatsOf, tally, vote, type Lever } from '../../sim/council';
+import { EFFECT, isRegular, LEVELS, MIN_VOTING_HOURS, newCouncils, propose, seatsOf, tally, vote, type Lever } from '../../sim/council';
 import { addPlayer, BASE_PRICE, CAPACITY, CARRY_VALUE, createWorld, Item, MARKETS, MarketId, Merchant, Player, Vehicle, World } from '../../sim/world';
 
 export const UPGRADE_COST: Record<Exclude<Vehicle, 'wheelbarrow'>, number> = { pickup: 5_000, van: 18_000 };
@@ -1012,6 +1012,7 @@ export class Game {
         effects: [EFFECT[c.rent], EFFECT[c.payout]],
         options: { rent: [...LEVELS.rent], payout: [...LEVELS.payout] },
         seats,
+        regular: isRegular(w, market, p.id),
         canPropose: seats > 0 && !pr,
         proposal: pr && t ? {
           lever: pr.lever,

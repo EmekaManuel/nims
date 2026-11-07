@@ -13,7 +13,7 @@ function Market({ c, act }: { c: CouncilView; act: Actions }) {
       <h4>{c.name}</h4>
       <p className="small">
         <b>Rent {c.rent}</b> · <b>Payout {c.payout}</b>
-        {c.seats > 0 ? <span className="muted"> · your say: {c.seats} {c.seats === 1 ? 'share' : 'shares'}</span> : <span className="muted"> · no say yet</span>}
+        {c.seats > 0 ? <span className="muted"> · your say: {c.seats} {c.seats === 1 ? 'seat' : 'seats'}</span> : <span className="muted"> · no say yet</span>}
       </p>
 
       {pr ? (
@@ -30,7 +30,7 @@ function Market({ c, act }: { c: CouncilView; act: Actions }) {
               <button className={pr.yourVote === 'yes' ? 'primary' : ''} aria-pressed={pr.yourVote === 'yes'} onClick={() => act.councilVote(c.market, true)}>For</button>
               <button className={pr.yourVote === 'no' ? 'primary' : ''} aria-pressed={pr.yourVote === 'no'} onClick={() => act.councilVote(c.market, false)}>Against</button>
             </div>
-          ) : <p className="small muted">Own a share in a merchant here to vote.</p>}
+          ) : <p className="small muted">Trade here, or own a share in a merchant, to vote.</p>}
         </div>
       ) : c.canPropose ? (
         <div className="propose">
@@ -44,7 +44,7 @@ function Market({ c, act }: { c: CouncilView; act: Actions }) {
           ))}
         </div>
       ) : c.seats === 0 ? (
-        <p className="small muted">Own a share in a merchant here to propose changes.</p>
+        <p className="small muted">Trade here, or own a share in a merchant, to propose changes.</p>
       ) : null}
     </div>
   );
@@ -58,7 +58,7 @@ export function Council({ state, act }: { state: GameState; act: Actions }) {
     <>
       <h3>Town council</h3>
       <p className="small muted">
-        Shareholders run each market. Vote on what merchants pay in rent and how much profit they share out. Your vote counts for the shares you hold there, and the merchants vote too. Votes close in the evening.
+        Shareholders run each market. Vote on what merchants pay in rent and how much profit they share out. Trading in a market gives you a seat there, and each share you hold adds another. The merchants vote too. Votes close in the evening.
       </p>
       {markets.map((c) => <Market key={c.market as MarketId} c={c} act={act} />)}
     </>

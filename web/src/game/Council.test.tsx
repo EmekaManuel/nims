@@ -24,7 +24,7 @@ describe('Council', () => {
   it('tells you to own a share before you can have a say', () => {
     render(<Council state={withCouncil([market({})])} act={act()} />);
     expect(screen.getByText(/no say yet/i)).toBeTruthy();
-    expect(screen.getByText(/own a share in a merchant here to propose/i)).toBeTruthy();
+    expect(screen.getByText(/trade here, or own a share in a merchant, to propose/i)).toBeTruthy();
   });
 
   it('a shareholder proposes a change to the rule that is not current', async () => {

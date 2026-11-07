@@ -51,6 +51,10 @@ export interface Merchant {
   sign: string[];
   /** Worth at the start of the current in-game day, to measure the day's profit for dividends. */
   dayStartWorth?: number;
+  /** Coins shareholders have put into this merchant's till and not taken back. The evening upkeep never touches it: it is their money, not surplus. */
+  paidIn?: number;
+  /** Who held how many shares when the day began. Dividends and the rent levy go only on shares held since then, so nobody can buy at 10pm, collect, and sell. */
+  dayStartShares?: Record<string, number>;
   /** Set only on a player-owned stall. Prices are the owner's own choice, not pricing.ts's formula. */
   owner?: string;
   ownerName?: string;

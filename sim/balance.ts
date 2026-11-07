@@ -22,8 +22,8 @@ function play(seed: number, rate: number, hours: number, actionsPerHour: number)
   for (let h = 0; h < hours; h++) {
     for (let a = 0; a < actionsPerHour; a++) {
       const s = g.state(me);
-      const fare = s.faresPerUnit;
-      const net = (st: (typeof s.stalls)[number], price: number) => price - (st.market !== s.you.at ? fare : 0);
+      // the fare for the whole load, spread over the units, for a stall in another market
+      const net = (st: (typeof s.stalls)[number], price: number) => price - (st.market !== s.you.at ? s.fares[st.market] / Math.max(1, s.you.carrying) : 0);
       const carry = s.you.inventory[0];
       if (carry) {
         // sell in lots of 8 to the stall with the best price AFTER the fare; hold if that would lose money, unless we've waited long

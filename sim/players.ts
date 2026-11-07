@@ -4,7 +4,7 @@ import {
   buyShares,
   transferCoins,
   buyFromMerchant,
-  carryCost,
+  unitFare,
   contributeToFund,
   gatherRate,
   merchantItems,
@@ -103,7 +103,7 @@ const arbitrageur: Strategy = (w, p) => {
     const cheap = qs.filter((x) => x.q.willSell).sort((a, b) => a.q.sellPrice - b.q.sellPrice)[0];
     const dear = qs.filter((x) => x.q.willBuy).sort((a, b) => b.q.buyPrice - a.q.buyPrice)[0];
     if (!cheap || !dear || cheap.m === dear.m) continue;
-    const cost = cheap.m.market === dear.m.market ? 5 : carryCost(w);
+    const cost = cheap.m.market === dear.m.market ? 5 : unitFare(w, item, p.vehicle);
     const profit = dear.q.buyPrice - cheap.q.sellPrice - cost;
     if (profit > 0 && (!best || profit > best.profit)) best = { item, from: cheap.q.sellPrice, to: dear.q.buyPrice, profit };
   }

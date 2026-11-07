@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { act, newPlayer } from './players';
 import {
   buyShares, contributeToFund, merchantWorth, openOwnerStall, ownerStallOf, publicSharesLeft, quoteFor,
-  refreshState, sellShares, sharePrice, sharesHeld, tick,
+  refreshState, sellShares, shareCost, sharePrice, sharesHeld, tick, CASH_CEILING,
 } from './engine';
 import { createWorld, MAX_PUBLIC_SHARES, Merchant, Player, World } from './world';
 
@@ -14,16 +14,73 @@ function setup(cash = 50_000): { w: World; p: Player; m: Merchant } {
 const close = (w: World, m: Merchant) => { m.cash = 0; m.stock = {}; refreshState(w, m); };
 
 describe('shares', () => {
-  it('a share is 1% of what the merchant is worth, and the money goes into their till', () => {
+  it('a share is about 1% of what the merchant is worth, you pay for your stake after your money is in the till, and it goes into their till', () => {
     const { w, p, m } = setup();
     const price = sharePrice(m);
     expect(price).toBe(Math.round(merchantWorth(m) / 100));
+    const cost = shareCost(m, 10); // 10% of the merchant as it will be once your money is in: 10 x worth / 90
+    expect(cost).toBe(Math.ceil((10 * merchantWorth(m)) / 90));
+    expect(cost).toBeGreaterThan(price * 10);
     const tillBefore = m.cash;
     const r = buyShares(w, p, m, 10);
-    expect(r).toEqual({ cost: price * 10 });
-    expect(p.cash).toBe(50_000 - price * 10);
-    expect(m.cash).toBe(tillBefore + price * 10);
+    expect(r).toEqual({ cost });
+    expect(p.cash).toBe(50_000 - cost);
+    expect(m.cash).toBe(tillBefore + cost);
     expect(m.shares.ada).toBe(10);
+  });
+
+  it('buying shares and selling them straight back is a wash: nobody can make coins by moving the price', () => {
+    for (const n of [1, 10, 25, 49]) {
+      const { w, p, m } = setup(10_000_000);
+      const start = p.cash;
+      const bought = buyShares(w, p, m, n);
+      expect('cost' in bought).toBe(true);
+      const sold = sellShares(w, p, m, n);
+      expect('proceeds' in sold).toBe(true);
+      expect(start - p.cash, `${n} shares`).toBeGreaterThanOrEqual(0); // never a gain
+      expect(start - p.cash, `${n} shares`).toBeLessThanOrEqual(2); // and at most a coin or two of rounding lost
+    }
+  });
+
+  it('doing it again and again cannot drain a merchant', () => {
+    const { w, p, m } = setup(10_000_000);
+    const till = m.cash;
+    const start = p.cash;
+    for (let i = 0; i < 25; i++) { buyShares(w, p, m, 49); sellShares(w, p, m, 49); }
+    expect(p.cash).toBeLessThanOrEqual(start);
+    expect(start - p.cash).toBeLessThan(200); // 25 rounds, a coin or two each
+    expect(Math.abs(m.cash - till)).toBeLessThan(200);
+  });
+
+  it('the evening upkeep does not tax what shareholders have put in', () => {
+    const { w, p, m } = setup(10_000_000);
+    buyShares(w, p, m, 49); // tens of thousands of coins: the till goes well above the usual ceiling
+    expect(m.cash).toBeGreaterThan(CASH_CEILING * 1.5);
+    const before = m.cash;
+    while (w.hour % 24 !== 0 || w.hour === 0) tick(w, () => undefined); // through one evening
+    expect(m.cash).toBeGreaterThan(before - 0.1 * before); // a day's trading moves it a little, but nothing like a quarter of the deposit
+  });
+
+  it('shares bought during the day do not earn that evening: no buying at 10pm to collect and sell', () => {
+    const { w, p, m } = setup(10_000_000);
+    while (w.hour < 3 * 24) tick(w, () => undefined); // let some profit build
+    while (w.hour % 24 !== 22) tick(w, () => undefined);
+    const start = p.cash;
+    buyShares(w, p, m, 49);
+    const cash = p.cash;
+    tick(w, () => undefined); // 22:00 -> 23:00
+    tick(w, () => undefined); // the evening payout runs at 23:00
+    expect(p.notes.some((n) => /dividends/.test(n.text)), 'no dividend for a share held for an hour').toBe(false);
+    expect(p.cash).toBe(cash);
+    expect(start - cash).toBeGreaterThan(0);
+  });
+
+  it('shares held since the day began do earn, and the next evening they pay', () => {
+    const { w, p, m } = setup(10_000_000);
+    while (w.hour < 2 * 24) tick(w, () => undefined);
+    buyShares(w, p, m, 20); // bought on day 3
+    for (let d = 0; d < 6; d++) for (let h = 0; h < 24; h++) tick(w, () => undefined);
+    expect(p.notes.filter((n) => /dividends/.test(n.text)).length, 'paid on most evenings after the first').toBeGreaterThan(2);
   });
 
   it('caps what players can hold at 49%, so a merchant is never taken over', () => {

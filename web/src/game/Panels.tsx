@@ -60,9 +60,14 @@ function FundSection({ stall, cash, act }: { stall: Stall; cash: number; act: Ac
   );
 }
 
+/** What n shares cost: n% of the merchant as it is after your money goes into its till (same rule as sim/engine.ts shareCost). */
+export const shareCost = (sh: { price: number; worth?: number }, n: number) =>
+  sh.worth === undefined || n >= 100 ? sh.price * n : Math.max(n, Math.ceil((n * sh.worth) / (100 - n)));
+
 function InvestSection({ stall, cash, act }: { stall: Stall; cash: number; act: Actions }) {
   const [n, setN] = useState(5);
   const sh = stall.shares!;
+  const cost = shareCost(sh, n);
   return (
     <div className="invest">
       <h3>Own a piece</h3>
@@ -70,7 +75,7 @@ function InvestSection({ stall, cash, act }: { stall: Stall; cash: number; act: 
       <p><b>{coins(sh.price)}</b> a share · you hold <b>{sh.yours}</b> · {sh.left} left to buy</p>
       <div className="controls">
         <Field label="Shares" htmlFor="shares-qty"><NumberField id="shares-qty" aria-label="Shares to buy or sell" min={1} max={49} value={n} onValueChange={setN} /></Field>
-        <button className="primary" disabled={cash < sh.price * n || sh.left < n} onClick={() => act.buyShares(stall.id, n)}>Buy · {coins(sh.price * n)}</button>
+        <button className="primary" disabled={cash < cost || sh.left < n} onClick={() => act.buyShares(stall.id, n)}>Buy · {coins(cost)}</button>
         <button disabled={sh.yours < n} onClick={() => act.sellShares(stall.id, n)}>Sell</button>
       </div>
     </div>
@@ -120,7 +125,7 @@ export function StallPanel({ stall, state, act }: { stall: Stall; state: GameSta
   const [qty, setQty] = useState(5);
   const [haggle, setHaggle] = useState(false);
   const carrying = (item: Item) => state.you.inventory.find((i) => i.item === item)?.units ?? 0;
-  const fare = state.you.at && state.you.at !== stall.market ? state.you.carrying * state.faresPerUnit : 0;
+  const fare = state.fares?.[stall.market] ?? 0;
   const mine = stall.owner?.mine === true;
 
   return (
@@ -138,7 +143,7 @@ export function StallPanel({ stall, state, act }: { stall: Stall; state: GameSta
           {stall.state === 'struggling' && <p className="note warn">Low on cash — {stall.name} has stopped buying until the till recovers ({coins(stall.till)}).</p>}
           {fare > 0 && (
             <p className="note">
-              Walking here with your load costs a fare of <b>{coins(fare)}</b> ({coins(state.faresPerUnit)} a unit).
+              Walking here with your load costs a fare of <b>{coins(fare)}</b>.
               {state.you.cash < fare && <> You don’t have that much, but you can still <b>sell</b> here: the rest of the fare comes out of your sale. (To <b>buy</b> here you’d need the fare in hand.)</>}
             </p>
           )}

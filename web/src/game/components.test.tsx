@@ -19,6 +19,8 @@ const act = (): Actions => ({
   sell: vi.fn(), buy: vi.fn(), order: vi.fn(), cancelOrder: vi.fn(), gather: vi.fn(), upgrade: vi.fn(), buyShares: vi.fn(), sellShares: vi.fn(), contribute: vi.fn(),
   openStall: vi.fn(), councilPropose: vi.fn(), councilVote: vi.fn(), stallStock: vi.fn(), stallTake: vi.fn(), stallPrice: vi.fn(), stallDeposit: vi.fn(), stallWithdraw: vi.fn(), ack: vi.fn(), scavenge: vi.fn(), takeJob: vi.fn(), deliverJob: vi.fn(), dropJob: vi.fn(),
 });
+/** What it costs to walk the test player's load to each market: the panel shows the one for the stall's own market. */
+const FARES = { produce: 0, fabric: 135, scrap: 135 };
 const empty = { ...state, you: { ...state.you, carrying: 0, inventory: [] } };
 const withInv = { ...state, you: { ...state.you, carrying: 5, inventory: [{ item: 'iron' as const, units: 5 }] } };
 
@@ -89,7 +91,7 @@ describe('stall panel', () => {
   });
 
   it('tells a player who cannot afford the fare that selling is still fine', () => {
-    const broke = { ...withInv, you: { ...withInv.you, cash: 20, at: 'produce' as const } };
+    const broke = { ...withInv, fares: FARES, you: { ...withInv.you, cash: 20, at: 'produce' as const } };
     render(<StallPanel stall={stall} state={broke} act={act()} />);
     const note = screen.getByText(/fare/i).textContent!;
     expect(note).toMatch(/you can still sell here/);
@@ -98,15 +100,15 @@ describe('stall panel', () => {
   });
 
   it('does not mention any of that when you can afford the fare', () => {
-    const rich = { ...withInv, you: { ...withInv.you, cash: 99_999, at: 'produce' as const } };
+    const rich = { ...withInv, fares: FARES, you: { ...withInv.you, cash: 99_999, at: 'produce' as const } };
     render(<StallPanel stall={stall} state={rich} act={act()} />);
     expect(screen.getByText(/fare/i).textContent).not.toMatch(/comes out of your sale/);
   });
 
   it('warns about the fare for carrying goods to another market', () => {
-    const away = { ...withInv, you: { ...withInv.you, at: 'produce' as const } };
+    const away = { ...withInv, fares: FARES, you: { ...withInv.you, at: 'produce' as const } };
     render(<StallPanel stall={stall} state={away} act={act()} />);
-    expect(screen.getByText(/fare/i).textContent).toContain(`${5 * state.faresPerUnit} coins`);
+    expect(screen.getByText(/fare/i).textContent).toContain(`${FARES.scrap} coins`);
   });
 });
 

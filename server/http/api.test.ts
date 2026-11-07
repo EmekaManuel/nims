@@ -294,7 +294,7 @@ describe('selling when you cannot afford the fare (over HTTP)', () => {
 
     const p = game.playerFor('ada@example.com');
     game.w.shocks = [];
-    p.cash = 280; // the numbers from a real stuck game: 280 coins, 20 things carried, a 400-coin fare
+    p.cash = 100; // a stuck game: 100 coins, 20 things carried, and a 240-coin fare (16 iron at 9, 4 cotton at 24)
     p.inventory = { iron: 16, cotton: 4 };
     p.at = 'produce';
 

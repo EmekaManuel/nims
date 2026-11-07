@@ -11,8 +11,8 @@ import { createHash } from 'node:crypto';
 import { makeRng } from '../../sim/rng';
 import { act, newPlayer } from '../../sim/players';
 import {
-  activeShock, addNote, buyFromMerchant, buyShares, carryCost, contributeToFund, gatherRate, merchantItems, openOwnerStall, ownerStallOf,
-  publicSharesLeft, quoteFor, refreshState, sellShares, sellToMerchant, sharePrice, STALL_COST, STALL_MARKETS, tick, transferCoins,
+  activeShock, addNote, buyFromMerchant, buyShares, contributeToFund, gatherRate, merchantItems, openOwnerStall, ownerStallOf,
+  loadFare, merchantWorth, publicSharesLeft, quoteFor, refreshState, sellShares, sellToMerchant, sharePrice, STALL_COST, STALL_MARKETS, tick, transferCoins, unitFare,
 } from '../../sim/engine';
 import { clampPlayerPrice, MAX_MULT, MIN_MULT, type Personality } from '../../merchants/pricing';
 import type { VoiceFacts } from '../voice/voice';
@@ -385,9 +385,9 @@ export class Game {
 
   private carried = (p: Player) => Object.values(p.inventory).reduce((a, b) => a + (b ?? 0), 0);
 
-  /** The fare to carry your load to another market: per unit carried (fuel queues double it). */
+  /** The fare to carry your load to another market: a small share of what it is worth, less in a bigger vehicle (see unitFare). */
   private fareTo(p: Player, market: MarketId): number {
-    return p.at === market ? 0 : this.carried(p) * carryCost(this.w);
+    return p.at === market ? 0 : loadFare(this.w, p);
   }
 
   /**
@@ -704,6 +704,7 @@ export class Game {
     if (!Number.isInteger(units) || units < 1) return fail('Pick a whole number of units.');
     const have = this.available(email, item);
     if (have < units) return fail(`You are only carrying ${have} ${item} that is free to use${this.reservedFor(email, item) > 0 ? ' (the rest is reserved for your job)' : ''}.`);
+    this.travelTo(p, st.market, true); // you walk your load to your stall: the fare is for that walk, owed from your next sale if you are short
     p.inventory[item] = (p.inventory[item] ?? 0) - units;
     st.stock[item] = (st.stock[item] ?? 0) + units;
     this.w.ledger.push({ hour: this.w.hour, kind: 'transfer', from: p.id, to: st.id, item, units });
@@ -718,6 +719,7 @@ export class Game {
     const have = st.stock[item] ?? 0;
     if (have < units) return fail(`Your shelves only hold ${have} ${item}.`);
     if (this.carried(p) + units > CAPACITY[p.vehicle]) return fail(`Your ${p.vehicle} can't carry that many.`);
+    this.travelTo(p, st.market, true); // you go to your stall, so selling in its market afterwards costs no second fare
     st.stock[item] = have - units;
     p.inventory[item] = (p.inventory[item] ?? 0) + units;
     this.w.ledger.push({ hour: this.w.hour, kind: 'transfer', from: st.id, to: p.id, item, units });
@@ -786,7 +788,7 @@ export class Game {
       if (src && (!cheapStall || src.cost <= cheapStall.o.sellPrice)) from = { kind: 'source', id: item, label: src.label, cost: src.cost };
       else if (cheapStall) from = { kind: 'stall', id: cheapStall.s.id, label: cheapStall.s.name, cost: cheapStall.o.sellPrice };
       if (!from) continue;
-      const fare = from.kind === 'stall' && stalls.find((s) => s.id === from!.id)!.market !== best.s.market ? carryCost(this.w) : 0;
+      const fare = from.kind === 'stall' && stalls.find((s) => s.id === from!.id)!.market !== best.s.market ? unitFare(this.w, item, p.vehicle) : 0;
       const profit = best.o.buyPrice - from.cost - fare;
       if (profit > 0) out.push({ item, from, to: { stall: best.s.name, id: best.s.id, price: best.o.buyPrice, market: best.s.market }, profit });
     }
@@ -831,7 +833,7 @@ export class Game {
       const options = stalls
         .filter((s) => s.state !== 'closed')
         .flatMap((s) => s.offers.filter((o) => o.item === item && o.willBuy).map((o) => ({ s, o })))
-        .map((x) => ({ ...x, net: x.o.buyPrice * units - (p.at && p.at !== x.s.market ? carried * carryCost(this.w) : 0) }))
+        .map((x) => ({ ...x, net: x.o.buyPrice * units - this.fareTo(p, x.s.market) }))
         .sort((a, b) => b.net - a.net);
       if (options.length) {
         const top = options[0];
@@ -902,7 +904,7 @@ export class Game {
       /** Fund contributors who reopened this shop. Shown on its sign. */
       sign: m.sign.map((id) => this.names.get(id) ?? 'A trader'),
       owner: m.owner ? { name: m.ownerName ?? 'A trader', mine: m.owner === p.id } : undefined,
-      shares: m.owner ? undefined : { price: sharePrice(m), left: publicSharesLeft(m), yours: m.shares[p.id] ?? 0 },
+      shares: m.owner ? undefined : { price: sharePrice(m), left: publicSharesLeft(m), yours: m.shares[p.id] ?? 0, worth: Math.round(merchantWorth(m)) },
     }));
   }
 
@@ -975,7 +977,8 @@ export class Game {
       hour: w.hour,
       day: Math.floor(w.hour / 24) + 1,
       shocks: w.shocks.filter((s) => w.hour >= s.startHour && w.hour < s.endHour).map((s) => ({ kind: s.kind, hoursLeft: s.endHour - w.hour })),
-      faresPerUnit: carryCost(w),
+      /** What it would cost you to walk your current load to each market (0 where you already are). */
+      fares: Object.fromEntries((Object.keys(MARKETS) as MarketId[]).map((id) => [id, this.fareTo(p, id)])) as Record<MarketId, number>,
       gatherSpeed: gatherRate(w),
       markets: Object.entries(MARKETS).map(([id, mk]) => ({ id, name: mk.name, items: mk.items })),
       stalls,

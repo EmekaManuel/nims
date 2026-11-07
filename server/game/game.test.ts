@@ -60,7 +60,7 @@ describe('game', () => {
     expect(r.message).toContain('full');
   });
 
-  it('charges a fare per unit carried when you go to another market', () => {
+  it('charges a fare for the load you carry when you go to another market, a small share of what it is worth', () => {
     const p = g.w.players.find((x) => x.strategy === 'human') ?? (g.state(me), g.w.players.find((x) => x.strategy === 'human')!);
     p.inventory.tomatoes = 5; // a small load, so there is room to buy
     const cash = p.cash;
@@ -68,13 +68,56 @@ describe('game', () => {
     expect(r.ok).toBe(true);
     const s = g.state(me);
     expect(s.you.at).toBe('fabric');
-    // fare (5 units x 20 coins) plus the thread itself
-    expect(cash - s.you.cash).toBeGreaterThanOrEqual(5 * 20 + 1);
+    // fare (5 tomatoes at 3% of 120 = 4 coins each) plus the thread itself
+    expect(cash - s.you.cash).toBeGreaterThanOrEqual(5 * 4 + 1);
+    expect(cash - s.you.cash).toBeLessThan(5 * 4 + 400); // never the old flat 20 a unit on top of a real price
   });
 
-  it('fuel queues double the fare', () => {
+  it('fuel queues raise the fare by half', () => {
+    g.state(me);
+    const p = g.w.players.find((x) => x.strategy === 'human')!;
+    p.at = 'produce';
+    p.inventory = { iron: 10 };
+    const normal = g.state(me).fares.scrap;
+    expect(normal).toBe(10 * 9); // iron: 3% of 300
     g.w.shocks.push({ kind: 'fuel queue', startHour: 0, endHour: 99 });
-    expect(g.state(me).faresPerUnit).toBe(40);
+    expect(g.state(me).fares.scrap).toBe(10 * 14); // 9 x 1.5, rounded
+  });
+
+  it('a fare is a share of what the goods are worth, so cheap goods are not taxed like dear ones, and a bigger vehicle hauls cheaper', () => {
+    g.state(me);
+    const p = g.w.players.find((x) => x.strategy === 'human')!;
+    p.at = 'produce';
+    g.w.shocks = [];
+    p.inventory = { thread: 10 };
+    const thread = g.state(me).fares.fabric; // thread is worth 100 a unit
+    p.inventory = { lace: 10 };
+    const lace = g.state(me).fares.fabric; // lace is worth 1,500 a unit
+    expect(thread).toBe(30);
+    expect(lace).toBe(450);
+    expect(thread / (10 * 100)).toBeCloseTo(lace / (10 * 1500), 5); // the same share of the load's worth
+    p.vehicle = 'van';
+    expect(g.state(me).fares.fabric).toBe(10 * 23); // 1500 x 3% x 0.5 = 22.5
+  });
+
+  it('using your own stall puts you at its market, so selling there afterwards costs no second fare', () => {
+    g.state(me);
+    const p = g.w.players.find((x) => x.strategy === 'human')!;
+    p.cash = 50_000;
+    expect(g.openStall(me, 'produce').ok).toBe(true);
+    g.w.shocks = [];
+    p.at = 'fabric'; // last traded in the fabric market
+    p.inventory = { tomatoes: 5 };
+    expect(g.stallStock(me, 'tomatoes', 5).ok).toBe(true); // you walk your 5 tomatoes to your stall
+    expect(p.at).toBe('produce');
+    const cash = p.cash;
+    expect(g.stallTake(me, 'tomatoes', 5).ok).toBe(true);
+    expect(p.cash).toBe(cash); // already there: no fare to take them off the shelf
+    const before = p.cash;
+    const r = g.sell(me, 'mira', 'tomatoes', 5);
+    expect(r.ok).toBe(true);
+    expect(r.message).not.toMatch(/fare/);
+    expect(p.cash).toBeGreaterThan(before); // all of the sale is yours
   });
 
   it('haggling works once per merchant per hour and never makes you worse off', () => {
@@ -335,16 +378,16 @@ describe('fares never strand you', () => {
   function stuck() {
     g.state(me);
     const p = human(g);
-    p.cash = 280;
+    p.cash = 100;
     p.inventory = { iron: 16, cotton: 4 };
     p.at = 'produce';
-    g.w.shocks = []; // no fuel queue: the fare is exactly 20 a unit
+    g.w.shocks = []; // no fuel queue: iron 9 a unit and cotton 24 a unit, so the load's fare is 240
     return p;
   }
 
   it('lets you sell in another market even when you cannot afford the whole fare', () => {
     const p = stuck();
-    expect(g.state(me).faresPerUnit).toBe(20);
+    expect(g.state(me).fares.scrap).toBe(16 * 9 + 4 * 24); // more than the 100 coins in hand
     const r = g.sell(me, 'anil', 'iron', 16);
     expect(r.ok).toBe(true);
     expect(r.message).toContain('came out of the sale');
@@ -356,7 +399,7 @@ describe('fares never strand you', () => {
   it('takes the fare out of the sale: you pay what you have now and the rest from the proceeds', () => {
     const p = stuck();
     const before = p.cash;
-    const fare = 20 * 20; // 20 things carried, 20 coins each
+    const fare = 16 * 9 + 4 * 24; // 16 iron at 9 and 4 cotton at 24
     g.sell(me, 'anil', 'iron', 16);
     const proceeds = p.cash - before + fare; // what the sale earned, since the fare was paid in full overall
     expect(proceeds).toBeGreaterThan(0);
@@ -366,7 +409,8 @@ describe('fares never strand you', () => {
   it('keeps owing if the sale is smaller than the fare, and says so', () => {
     const p = stuck();
     p.cash = 0;
-    const r = g.sell(me, 'anil', 'iron', 1); // one iron pays far less than a 400-coin fare
+    p.inventory = { iron: 1, cotton: 19 }; // a fare of 9 + 19 x 24 = 465 to walk the load over, but only one iron to sell (about 255)
+    const r = g.sell(me, 'anil', 'iron', 1);
     expect(r.ok).toBe(true);
     expect(r.message).toMatch(/You still owe \d+ coins for the trip/);
     expect(p.fareOwed).toBeGreaterThan(0);
@@ -384,7 +428,7 @@ describe('fares never strand you', () => {
   it('is only for selling: buying in another market still needs the fare in hand, and does not move you', () => {
     const p = stuck();
     p.cash = 100;
-    p.inventory = { iron: 15 }; // room for 5 more, and a 300-coin fare to carry 15 to the fabric market
+    p.inventory = { iron: 15 }; // room for 5 more, and a 135-coin fare (15 x 9) to carry them to the fabric market, more than the 100 in hand
     const r = g.buy(me, 'lena', 'thread', 1);
     expect(r.ok).toBe(false);
     expect(r.message).toMatch(/can't afford the fare/);

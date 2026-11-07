@@ -299,6 +299,13 @@ export function sellShares(w: World, p: Player, m: Merchant, n: number): { error
 
 export const DIVIDEND_RATE = 0.3; // share of the day's profit paid out
 const DIVIDEND_CUSHION = 1.5; // never pay out below 1.5x the cash floor
+/**
+ * Without a sink, merchants earn from the town forever and a share (1% of their worth) gets dearer every week until
+ * no new player can buy one. So at the end of each day a merchant holding more than this much cash spends a quarter
+ * of the excess on wages and upkeep (coins back to the town). Two times what they start with.
+ */
+export const CASH_CEILING = 40_000;
+export const UPKEEP_RATE = 0.25;
 
 /** End of day: each merchant pays shareholders a cut of the day's profit, from cash above a safety cushion. */
 function payDividends(w: World) {
@@ -321,6 +328,9 @@ function payDividends(w: World) {
       }
       if (paid > 0) w.events.push({ hour: w.hour, type: 'dividend', text: `${m.name} paid ${paid} coins in dividends to its shareholders.`, merchant: m.id, amount: paid });
     }
+    // Upkeep comes after the dividend (which is paid from the day's growth) and before tomorrow's baseline is set,
+    // so spending the surplus never counts against the shareholders' profit.
+    if (m.cash > CASH_CEILING) transferCoins(w, m, 'town', Math.floor((m.cash - CASH_CEILING) * UPKEEP_RATE));
     m.dayStartWorth = merchantWorth(m); // tomorrow's baseline
   }
 }

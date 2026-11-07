@@ -216,7 +216,7 @@ function FuelQueue() {
       {[0, 1, 2, 3].map((i) => <group key={i} position={[0, 0, i * 0.5]} rotation={[0, Math.PI, 0]} scale={0.6}><Vehicle kind="pickup" color={['#c8622e', '#2a6fdb', '#2f9e5f', '#7b4de0'][i]} /></group>)}
       <group position={[1.2, 0, 0.6]}>
         <mesh position={[0, 0.4, 0]} castShadow><boxGeometry args={[0.35, 0.8, 0.35]} /><meshStandardMaterial color="#d6336c" /></mesh>
-        <Html position={[0, 1.1, 0]} center style={{ pointerEvents: 'none' }}><div style={label}>FUEL QUEUE</div></Html>
+        <Html zIndexRange={[5, 0]} position={[0, 1.1, 0]} center style={{ pointerEvents: 'none' }}><div style={label}>FUEL QUEUE</div></Html>
       </group>
     </group>
   );
@@ -342,7 +342,7 @@ function StallModel({ s, pos, selected, next, onSelect }: { s: Stall; pos: [numb
       <mesh position={[0, 1.38, 0.78]}><boxGeometry args={[0.8, 0.14, 0.02]} /><meshStandardMaterial color="#16264a" /></mesh>
       {selected && <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}><ringGeometry args={[1.9, 2.05, 48]} /><meshBasicMaterial color="#f2b01e" /></mesh>}
       {next && <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}><ringGeometry args={[2.1, 2.25, 48]} /><meshBasicMaterial color="#d6336c" /></mesh>}
-      <Html position={[0, 2.2, 0]} center zIndexRange={[5, 0]} style={{ pointerEvents: 'none' }}>
+      <Html zIndexRange={[5, 0]} position={[0, 2.2, 0]} center style={{ pointerEvents: 'none' }}>
         <div style={label}>
           {s.owner?.mine && <span style={{ color: '#f2b01e' }}>YOURS · </span>}{s.name}
           <div style={{ fontSize: 10, color: closed ? '#ff9a9a' : s.state === 'struggling' ? '#ffc861' : '#7fe0a0' }}>
@@ -362,7 +362,7 @@ function PlotModel({ market, on, onSelect }: { market: MarketId; on: boolean; on
     <group position={[wx(x), 0, wz(y)]} onClick={(e) => { e.stopPropagation(); onSelect(); }}
       onPointerOver={() => { document.body.style.cursor = 'pointer'; }} onPointerOut={() => { document.body.style.cursor = ''; }}>
       <mesh position={[0, 0.03, 0]} rotation={[-Math.PI / 2, 0, 0]}><planeGeometry args={[2.8, 1.8]} /><meshStandardMaterial color={on ? '#f2b01e' : '#ffffff'} transparent opacity={0.55} /></mesh>
-      <Html position={[0, 0.5, 0]} center style={{ pointerEvents: 'none' }}><div style={label}>+ Free plot</div></Html>
+      <Html zIndexRange={[5, 0]} position={[0, 0.5, 0]} center style={{ pointerEvents: 'none' }}><div style={label}>+ Free plot</div></Html>
     </group>
   );
 }
@@ -408,7 +408,7 @@ function SourceModel({ item, label: text, detail, on, next, onSelect }: { item: 
         </>
       )}
       {on && <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}><ringGeometry args={[1.35, 1.5, 48]} /><meshBasicMaterial color="#f2b01e" /></mesh>}
-      <Html position={[0, 1.9, 0]} center style={{ pointerEvents: 'none' }}>
+      <Html zIndexRange={[5, 0]} position={[0, 1.9, 0]} center style={{ pointerEvents: 'none' }}>
         <div style={label}>{text}<div style={{ fontSize: 10, color: '#ffc861' }}>{detail}</div>{next && <div style={{ background: '#d6336c', borderRadius: 6, marginTop: 2 }}>▼ NEXT</div>}</div>
       </Html>
     </group>
@@ -456,7 +456,7 @@ function Scene({ state, selected, onSelect, popups, animate }: { state: GameStat
             <RoundedBox args={[z.w / U, 0.06, z.h / U]} radius={0.03} position={[wx(z.x + z.w / 2), 0.02, wz(z.y + z.h / 2)]} receiveShadow>
               <meshStandardMaterial color={GROUND[id]} />
             </RoundedBox>
-            <Html position={[wx(z.x + 90), 0.15, wz(z.y + 28)]} center style={{ pointerEvents: 'none' }}><div style={{ ...label, background: 'rgba(22,38,74,.75)' }}>{z.label}</div></Html>
+            <Html zIndexRange={[5, 0]} position={[wx(z.x + 90), 0.15, wz(z.y + 28)]} center style={{ pointerEvents: 'none' }}><div style={{ ...label, background: 'rgba(22,38,74,.75)' }}>{z.label}</div></Html>
           </group>
         );
       })}
@@ -495,7 +495,7 @@ function Scene({ state, selected, onSelect, popups, animate }: { state: GameStat
       <group position={[wx(you[0]), 0, wz(you[1])]}>
         <Person id="you" shirt="#1d63d6" cap="#14253d" scale={1.45} />
         <group position={[0.6, 0, 0.1]} rotation={[0, 0.3, 0]}><Vehicle kind={state.you.vehicle} /></group>
-        <Html position={[0, 1.55, 0]} center style={{ pointerEvents: 'none' }}><div style={{ ...label, background: '#1d63d6' }}>You</div></Html>
+        <Html zIndexRange={[5, 0]} position={[0, 1.55, 0]} center style={{ pointerEvents: 'none' }}><div style={{ ...label, background: '#1d63d6' }}>You</div></Html>
       </group>
 
       {state.shocks.some((x) => x.kind === 'festive season') && <Festive />}
@@ -509,7 +509,7 @@ function Scene({ state, selected, onSelect, popups, animate }: { state: GameStat
       {animate && rain && <Rain />}
 
       {popups.map((p) => (
-        <Html key={p.id} position={[wx(p.x), 1.6, wz(p.y)]} center style={{ pointerEvents: 'none' }}>
+        <Html zIndexRange={[5, 0]} key={p.id} position={[wx(p.x), 1.6, wz(p.y)]} center style={{ pointerEvents: 'none' }}>
           <div style={{ ...label, background: p.tone === 'gain' ? '#2f8f4e' : p.tone === 'spend' ? '#d6336c' : '#16264a', fontSize: 14 }}>{p.text}</div>
         </Html>
       ))}

@@ -8,7 +8,7 @@
 
 [Play it live](https://nims-app.up.railway.app) · [Demo video (104 s)](docs/nims-demo.mp4) · [Judge walk-through](docs/DEMO.md) · Contract: `oja-items.testnet`
 
-![NEAR testnet](https://img.shields.io/badge/NEAR-testnet-00ec97) ![NEP-245](https://img.shields.io/badge/items-NEP--245-blue) ![tests](https://img.shields.io/badge/tests-377%20passing-brightgreen) ![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)
+![NEAR testnet](https://img.shields.io/badge/NEAR-testnet-00ec97) ![NEP-245](https://img.shields.io/badge/items-NEP--245-blue) ![tests](https://img.shields.io/badge/tests-444%20passing-brightgreen) ![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)
 
 </div>
 
@@ -21,9 +21,11 @@ Game economies are usually scripts: prices follow a table, NPCs trade nothing, a
 - **Eight merchant agents** each hold their own goods and coins, and set their own prices from their stock, their cash and what was traded recently.
 - **Prices explain themselves, out loud.** Hover a price and the merchant says why, in their own voice: *"It is the festive season and everyone wants fabric right now."* The words come from **NEAR AI Cloud**, checked against the game's real numbers, and are spoken with ElevenLabs.
 - **Merchants talk back.** Haggle once an hour and the merchant answers in character (cautious, greedy or loyal), and the town gazette prints what really happened: dividends, a merchant that stopped buying, a week of rain.
-- **Players move markets.** Flooding one good crashes its price for everyone. A merchant with no cash closes; a community fund can reopen it.
-- **Players own parts of the economy.** Buy up to 49% of a merchant for a share of its nightly profit, or open a stall and set your own prices. Merchants spend surplus cash on upkeep each evening, so a share stays at a price a new player can reach however long the town has been running. That upkeep is shared out to merchants that are running low (the merchants' guild), and wholesalers charge relative to the going price, so a store is not left broke just because gatherers keep an item cheap.
-- **Shareholders run the markets.** Each market has a town council. Shareholders vote on its stall rent and on how much profit merchants share out, weighted by the shares they hold there, and the merchants vote too (they oppose anything that costs them). A passing vote changes how the economy runs from the next day, with no dev patch. Extra rent is paid to shareholders each evening; every coin stays on the ledger. Code: [`sim/council.ts`](sim/council.ts).
+- **Players move markets.** Flooding one good crashes its price for everyone. A merchant that runs out of cash and stock closes; a community fund can reopen it. Carrying goods to another market costs a fare that is a small share of what they are worth (3% of the usual price), cheaper in a pickup or a van.
+- **Players own parts of the economy.** Buy up to 49% of a merchant for a share of its nightly profit, or open a stall and set your own prices. A purchase is priced on the merchant after your money is in its till, so buying and selling straight back is a wash and nobody can make coins by moving the price. Dividends go only to shares held since the day began.
+- **Stores stay in business.** Wholesalers charge relative to the going price (they used to charge a fixed amount, which bankrupted every merchant whose goods gatherers kept cheap). Merchants spend surplus cash on upkeep each evening, so a share stays at a price a new player can reach however long the town has been running, and that upkeep is shared out to merchants that are running low (the merchants' guild). Over 120 simulated days stores are open all of the time; before, about half.
+- **Shareholders run the markets.** Each market has a town council. Players vote on its stall rent and on how much profit merchants share out. Trading in a market gives you a seat there, and each share you hold adds another, so a new player can vote without buying a share. The merchants vote too (they oppose anything that costs them). A passing vote changes how the economy runs from the next day, with no dev patch. Extra rent is paid to shareholders each evening; every coin stays on the ledger. Code: [`sim/council.ts`](sim/council.ts).
+- **A 3D town.** A button on the map switches to a 3D view (React Three Fiber): stalls with real goods in their crates, shopkeepers and townsfolk, day and night, rain. The townsfolk walk only on paved walkways and stop in front of stalls and sources, and a test simulates them to check they never touch a building. The 2D map is still the default.
 - **A way back from broke.** Nearly out of coins with nothing to sell? Search the scrap heap, or take an odd job: a merchant who is short of a good pays you to fetch it, and pays the cost and your reward from their own till. Jobs are open only while you are short of coins, with a cooldown, so they are a way back up and not a way to farm.
 - **Delivery orders.** State the goods and the lowest price you will take; the town's carriers (a solver run by the game) sell for you when the price allows.
 
@@ -51,8 +53,8 @@ The chain is invisible: sign in with Google or an emailed link, no wallet, no se
 | Haggling reactions (optional) | **NEAR AI Cloud** writes the merchant's reaction when a player wins a haggle (grudging if cautious, grumbling if greedy, warm if loyal). The game has already decided the deal; the line is checked against its numbers | [`server/voice/haggle.ts`](server/voice/haggle.ts) |
 | Town gazette (optional) | **NEAR AI Cloud** turns the town's latest events into a few newspaper headlines in the News tab. Same rules as the merchant voice: facts only from the game, every number checked, plain event list as the fallback | [`server/voice/gazette.ts`](server/voice/gazette.ts) |
 | Merchant voice (optional) | **NEAR AI Cloud** (OpenAI-compatible API) rewrites a merchant's price reasoning in their own words when a player hovers a price. Prices never depend on it: the reply is used only if every number matches `pricing.ts`, and the plain explanation shows otherwise. Set `NEAR_AI_API_KEY` to turn it on. The line is also spoken aloud: with **ElevenLabs** natural voices (one stock voice per merchant) when `ELEVENLABS_API_KEY` is set, otherwise with the browser's built-in speech. It follows the sound switch | [`server/voice/voice.ts`](server/voice/voice.ts), [`llm.ts`](server/voice/llm.ts) |
-| Council record (optional) | Every town-council vote is also written to a **SputnikDAO** on testnet: a Vote proposal when it opens, approved or rejected when it closes, so the decisions are public. The game counts the votes and stays the authority; the DAO is the record. Player names are never written | [`server/chain/dao.ts`](server/chain/dao.ts) |
-| Town Clerk (optional) | An agent wallet custodied by **OutLayer**: its key lives in a secure enclave and the server holds only an API key. It is the DAO's council member, and its OutLayer policy can limit it to that one DAO and a spending cap. The merchants' own accounts are not custodied this way yet | [`server/chain/outlayer.ts`](server/chain/outlayer.ts) |
+| Council record (optional) | Every town-council vote is also written to a **SputnikDAO** on testnet (`nims-council.sputnikv2.testnet`): a Vote proposal when it opens, approved or rejected when it closes, so the decisions are public. **The game counts the votes and stays the authority; the DAO is only the record.** Player names are never written. Calls retry with back-off and never block gameplay | [`server/chain/dao.ts`](server/chain/dao.ts) |
+| Town Clerk (optional) | An agent wallet custodied by **OutLayer** (testnet): its key lives in a secure enclave and the server holds only an API key. It is the DAO's only council member and signs the record. Its OutLayer policy allows only contract calls, only to the DAO account, within spending caps (1.5 NEAR per call, 10 per hour, 30 per day); transfers, withdrawals and everything else are denied. **The merchants' own accounts are not custodied this way: the server still holds their keys** | [`server/chain/outlayer.ts`](server/chain/outlayer.ts) |
 | Delivery orders | Intents-style: state the outcome and a limit price, a solver fills it. Implemented inside the game (`Game.placeOrder`, `fillOrders`) | [`server/game/game.ts`](server/game/game.ts) |
 
 NEAR **testnet only**. No mainnet or real funds are used.
@@ -78,13 +80,20 @@ npm run setup     # installs the server and the web app
 npm run dev       # starts both; open the address Vite prints (usually http://localhost:5173)
 ```
 
+**The newest parts** (council, 3D view; they need a build of `main`):
+
+1. Collect some goods (the tomato field, say) and sell one unit to a merchant in the Produce Market. You are now a regular there.
+2. Open **My business → Town council → Produce Market**. It shows your seat. Press **Low** under **Stall rent**. The merchants back a cut, so it passes at the end of the game day (use `TICK_MS=1000 npm run dev` to get there in a few minutes), and the news feed says so.
+3. Press **3D view** on the map. Click a stall to open its panel. Drag to turn the view; watch the townsfolk walk to the stalls.
+4. With `SPUTNIK_DAO_ID` (and optionally `OUTLAYER_API_KEY`) set, the same vote appears on the DAO: `npm run chain:dao -- proposals` lists it as Approved or Rejected. Proposal #0 on `nims-council.sputnikv2.testnet` is from a test run, not from real play.
+
 **Optional extras** (all off unless you set them in `.env`; see `.env.example`):
 
 | Variable | What it turns on |
 |---|---|
 | `NEAR_AI_API_KEY` | NEAR AI Cloud writes the merchant voice, the town gazette and haggling reactions. Key from [cloud.near.ai](https://cloud.near.ai). Optional `NEAR_AI_MODEL`. |
 | `SPUTNIK_DAO_ID` | Records each council vote on this SputnikDAO (a `*.testnet` account). Make one with `npm run chain:dao -- create nims-council`. |
-| `OUTLAYER_API_KEY` | Makes the OutLayer-custodied Town Clerk the one who calls the DAO. Run `npm run chain:outlayer -- register`, then `fund`, and set the wallet's policy in the OutLayer dashboard. |
+| `OUTLAYER_API_KEY` | Makes the OutLayer-custodied Town Clerk the one who calls the DAO. Run `npm run chain:outlayer -- register`, then `fund`, and set the wallet's policy in the OutLayer dashboard (call only, the DAO account only, spending caps). |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Adds **Continue with Google** to the sign-in screen. Same account as the emailed link, matched by the verified email. Register `PUBLIC_URL/auth/google/callback` as the redirect in Google Cloud. |
 | `ELEVENLABS_API_KEY` | Natural spoken merchants (one stock voice each). Without it the browser's own voice is used. Optional `ELEVENLABS_VOICES`, `ELEVENLABS_VOICE`, `ELEVENLABS_MODEL`. |
 | `TICK_MS` | Real milliseconds per game hour (default 10000). Lower is a faster, twitchier market. |
@@ -127,12 +136,12 @@ Below its cash floor a merchant stops buying; at zero cash with nothing to sell 
 merchants/
   pricing.ts           The one pricing file
   agents/              Merchant agent: reviews its own settlement legs before signing
-sim/                   Headless economy: engine, world, simulated players, fast-forward
+sim/                   Headless economy: engine, world, simulated players, fast-forward, and the town council (council.ts)
 server/
   main.ts              Entry point: wires everything and starts the server
   http/                HTTP API, email-link and Google login, mailer
   game/                Live game state, saving, and the odd jobs board
-  chain/               NEAR client, relayer, settlement batches, rounds, live settler
+  chain/               NEAR client, relayer, settlement batches, rounds, live settler, the DAO record (dao.ts) and OutLayer client (outlayer.ts)
   accounts/            Player accounts, merchant wallets, key encryption, secrets
   voice/               Optional NEAR AI Cloud writing (merchant voice, gazette, haggling) and ElevenLabs speech
   scripts/             Testnet deploy and live-check scripts
@@ -140,7 +149,7 @@ contracts/items/       The NEP-245 contract (Rust, near-sdk)
 web/src/
   main.tsx, App.tsx    Entry and top-level screen
   api/                 Typed client for the game server
-  game/                The play screen: map, HUD, stall panels, price board, tooltips
+  game/                The play screen: map, 3D map (Map3D.tsx) and its walkways (paths.ts), council panel, HUD, stall panels, price board
   sim/                 Fast-forward dashboard and charts
   ui/                  Small shared inputs (select, number field, slider, ...)
   art/, lib/, test/    Icons and mascot; rank and sound helpers; fixtures
@@ -160,11 +169,29 @@ The [privacy policy](web/public/privacy.html) is served at `/privacy.html`. The 
 | Players never notice the chain | Google or email login, no wallet, relayer pays gas; tests assert no API response mentions wallets, keys or gas |
 | NEP-245 | One multi-token contract holds every item and the coin token |
 
+## What is real, and what is not
+
+**Built and tested** (unit tests, and the council record and Town Clerk also run once against testnet):
+
+- The town council, with merchants' votes, regulars' seats, rent and payout rules, and the rent levy.
+- The council record on a SputnikDAO, signed by an OutLayer-custodied Town Clerk with a policy set on its wallet.
+- The fare, share-price, dividend and store-cash fixes, and the merchants' guild.
+- The 3D town and its checked walkways.
+
+**Not built, or not what it might sound like:**
+
+- **The DAO is a record, not the counter.** Votes are counted in the game, weighted by seats and shares. The DAO shows how each vote ended. It does not decide anything.
+- **Only the Town Clerk is OutLayer-custodied.** The merchants' own accounts, and player accounts, are still signed with keys the server holds (encrypted).
+- **Delivery orders do not use NEAR Intents.** They follow its shape (state the outcome and a limit price, a solver fills it) but run inside the game, not on the Intents network.
+- **Shares, council tallies and funds live in the game server,** not in a contract. Item and coin balances settle to the NEP-245 contract.
+- **Testnet only.** Nothing here uses mainnet or real funds.
+- **Balance is tuned by simulation,** not by long human play.
+
 ## Tests and chain verification
 
 ```bash
-npm test               # economy, pricing, server, API       (231 tests)
-npm run test:web       # the UI against real game state      (146 tests)
+npm test               # economy, pricing, server, API, chain  (281 tests)
+npm run test:web       # the UI against real game state, 3D walkways  (163 tests)
 npm run contract:test  # the NEP-245 contract                (needs Rust)
 ```
 
@@ -188,6 +215,8 @@ One container serves the pages and the API ([`Dockerfile`](Dockerfile)). Steps f
 ## What's next
 
 - **Native NEAR Intents:** route delivery orders through the Intents solver network instead of the in-game carriers.
+- **OutLayer for the merchants:** custody the merchants' own accounts the way the Town Clerk is, which means reworking how settlement epochs reuse accounts.
+- **Votes counted on chain:** have the DAO count weighted votes (for example with a token for seats), so it decides and the game follows, instead of recording the result.
 - **Shares and funds as contracts:** move share ownership and community-fund payouts from the game server to an on-chain contract.
 - **Real sign-in email:** Resend is wired in; it needs a key and a verified sending domain. Google sign-in already works without one.
 - **Scale out:** move game state from one process with a JSON save to a shared store.
@@ -196,6 +225,6 @@ One container serves the pages and the API ([`Dockerfile`](Dockerfile)). Steps f
 
 - **When:** all code here was written during the hackathon window. The first commit is dated 2026-11-04; there is no earlier baseline.
 - **AI assistance:** the code was written with Claude Code (Anthropic) under the author's direction. The demo narration is a cloned voice made with ElevenLabs, and the demo video is built with Remotion.
-- **Main libraries:** near-api-js, near-sdk (Rust), React, Vite, Radix UI, Vitest, Remotion.
+- **Main libraries:** near-api-js, near-sdk (Rust), React, React Three Fiber (three.js), Vite, Radix UI, Vitest, Remotion. SputnikDAO v2 and OutLayer agent custody for the council record.
 - **Setting:** a fictional market town with a fictional currency, so no real-world place is needed to follow the game.
 - **License:** MIT, see [LICENSE](LICENSE).

@@ -210,6 +210,15 @@ export const DEMAND_PER_HOUR: Record<Item, number> = {
   'copper wire': 1.3,
 };
 
+/**
+ * What a wholesaler charges a merchant for a unit. It used to be a fixed 95% of the usual price, so when gatherers kept an item's
+ * price well under usual (iron was selling at about 200 while the wholesaler charged 285) every merchant lost around 80 coins on each
+ * unit restocked and went broke. A wholesaler sells at a discount to the going price, never above the usual 95%, so restocking
+ * always leaves the merchant a margin.
+ */
+export const WHOLESALE_DISCOUNT = 0.85;
+export const wholesaleUnit = (item: Item, mid: number) => Math.max(1, Math.round(Math.min(BASE_PRICE[item] * 0.95, mid * WHOLESALE_DISCOUNT)));
+
 /** The town trades on its own: everyday customers buy, merchants restock from farms and wholesalers. */
 function ambientTrade(w: World) {
   const rain = activeShock(w, 'rain');
@@ -245,7 +254,7 @@ function ambientTrade(w: World) {
       }
       // Restock from farms/wholesalers at a discount to base when running low.
       if (!m.owner && (m.stock[item] ?? 0) < (m.target[item] ?? 0) * 0.85) {
-        const unit = Math.round(BASE_PRICE[item] * 0.95);
+        const unit = wholesaleUnit(item, quoteFor(w, m, item).mid);
         const n = Math.min(3, Math.floor(m.cash / unit));
         m.stock[item] = (m.stock[item] ?? 0) + n;
         transferCoins(w, m, 'town', n * unit);
@@ -333,9 +342,16 @@ const DIVIDEND_CUSHION = 1.5; // never pay out below 1.5x the cash floor
  */
 export const CASH_CEILING = 40_000;
 export const UPKEEP_RATE = 0.25;
+/**
+ * The merchants' guild. What rich merchants pay as upkeep is not thrown away: it goes to merchants that are running low (under this
+ * much cash at the end of the day), so a run of bad luck, or a falling price, does not leave a shop out of money while its neighbours sit on a
+ * pile. A merchant has to be open: a closed shop is for the community fund to reopen.
+ */
+export const SUPPORT_LEVEL = 6_000;
 
 /** End of day: each merchant pays shareholders a cut of the day's profit, from cash above a safety cushion. */
 function payDividends(w: World) {
+  const levies: { m: Merchant; amount: number }[] = [];
   for (const m of w.merchants) {
     if (m.owner || m.state === 'closed') continue;
     const worth = merchantWorth(m);
@@ -359,9 +375,34 @@ function payDividends(w: World) {
     // Upkeep comes after the dividend (which is paid from the day's growth) and before tomorrow's baseline is set,
     // so spending the surplus never counts against the shareholders' profit.
     const ceiling = CASH_CEILING + (m.paidIn ?? 0); // what shareholders put in is theirs, not surplus
-    if (m.cash > ceiling) transferCoins(w, m, 'town', Math.floor((m.cash - ceiling) * UPKEEP_RATE));
+    if (m.cash > ceiling) levies.push({ m, amount: Math.floor((m.cash - ceiling) * UPKEEP_RATE) });
     m.dayStartWorth = merchantWorth(m); // tomorrow's baseline
   }
+  guildSupport(w, levies);
+}
+
+/** Give the day's upkeep to the open merchants that are low on cash, taking it from the merchants that paid it. What nobody needs goes to the town. */
+function guildSupport(w: World, levies: { m: Merchant; amount: number }[]) {
+  const needy = w.merchants.filter((m) => !m.owner && m.state !== 'closed' && m.cash < SUPPORT_LEVEL && !levies.some((l) => l.m === m));
+  const need = needy.reduce((n, m) => n + (SUPPORT_LEVEL - m.cash), 0);
+  let pool = levies.reduce((n, l) => n + l.amount, 0);
+  const share = need > 0 ? Math.min(1, pool / need) : 0; // everyone gets the same fraction of what they lack
+  const given: string[] = [];
+  for (const r of needy) {
+    const asked = Math.floor((SUPPORT_LEVEL - r.cash) * share);
+    let want = asked;
+    for (const d of levies) {
+      const take = Math.min(want, d.amount);
+      if (take <= 0) continue;
+      transferCoins(w, d.m, r, take);
+      d.amount -= take;
+      want -= take;
+      pool -= take;
+    }
+    if (want < asked) { refreshState(w, r); given.push(r.name); }
+  }
+  for (const d of levies) if (d.amount > 0) transferCoins(w, d.m, 'town', d.amount);
+  if (given.length) w.events.push({ hour: w.hour, type: 'guild', text: `The merchants' guild helped ${given.join(' and ')} through a lean spell.` });
 }
 
 /** End of day: the extra rent a council has collected is shared out to the market's shareholders; what the players don't hold goes back to the merchants. */

@@ -105,7 +105,7 @@ export interface Shock {
 
 export interface WorldEvent {
   hour: number;
-  type: 'shock' | 'state' | 'revived' | 'dividend' | 'council';
+  type: 'shock' | 'state' | 'revived' | 'dividend' | 'council' | 'guild';
   text: string;
   /** Merchant this is about (state, revived, dividend). */
   merchant?: string;

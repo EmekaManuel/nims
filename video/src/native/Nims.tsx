@@ -12,7 +12,7 @@ import { LoadingScreen, LoginScreen, Screen } from './Screen';
 /** What happens on screen in a scene, in seconds from its start. Positions come from `npm run measure`, so they follow the real layout. */
 interface Script {
   /** Which recorded shot is showing, and whether a tooltip is being hovered / the haggle box is ticked. */
-  shots: { t: number; id: string; hover?: boolean; haggle?: boolean; dealsTab?: 'deals' | 'jobs' }[];
+  shots: { t: number; id: string; hover?: boolean; haggle?: boolean; dealsTab?: 'deals' | 'jobs'; /** the drawer opens at this shot: slide it in */ open?: boolean }[];
   cursor: CursorKey[];
   camera: CameraKey[];
   /** The 3D camera in the town behind the screen. */
@@ -37,6 +37,8 @@ const LENA3: Look = { pos: [3.4, 3, 2.2], look: [5.871, 1.042, -7.29], fov: 42 }
 const FABRIC: Look = { pos: [5.6, 5.8, 6.8], look: [6.783, 0.566, -1.639], fov: 44 };
 const FABRIC2: Look = { pos: [3, 6, 7.2], look: [5.956, 0.86, -0.852], fov: 44 };
 const WIDE_A: Look = { pos: [-1.2, 9.2, 11.6], look: [1.814, 3.143, 4.236], fov: 38 };
+// The collect scene opens a little further back along the same line as EAST, so the move in is a slow dolly, not a sweep across the town.
+const EAST_START: Look = { pos: [13.47, 6.06, 12.52], look: [8.561, 0.433, 1.27], fov: 38 };
 const WIDE_B: Look = { pos: [2.6, 8.8, 11.8], look: [3.364, 3.034, 3.665], fov: 38 };
 
 const WIDE = { x: 960, y: 540, zoom: 1 };
@@ -47,11 +49,12 @@ function script(s: Scene): Script | null {
   const T = (x: number) => x; // seconds
   switch (s.key) {
     case 'collect': {
-      const town: CamKey[] = [{ ...OVERVIEW, t: 0 }, { ...OVERVIEW, t: 0.2 }, { t: 1.5, ...EAST }, { t: 8, ...EAST_B }];
+      // in to the shed, a slow drift, then across the town to Lena's stall while the narration finishes (so the next scene starts there)
+      const town: CamKey[] = [{ t: 0, ...EAST_START }, { t: 1.5, ...EAST }, { t: 3.6, ...EAST_B }, { t: 7.8, ...LENA }];
       const cotton = at3d('town', town, 1.75, SPOT.cotton);
       const collect = centre('wholesaler', 'btn:collect');
       return {
-        shots: [{ t: 0, id: 'town' }, { t: 1.85, id: 'wholesaler' }, { t: 3.35, id: 'collected' }],
+        shots: [{ t: 0, id: 'town' }, { t: 1.85, id: 'wholesaler', open: true }, { t: 3.35, id: 'collected' }],
         town,
         cursor: [{ t: 0, ...C0(900, 760) }, { t: T(1.55), ...cotton }, { t: T(1.75), ...cotton, click: true }, { t: T(3.0), ...collect }, { t: T(3.25), ...collect, click: true }],
         camera: [{ t: 0, ...WIDE }, { t: 1.9, x: 1300, y: 540, zoom: 1.2 }, { t: 4.6, ...WIDE }],
@@ -60,7 +63,7 @@ function script(s: Scene): Script | null {
       };
     }
     case 'tooltip': {
-      const town: CamKey[] = [{ t: 0, ...EAST_B }, { t: 0.9, ...LENA }, { t: 13, ...LENA2 }];
+      const town: CamKey[] = [{ t: 0, ...LENA }, { t: 13, ...LENA2 }];
       const lena = at3d('collected', town, 1.0, SPOT.lena);
       const price = centre('stall', 'price:lena:cotton');
       const bubble = centre('hover', 'bubble');
@@ -78,7 +81,7 @@ function script(s: Scene): Script | null {
       return {
         // the haggle box is ticked when the cursor clicks it, and stays ticked
         shots: [{ t: 0, id: 'stall' }, { t: 1.15, id: 'stall', haggle: true }, { t: 2.35, id: 'sold', haggle: true }, { t: s.clip ? s.clip.start / FPS : 5.6, id: 'reaction', haggle: true }],
-        town: [{ t: 0, ...LENA2 }, { t: 12, ...LENA3 }],
+        town: [{ t: 0, ...LENA2 }, { t: 8.8, ...LENA3 }, { t: 12.3, ...FABRIC }],
         cursor: [{ t: 0, ...price }, { t: T(0.9), ...haggle }, { t: T(1.1), ...haggle, click: true }, { t: T(2.0), ...sell }, { t: T(2.2), ...sell, click: true }],
         camera: [{ t: 0, x: 1500, y: 450, zoom: 1.4 }, { t: 5.0, x: 1300, y: 800, zoom: 1.35 }],
         pills: [{ t: 2.4, hold: sec(2.8), node: <Stat label="CASH" from={cashOf('collected')} to={cashOf('sold')} at={sec(2.4)} sign /> }],
@@ -86,7 +89,7 @@ function script(s: Scene): Script | null {
       };
     }
     case 'council': {
-      const town: CamKey[] = [{ t: 0, ...LENA3 }, { t: 1.8, ...FABRIC }, { t: 15, ...FABRIC2 }];
+      const town: CamKey[] = [{ t: 0, ...FABRIC }, { t: 11.5, ...FABRIC2 }, { t: 14.9, ...WIDE_A }];
       const business = centre('reaction', 'dock:business');
       const low = centre('council', 'btn:rent:low');
       const card = centre('council', 'council:fabric');
@@ -106,7 +109,7 @@ function script(s: Scene): Script | null {
       const take = centre('jobs', 'btn:take');
       const deliver = centre('job-taken', 'btn:deliver');
       return {
-        town: [{ t: 0, ...FABRIC2 }, { t: 2.5, ...WIDE_A }, { t: 11, ...WIDE_B }],
+        town: [{ t: 0, ...WIDE_A }, { t: 11, ...WIDE_B }],
         shots: [{ t: 0, id: 'council-done' }, { t: 0.75, id: 'broke' }, { t: 2.85, id: 'scrap' }, { t: 4.2, id: 'jobs' }, { t: 5.35, id: 'job-taken' }, { t: 7.25, id: 'job-done' }].map((x) => ({ ...x, dealsTab: x.t >= 0.75 ? ('jobs' as const) : undefined })),
         cursor: [{ t: 0, ...C0(1500, 400) }, { t: T(0.45), ...deals }, { t: T(0.6), ...deals, click: true }, { t: T(2.5), ...scav }, { t: T(2.7), ...scav, click: true }, { t: T(5.0), ...take }, { t: T(5.2), ...take, click: true }, { t: T(7.0), ...deliver }, { t: T(7.15), ...deliver, click: true }],
         camera: [{ t: 0, ...WIDE }, { t: 0.8, x: 1560, y: 470, zoom: 1.35 }],
@@ -164,7 +167,7 @@ const AppScene: React.FC<{ s: Scene }> = ({ s }) => {
   const camera = cameraAt(sc.camera, t);
   return (
     <AbsoluteFill style={{ opacity: fadeIn * fadeOut }}>
-      <Screen shot={getShot(current.id) as Shot} camera={camera} hover={current.hover} haggle={current.haggle} dealsTab={current.dealsTab} night
+      <Screen shot={getShot(current.id) as Shot} camera={camera} hover={current.hover} haggle={current.haggle} dealsTab={current.dealsTab} night drawerAge={current.open ? t - current.t : undefined}
         town={{ t: (s.from + f) / FPS, camera: townCamAt(sc.town, t), dpr: 2 }} />
       <Cursor keys={sc.cursor} camera={camera} t={t} />
       {sc.pills?.map((p, i) => <Pill key={i} at={sec(p.t)} hold={p.hold}>{p.node}</Pill>)}

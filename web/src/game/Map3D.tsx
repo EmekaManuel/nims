@@ -36,8 +36,10 @@ export interface VideoDrive {
   dpr?: number;
   /** Show the markets' name banners high above them (clear in wide shots, but they float over stalls in a close-up). */
   banners?: boolean;
-  /** Called once the frame has been drawn. */
-  onDrawn?: () => void;
+  /** Names this frame. `onDrawn` hands it back, so a late call from an earlier frame can be told apart from this one's. */
+  frameKey?: number;
+  /** Called once the frame has been drawn, with `frameKey`. */
+  onDrawn?: (frameKey: number | undefined) => void;
 }
 const Drive = createContext<VideoDrive | null>(null);
 
@@ -391,8 +393,8 @@ function StallModel({ s, pos, selected, next, onSelect }: { s: Stall; pos: [numb
       )}
       {/* hanging sign */}
       <mesh position={[0, 1.7, 0.8]}><boxGeometry args={[0.8, 0.14, 0.02]} /><meshStandardMaterial color="#16264a" /></mesh>
-      {selected && <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}><ringGeometry args={[1.9, 2.05, 48]} /><meshBasicMaterial color="#f2b01e" /></mesh>}
-      {next && <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}><ringGeometry args={[2.1, 2.25, 48]} /><meshBasicMaterial color="#d6336c" /></mesh>}
+      {selected && <mesh position={[0, 0.115, 0]} rotation={[-Math.PI / 2, 0, 0]}><ringGeometry args={[1.9, 2.05, 48]} /><meshBasicMaterial color="#f2b01e" /></mesh>}
+      {next && <mesh position={[0, 0.115, 0]} rotation={[-Math.PI / 2, 0, 0]}><ringGeometry args={[2.1, 2.25, 48]} /><meshBasicMaterial color="#d6336c" /></mesh>}
       <Html zIndexRange={[5, 0]} position={[0, 2.6, 0]} center style={{ pointerEvents: 'none' }}>
         <div style={label}>
           {s.owner?.mine && <span style={{ color: '#f2b01e' }}>YOURS · </span>}{s.name}
@@ -463,7 +465,7 @@ function SourceModel({ item, label: text, detail, on, next, onSelect, lit }: { i
         </>
       )}
       {lit && <pointLight position={[item === 'cotton' ? -1.2 : 1.2, 1.6, 1.4]} intensity={9} distance={6} color="#ffc861" />}
-      {on && <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}><ringGeometry args={[1.35, 1.5, 48]} /><meshBasicMaterial color="#f2b01e" /></mesh>}
+      {on && <mesh position={[0, 0.115, 0]} rotation={[-Math.PI / 2, 0, 0]}><ringGeometry args={[1.35, 1.5, 48]} /><meshBasicMaterial color="#f2b01e" /></mesh>}
       <Html zIndexRange={[5, 0]} position={[0, 1.9, 0]} center style={{ pointerEvents: 'none' }}>
         <div style={label}>{text}<div style={{ fontSize: 10, color: '#ffc861' }}>{detail}</div>{next && <div style={{ background: '#d6336c', borderRadius: 6, marginTop: 2 }}>▼ NEXT</div>}</div>
       </Html>
@@ -588,20 +590,66 @@ function Scene({ state, selected, onSelect, popups, animate }: { state: GameStat
   );
 }
 
+/** Copy what a WebGL canvas shows into a 2D canvas that sits on top of it (made the first time), and hide the WebGL one. */
+function mirror(source: HTMLCanvasElement) {
+  const parent = source.parentElement;
+  if (!parent) return;
+  let copy = parent.querySelector<HTMLCanvasElement>('canvas[data-mirror]');
+  if (!copy) {
+    copy = document.createElement('canvas');
+    copy.dataset.mirror = '1';
+    Object.assign(copy.style, { position: 'absolute', left: '0', top: '0', width: '100%', height: '100%', zIndex: '0', pointerEvents: 'none' });
+    parent.appendChild(copy);
+    source.style.opacity = '0';
+  }
+  if (copy.width !== source.width || copy.height !== source.height) { copy.width = source.width; copy.height = source.height; }
+  copy.getContext('2d')?.drawImage(source, 0, 0);
+}
+
 /** In the video: put the camera where the script says, and say when the frame has been drawn. */
 function DriveRig({ drive }: { drive: VideoDrive }) {
-  const { camera, invalidate } = useThree();
+  const { camera, advance, gl } = useThree();
+  // Setting a canvas's size clears it, even to the size it already has, and the page is re-rendered several times in each video frame, each
+  // time re-configuring the canvas. Only pass a size on to the canvas when it really changes, so a drawn frame is not wiped before it is captured.
+  useLayoutEffect(() => {
+    const original = gl.setSize.bind(gl);
+    let w = -1, h = -1;
+    gl.setSize = (width: number, height: number, updateStyle?: boolean) => {
+      if (width === w && height === h) return;
+      w = width; h = height;
+      original(width, height, updateStyle);
+    };
+    return () => { gl.setSize = original; };
+  }, [gl]);
+  // Re-run whenever the canvas is resized: resizing clears a canvas, and with no render loop of its own nothing would draw it again.
+  const size = useThree((s) => s.size);
+  useLayoutEffect(() => {
+    const lost = () => console.warn('3D: the WebGL context was lost');
+    gl.domElement.addEventListener('webglcontextlost', lost);
+    return () => gl.domElement.removeEventListener('webglcontextlost', lost);
+  }, [gl]);
   useLayoutEffect(() => {
     camera.position.set(...drive.camera.position);
     const cam = camera as THREE.PerspectiveCamera;
     if (drive.camera.fov) { cam.fov = drive.camera.fov; cam.updateProjectionMatrix(); }
     camera.lookAt(...drive.camera.target);
     camera.updateMatrixWorld();
-    invalidate();
-    // two animation frames: the first draws, the second is after the browser has shown it
-    const id = requestAnimationFrame(() => requestAnimationFrame(() => drive.onDrawn?.()));
+    // Draw now, in this very step, with every per-frame update (the labels too) run: nothing is left to a render loop that might not have
+    // caught up. Then copy the picture into an ordinary 2D canvas laid over the 3D one: a screenshot can catch a WebGL canvas between
+    // presentations (it comes out blank), but a 2D canvas is part of the page like an image, so it cannot.
+    advance(drive.t, true);
+    mirror(gl.domElement);
+    // Then wait for the browser to show it, draw once more (cheap, and certain: the canvas holds this frame at the moment of release),
+    // and only then say so.
+    let id = requestAnimationFrame(() => {
+      id = requestAnimationFrame(() => {
+        advance(drive.t, true);
+        mirror(gl.domElement);
+        id = requestAnimationFrame(() => drive.onDrawn?.(drive.frameKey));
+      });
+    });
     return () => cancelAnimationFrame(id);
-  });
+  }, [camera, advance, drive, size.width, size.height]);
   return null;
 }
 
@@ -617,7 +665,7 @@ export function DistrictMap3D({ state, selected, onSelect, popups = [], moving, 
   return (
     <div className="map map3d" aria-label="3D map of the market district">
       {drive ? (
-        <Canvas shadows frameloop="demand" dpr={drive.dpr ?? 1} resize={{ offsetSize: true, scroll: false, debounce: 0 }} camera={{ position: drive.camera.position, fov: drive.camera.fov ?? 38 }} gl={{ preserveDrawingBuffer: true, antialias: true }}>
+        <Canvas shadows frameloop="never" dpr={drive.dpr ?? 1} resize={{ offsetSize: true, scroll: false, debounce: 0 }} camera={{ position: drive.camera.position, fov: drive.camera.fov ?? 38 }} gl={{ preserveDrawingBuffer: true, antialias: true }}>
           <Drive.Provider value={drive}>
             <Scene state={state} selected={selected} onSelect={onSelect} popups={popups} animate={animate} />
             <DriveRig drive={drive} />

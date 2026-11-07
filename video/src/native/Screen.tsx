@@ -121,7 +121,10 @@ export const LoginScreen: React.FC<{ email: string; camera?: Camera }> = ({ emai
 };
 
 /** The real game screen for one recorded shot, at 1920x1080, with an optional camera (zoom and pan on the real vector UI). */
-export const Screen: React.FC<{ shot: Shot; camera?: Camera; hover?: boolean; haggle?: boolean; dealsTab?: 'deals' | 'jobs'; town?: Town; night?: boolean }> = ({ shot, camera, hover, haggle, dealsTab, town, night }) => {
+export const Screen: React.FC<{ shot: Shot; camera?: Camera; hover?: boolean; haggle?: boolean; dealsTab?: 'deals' | 'jobs'; town?: Town; night?: boolean; drawerAge?: number }> = ({ shot, camera, hover, haggle, dealsTab, town, night, drawerAge }) => {
+  // A drawer that has just opened slides in over a fifth of a second (the game's own animation is paused for the video).
+  const slide = drawerAge === undefined ? 1 : Math.min(1, Math.max(0, drawerAge / 0.22));
+  const slideEase = 1 - Math.pow(1 - slide, 3);
   const { z, tx, ty } = cameraBox(camera);
   // The tooltip is drawn outside the zoomed screen; scale it with the camera so it keeps its place and size relative to the UI.
   // (Capped: the game places the bubble assuming its normal size, so a big bubble near the right edge would run off the screen.)
@@ -131,11 +134,15 @@ export const Screen: React.FC<{ shot: Shot; camera?: Camera; hover?: boolean; ha
   // The 3D town draws itself in a canvas. Hold each frame until it has been drawn, so the picture is never caught half-way.
   const frame = useCurrentFrame();
   const pending = useRef<number | null>(null);
+  const current = useRef(frame);
+  current.current = frame;
   useLayoutEffect(() => { if (town) pending.current = delayRender(`town ${frame}`); }, [frame, !!town]);
   const drive: VideoDrive | undefined = town ? {
     ...town,
     walkStops: WALK_STOPS,
-    onDrawn: () => { if (pending.current !== null) { continueRender(pending.current); pending.current = null; } },
+    frameKey: frame,
+    // only the signal from THIS frame's drawing may release the hold: a late one from an earlier frame would let a frame be captured with the wrong camera
+    onDrawn: (key) => { if (key === current.current && pending.current !== null) { continueRender(pending.current); pending.current = null; } },
   } : undefined;
   return (
     <>
@@ -143,6 +150,7 @@ export const Screen: React.FC<{ shot: Shot; camera?: Camera; hover?: boolean; ha
         *, *::before, *::after { animation: none !important; transition: none !important; caret-color: transparent; }
         /* room below the last section, so a drawer can be scrolled until the part the scene is about is at the top */
         .drawer-body::after { content: ''; display: block; min-height: 640px; }
+        ${slide < 1 ? `.drawer { opacity: ${slideEase}; transform: translateX(${(1 - slideEase) * 70}px); }` : ''}
         .bubble { transform: scale(var(--cam, 1)); transform-origin: calc(var(--arrow, 18px) + 6px) 0; }
         .bubble.above { transform-origin: calc(var(--arrow, 18px) + 6px) 100%; }
       `}</style>
@@ -206,10 +214,12 @@ export const LoadingScreen: React.FC<{ t: number; scale?: number }> = ({ t, scal
 export const TownCanvas: React.FC<{ shot: Shot; town: Town; night?: boolean }> = ({ shot, town, night = true }) => {
   const frame = useCurrentFrame();
   const pending = useRef<number | null>(null);
+  const current = useRef(frame);
+  current.current = frame;
   useLayoutEffect(() => { pending.current = delayRender(`backdrop ${frame}`); }, [frame]);
   const raw = shot.state as GameState;
   const state = night ? { ...raw, hour: nightHour(raw.hour) } : raw;
-  const drive: VideoDrive = { ...town, walkStops: WALK_STOPS, banners: true, onDrawn: () => { if (pending.current !== null) { continueRender(pending.current); pending.current = null; } } };
+  const drive: VideoDrive = { ...town, walkStops: WALK_STOPS, banners: true, frameKey: frame, onDrawn: (key) => { if (key === current.current && pending.current !== null) { continueRender(pending.current); pending.current = null; } } };
   return (
     <div style={{ position: 'absolute', left: 0, top: 0, width: 1920, height: 1080, overflow: 'hidden' }}>
       <style>{`.townfill, .townfill > .map3d { width: 1920px; height: 1080px; }`}</style>

@@ -12,6 +12,8 @@ What is real in it:
 - **The fast-forward week** is the real dashboard (`FastForwardPage` in replay mode) drawn from a run of the real engine (`scripts/make-ffrun.ts` → `src/data/ffrun.json`), frozen at the hour the video has reached and scrolled down the page.
 
 ## Render
+**It renders one browser tab at a time, on purpose** (`Config.setConcurrency(1)` in `remotion.config.ts`). With several tabs the 3D town glitches, because they share one GPU: a frame comes out with the wrong camera, or with no town at all. One tab is just as fast, since the tabs were slowing each other down. After any render, check it: `node scripts/check-video.mjs out/nims-demo.mp4 0 387 718 954 1362 1731 2179 2511 2667 2982 3277 3625` (the numbers are the frames where a scene is expected to cut) looks for a frame that differs a lot from both its neighbours, which are alike, and exits non-zero if it finds one.
+
 - `npm install`, then `npm run studio` to preview; `npm run render` (voiced) or `npm run render:silent` (no narration, for your own voice).
 
 ## Rebuild it from scratch

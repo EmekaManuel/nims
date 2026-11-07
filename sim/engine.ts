@@ -4,7 +4,7 @@
  */
 import { clampPlayerPrice, merchantState, PERSONALITY_PARAMS, playerQuote, quote, Quote } from '../merchants/pricing';
 import { PAYOUT_RATE, RENT_MULT, resolveCouncils } from './council';
-import { BASE_PRICE, CARRY_VALUE, COINS, Item, MARKETS, MAX_PUBLIC_SHARES, Merchant, MarketId, PERISHABLE, Player, SHARES_TOTAL, ShockKind, World } from './world';
+import { BASE_PRICE, CARRY_VALUE, COINS, Item, MARKETS, MAX_PUBLIC_SHARES, Merchant, MarketId, PERISHABLE, Player, SHARES_TOTAL, ShockKind, Vehicle, World } from './world';
 
 /** Demand memory length in in-game hours. */
 export const WINDOW = 24;
@@ -175,8 +175,21 @@ function rollShocks(w: World) {
   w.events.push({ hour: w.hour, type: 'shock', text: `Shock: ${kind} for ${length}h.`, shock: kind, length });
 }
 
-/** Coins per unit to move goods between markets. Fuel queues double it. */
-export const carryCost = (w: World) => (activeShock(w, 'fuel queue') ? 40 : 20);
+/**
+ * What it costs to carry goods to another market. It is a small share of what the goods are worth (3% of the usual price),
+ * so thread is not taxed like lace; bigger vehicles haul cheaper per unit; and a fuel queue raises it by half. Never less than 1 a unit.
+ * (It used to be a flat 20 a unit, which was a fifth of a tomato's price and a fraction of a percent of a lace's.)
+ */
+export const FARE_RATE = 0.03;
+export const VEHICLE_FARE: Record<Vehicle, number> = { wheelbarrow: 1, pickup: 0.7, van: 0.5 };
+export const FUEL_QUEUE_FARE = 1.5;
+export function unitFare(w: World, item: Item, vehicle: Vehicle): number {
+  return Math.max(1, Math.round(BASE_PRICE[item] * FARE_RATE * VEHICLE_FARE[vehicle] * (activeShock(w, 'fuel queue') ? FUEL_QUEUE_FARE : 1)));
+}
+/** The fare for everything the player is carrying. */
+export function loadFare(w: World, p: Player): number {
+  return Object.entries(p.inventory).reduce((sum, [item, n]) => sum + (n ?? 0) * unitFare(w, item as Item, p.vehicle), 0);
+}
 
 /** Gathering capacity multiplier (rain slows it). */
 export const gatherRate = (w: World) => (activeShock(w, 'rain') ? 0.5 : 1);
@@ -267,15 +280,28 @@ export const sharePrice = (m: Merchant) => Math.max(1, Math.round(merchantWorth(
 export const sharesHeld = (m: Merchant) => Object.values(m.shares).reduce((a, b) => a + b, 0);
 export const publicSharesLeft = (m: Merchant) => Math.max(0, MAX_PUBLIC_SHARES - sharesHeld(m));
 
+/**
+ * What n shares cost. Your money goes into the merchant's till, so you are buying n% of the merchant AS IT IS AFTER you pay:
+ * cost = n% of (worth + cost), which is n x worth / (100 - n). Priced on the worth before your money went in (the old way), a
+ * buyer could pay 45,423 coins and sell straight back for 61,495, because their own payment had lifted the price. Now buying
+ * and selling straight back is a wash (within a coin), so no one can make coins by moving the price.
+ */
+export const shareCost = (m: Merchant, n: number) => Math.max(n, Math.ceil((n * merchantWorth(m)) / (SHARES_TOTAL - n)));
+/** What n shares fetch when sold back: n% of what the merchant is worth now. */
+export const shareProceeds = (m: Merchant, n: number) => Math.max(n, Math.floor((n * merchantWorth(m)) / SHARES_TOTAL));
+/** Shares that earn today: those held since the day began. */
+export const eligibleShares = (m: Merchant, id: string) => Math.min(m.shares[id] ?? 0, (m.dayStartShares ?? m.shares)[id] ?? 0);
+
 /** Buying shares puts your cash into the merchant's till, which can lift a struggling shop. */
 export function buyShares(w: World, p: Player, m: Merchant, n: number): { error: string } | { cost: number } {
   if (m.owner) return { error: "You can't buy shares in a stall run by another player." };
   if (m.state === 'closed') return { error: `${m.name} is closed. Start a community fund to reopen it.` };
   if (!Number.isInteger(n) || n < 1) return { error: 'Pick a whole number of shares.' };
   if (n > publicSharesLeft(m)) return { error: publicSharesLeft(m) === 0 ? `No shares left in ${m.name}. They keep the majority.` : `Only ${publicSharesLeft(m)} shares left in ${m.name}.` };
-  const cost = n * sharePrice(m);
+  const cost = shareCost(m, n);
   if (p.cash < cost) return { error: `${n} shares cost ${cost} coins.` };
   transferCoins(w, p, m, cost);
+  m.paidIn = (m.paidIn ?? 0) + cost;
   m.shares[p.id] = (m.shares[p.id] ?? 0) + n;
   m.dayStartWorth = (m.dayStartWorth ?? merchantWorth(m) - cost) + cost; // an investment is not profit
   refreshState(w, m);
@@ -287,9 +313,10 @@ export function sellShares(w: World, p: Player, m: Merchant, n: number): { error
   const have = m.shares[p.id] ?? 0;
   if (!Number.isInteger(n) || n < 1) return { error: 'Pick a whole number of shares.' };
   if (have < n) return { error: `You only hold ${have} shares in ${m.name}.` };
-  const proceeds = n * sharePrice(m);
+  const proceeds = shareProceeds(m, n);
   if (m.cash < proceeds) return { error: `${m.name} can't afford to buy your shares back right now.` };
   transferCoins(w, m, p, proceeds);
+  m.paidIn = Math.max(0, (m.paidIn ?? 0) - proceeds);
   m.shares[p.id] = have - n;
   if (m.shares[p.id] === 0) delete m.shares[p.id];
   m.dayStartWorth = (m.dayStartWorth ?? merchantWorth(m) + proceeds) - proceeds;
@@ -318,7 +345,8 @@ function payDividends(w: World) {
     if (profit > 0 && held > 0) {
       const pool = Math.min(Math.floor(profit * PAYOUT_RATE[w.council[m.market].payout]), Math.max(0, Math.floor(m.cash - m.cashFloor * DIVIDEND_CUSHION)));
       let paid = 0;
-      for (const [id, n] of Object.entries(m.shares)) {
+      for (const id of Object.keys(m.shares)) {
+        const n = eligibleShares(m, id);
         const pay = Math.floor((pool * n) / SHARES_TOTAL);
         const holder = w.players.find((x) => x.id === id);
         if (pay <= 0 || !holder) continue;
@@ -330,7 +358,8 @@ function payDividends(w: World) {
     }
     // Upkeep comes after the dividend (which is paid from the day's growth) and before tomorrow's baseline is set,
     // so spending the surplus never counts against the shareholders' profit.
-    if (m.cash > CASH_CEILING) transferCoins(w, m, 'town', Math.floor((m.cash - CASH_CEILING) * UPKEEP_RATE));
+    const ceiling = CASH_CEILING + (m.paidIn ?? 0); // what shareholders put in is theirs, not surplus
+    if (m.cash > ceiling) transferCoins(w, m, 'town', Math.floor((m.cash - ceiling) * UPKEEP_RATE));
     m.dayStartWorth = merchantWorth(m); // tomorrow's baseline
   }
 }
@@ -344,7 +373,8 @@ function payLevy(w: World) {
     let toPlayers = 0;
     for (const m of seated) {
       let paid = 0;
-      for (const [id, n] of Object.entries(m.shares)) {
+      for (const id of Object.keys(m.shares)) {
+        const n = eligibleShares(m, id);
         const pay = Math.floor((slice * n) / SHARES_TOTAL);
         const holder = w.players.find((x) => x.id === id);
         if (pay <= 0 || !holder) continue;
@@ -476,6 +506,7 @@ export function tick(w: World, act: Strategy) {
   if (w.hour % 24 === 23) {
     payLevy(w);
     payDividends(w);
+    for (const m of w.merchants) m.dayStartShares = { ...m.shares }; // tomorrow's dividend goes on what is held now
     resolveCouncils(w, (p, text) => addNote(w, p, text)); // a decision made today applies from tomorrow
   }
   snapshot(w);

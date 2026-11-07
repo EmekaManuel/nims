@@ -36,7 +36,8 @@ export interface Stall {
   /** Present on a stall run by a player. */
   owner?: { name: string; mine: boolean };
   /** Present on merchants you can invest in. */
-  shares?: { price: number; left: number; yours: number };
+  /** price: one share at today's worth. worth: what the merchant is worth, which sets the exact cost of a purchase (see shareCost). */
+  shares?: { price: number; left: number; yours: number; worth?: number };
 }
 
 export type GoalKind = 'fortune' | 'reach' | 'stake' | 'district';
@@ -115,7 +116,8 @@ export interface GameState {
   hour: number;
   day: number;
   shocks: { kind: string; hoursLeft: number }[];
-  faresPerUnit: number;
+  /** What it would cost to walk your current load to each market (0 where you already are). */
+  fares: Record<MarketId, number>;
   gatherSpeed: number;
   markets: { id: MarketId; name: string; items: Item[] }[];
   stalls: Stall[];

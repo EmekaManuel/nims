@@ -112,6 +112,8 @@ export interface WorldEvent {
   /** shock events: which shock and for how long. */
   shock?: ShockKind;
   length?: number;
+  /** council events: how a vote ended, and whether it has been recorded on the DAO yet (see server/chain/dao.ts). */
+  decision?: { market: MarketId; lever: string; to: string; passed: boolean; yes: number; no: number; daoId?: number; recorded?: boolean };
 }
 
 export interface Snapshot {

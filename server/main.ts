@@ -10,6 +10,8 @@ import { ChainPort, offlineChain, realChain } from './chain/relayer';
 import { loadSecrets } from './accounts/secrets';
 import { agentChain } from './chain/agent-chain';
 import { ChainSync } from './chain/chainsync';
+import { clerkDao, CouncilRecorder, nearDao, nearDaoViews, type DaoPort } from './chain/dao';
+import { OUTLAYER_TESTNET, outlayer } from './chain/outlayer';
 import { WalletStore } from './accounts/wallets';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -76,6 +78,25 @@ if (chain !== offlineChain && process.env.CHAIN_SYNC !== '0') {
   syncDone = sync.run();
   console.log('Streaming the game to the chain in the background.');
 }
+// Optional: keep a public record of every council vote on a SputnikDAO. The game stays the authority and never waits on this.
+// With OUTLAYER_API_KEY the DAO is called by the Town Clerk, an agent wallet custodied by OutLayer (no key of ours can sign for it);
+// without it the server's own account does the calling.
+let daoTimer: ReturnType<typeof setInterval> | undefined;
+const daoId = process.env.SPUTNIK_DAO_ID?.trim();
+if (chain !== offlineChain && daoId) {
+  try {
+    if (!daoId.endsWith('.testnet')) throw new Error('Nims only talks to NEAR testnet DAOs.');
+    const olKey = process.env.OUTLAYER_API_KEY?.trim();
+    const olUrl = process.env.OUTLAYER_URL?.trim() || OUTLAYER_TESTNET;
+    if (olKey && !/testnet/.test(olUrl)) throw new Error('Nims only talks to the OutLayer testnet.');
+    const dao: DaoPort = olKey ? clerkDao({ clerk: outlayer({ apiKey: olKey, baseUrl: olUrl }), daoId, views: nearDaoViews(daoId) }) : nearDao(daoId);
+    const recorder = new CouncilRecorder({ game, dao, log: (m) => console.log(`[dao] ${m}`) });
+    daoTimer = setInterval(() => void recorder.sweep(), 15_000);
+    console.log(`Recording council votes on ${daoId}${olKey ? ', through the Town Clerk (OutLayer).' : '.'}`);
+  } catch (e) {
+    console.log(`Not recording council votes on a DAO: ${(e as Error).message}`);
+  }
+}
 // One connection to NEAR AI Cloud for every feature that writes words, so they share one rate budget.
 const ai = process.env.NEAR_AI_API_KEY ? createChat({ apiKey: process.env.NEAR_AI_API_KEY, model: process.env.NEAR_AI_MODEL || undefined, baseUrl: process.env.NEAR_AI_BASE_URL || undefined }) : undefined;
 const publicUrl = (process.env.PUBLIC_URL ?? `http://localhost:${port}`).replace(/\/+$/, '');
@@ -114,6 +135,7 @@ async function shutdown(sig: string) {
   closing = true;
   console.log(`${sig}: finishing the current settlement, saving the game, then stopping.`);
   clearInterval(ticker);
+  if (daoTimer) clearInterval(daoTimer);
   server.close();
   sync?.stop();
   await Promise.race([syncDone, new Promise((r) => setTimeout(r, 8_000))]);

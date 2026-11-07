@@ -51,6 +51,8 @@ The chain is invisible: sign in with Google or an emailed link, no wallet, no se
 | Haggling reactions (optional) | **NEAR AI Cloud** writes the merchant's reaction when a player wins a haggle (grudging if cautious, grumbling if greedy, warm if loyal). The game has already decided the deal; the line is checked against its numbers | [`server/voice/haggle.ts`](server/voice/haggle.ts) |
 | Town gazette (optional) | **NEAR AI Cloud** turns the town's latest events into a few newspaper headlines in the News tab. Same rules as the merchant voice: facts only from the game, every number checked, plain event list as the fallback | [`server/voice/gazette.ts`](server/voice/gazette.ts) |
 | Merchant voice (optional) | **NEAR AI Cloud** (OpenAI-compatible API) rewrites a merchant's price reasoning in their own words when a player hovers a price. Prices never depend on it: the reply is used only if every number matches `pricing.ts`, and the plain explanation shows otherwise. Set `NEAR_AI_API_KEY` to turn it on. The line is also spoken aloud: with **ElevenLabs** natural voices (one stock voice per merchant) when `ELEVENLABS_API_KEY` is set, otherwise with the browser's built-in speech. It follows the sound switch | [`server/voice/voice.ts`](server/voice/voice.ts), [`llm.ts`](server/voice/llm.ts) |
+| Council record (optional) | Every town-council vote is also written to a **SputnikDAO** on testnet: a Vote proposal when it opens, approved or rejected when it closes, so the decisions are public. The game counts the votes and stays the authority; the DAO is the record. Player names are never written | [`server/chain/dao.ts`](server/chain/dao.ts) |
+| Town Clerk (optional) | An agent wallet custodied by **OutLayer**: its key lives in a secure enclave and the server holds only an API key. It is the DAO's council member, and its OutLayer policy can limit it to that one DAO and a spending cap. The merchants' own accounts are not custodied this way yet | [`server/chain/outlayer.ts`](server/chain/outlayer.ts) |
 | Delivery orders | Intents-style: state the outcome and a limit price, a solver fills it. Implemented inside the game (`Game.placeOrder`, `fillOrders`) | [`server/game/game.ts`](server/game/game.ts) |
 
 NEAR **testnet only**. No mainnet or real funds are used.
@@ -81,6 +83,8 @@ npm run dev       # starts both; open the address Vite prints (usually http://lo
 | Variable | What it turns on |
 |---|---|
 | `NEAR_AI_API_KEY` | NEAR AI Cloud writes the merchant voice, the town gazette and haggling reactions. Key from [cloud.near.ai](https://cloud.near.ai). Optional `NEAR_AI_MODEL`. |
+| `SPUTNIK_DAO_ID` | Records each council vote on this SputnikDAO (a `*.testnet` account). Make one with `npm run chain:dao -- create nims-council`. |
+| `OUTLAYER_API_KEY` | Makes the OutLayer-custodied Town Clerk the one who calls the DAO. Run `npm run chain:outlayer -- register`, then `fund`, and set the wallet's policy in the OutLayer dashboard. |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Adds **Continue with Google** to the sign-in screen. Same account as the emailed link, matched by the verified email. Register `PUBLIC_URL/auth/google/callback` as the redirect in Google Cloud. |
 | `ELEVENLABS_API_KEY` | Natural spoken merchants (one stock voice each). Without it the browser's own voice is used. Optional `ELEVENLABS_VOICES`, `ELEVENLABS_VOICE`, `ELEVENLABS_MODEL`. |
 | `TICK_MS` | Real milliseconds per game hour (default 10000). Lower is a faster, twitchier market. |

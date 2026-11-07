@@ -42,6 +42,8 @@ export interface Proposal {
   byName: string;
   openedHour: number;
   closesHour: number;
+  /** The id of this vote's proposal on the DAO that keeps the public record, once it has been recorded there. */
+  daoId?: number;
   /** player id -> their vote, with the weight they held when they cast it. */
   votes: Record<string, { yes: boolean; weight: number }>;
 }
@@ -134,7 +136,7 @@ export function resolveCouncils(w: World, note: (p: Player, text: string) => voi
     if (passed) (c as unknown as Record<Lever, Level>)[pr.lever] = pr.to;
     const name = MARKETS[market].name;
     const text = `The ${name} council ${passed ? 'voted to set' : 'turned down setting'} ${label(pr.lever, pr.to)} (${t.yes} for, ${t.no} against${t.merchants.for + t.merchants.against ? `; the merchants were ${t.merchants.for ? 'for' : 'against'}` : ''}).`;
-    w.events.push({ hour: w.hour, type: 'council', text });
+    w.events.push({ hour: w.hour, type: 'council', text, decision: { market, lever: pr.lever, to: pr.to, passed, yes: t.yes, no: t.no, daoId: pr.daoId } });
     for (const id of Object.keys(pr.votes)) {
       const who = w.players.find((x) => x.id === id);
       if (who) note(who, text);

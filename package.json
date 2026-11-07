@@ -9,6 +9,8 @@
     "contract:build": "cargo build --manifest-path contracts/items/Cargo.toml --target wasm32-unknown-unknown --release",
     "chain:deploy": "tsx server/scripts/run-settle.ts deploy",
     "chain:upgrade": "tsx server/scripts/run-settle.ts upgrade",
+    "chain:outlayer": "tsx server/scripts/run-outlayer.ts",
+    "chain:dao": "tsx server/scripts/run-dao.ts",
     "chain:settle": "tsx server/scripts/run-settle.ts settle",
     "server": "tsx server/main.ts",
     "web": "cd web && vite",

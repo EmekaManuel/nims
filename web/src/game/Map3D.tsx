@@ -1,18 +1,11 @@
-import { useMemo, useRef } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Html, OrbitControls, RoundedBox } from '@react-three/drei';
 import type * as THREE from 'three';
 import type { GameState, Item, MarketId, Stall } from '../api';
 import { PLOTS, STALL_POS, ZONES, crateCount, lightAt, type Popup, type Selection } from './Map';
+import { EDGES, LAMPS, newWalk, NODES, SOURCE_POS, SOURCE_STOP, stepWalk, stopForStall, TREES, U, wx, wz, type Stop, type Walk } from './paths';
 
-/** The 2D map is drawn on a 1000 x 680 canvas; the 3D town maps that onto the ground plane (50 px = 1 unit). */
-const U = 50;
-const wx = (px: number) => (px - 500) / U;
-const wz = (py: number) => (py - 340) / U;
-
-const SOURCE_POS: Record<string, [number, number]> = {
-  tomatoes: [82, 110], pepper: [82, 250], iron: [100, 470], 'copper wire': [100, 590], cotton: [890, 470],
-};
 const SOURCE_COLOR: Record<string, string> = {
   tomatoes: '#d93b2b', pepper: '#e24a22', iron: '#8e99a8', 'copper wire': '#c8782e', cotton: '#e6ebf3',
 };
@@ -20,16 +13,12 @@ const CANOPY: Record<MarketId, [string, string]> = {
   produce: ['#2f9e5f', '#f1f8f3'], fabric: ['#2a6fdb', '#f1f6fe'], scrap: ['#c8622e', '#f1ede7'],
 };
 const GROUND: Record<MarketId, string> = { produce: '#cfe8d3', fabric: '#cddcf3', scrap: '#ecd9c8' };
-const AVATAR_AT: Record<MarketId, [number, number]> = { produce: [340, 368], fabric: [760, 368], scrap: [560, 372] };
+/** Where you stand in each market: just off the street, so nobody walks through you. */
+const AVATAR_AT: Record<MarketId, [number, number]> = { produce: [260, 384], fabric: [700, 384], scrap: [560, 420] };
 const AVATARS = ['#2f9e5f', '#e2557b', '#7b4de0', '#eb6834', '#18a999', '#2a6fdb', '#c98a00', '#0e9fb0'];
 const avatarColor = (id: string) => AVATARS[[...id].reduce((a, c) => a + c.charCodeAt(0), 0) % AVATARS.length];
 
-const WALKERS: { from: [number, number]; to: [number, number]; dur: number; phase: number; color: string }[] = [
-  { from: [175, 356], to: [845, 356], dur: 34, phase: 0, color: '#e2557b' },
-  { from: [575, 50], to: [575, 336], dur: 18, phase: 0.3, color: '#eb6834' },
-  { from: [122, 650], to: [122, 60], dur: 46, phase: 0.5, color: '#2a6fdb' },
-  { from: [945, 60], to: [945, 330], dur: 24, phase: 0.7, color: '#0e9fb0' },
-];
+const WALKER_COLORS = ['#e2557b', '#eb6834', '#2a6fdb', '#0e9fb0', '#7b4de0', '#c98a00', '#18a999'];
 
 const label: React.CSSProperties = {
   background: 'rgba(22,38,74,.92)', color: '#fff', font: '600 12px system-ui, sans-serif', padding: '3px 8px',
@@ -148,31 +137,56 @@ function Vehicle({ kind, color = '#e8a42b' }: { kind: 'wheelbarrow' | 'pickup' |
   );
 }
 
-function Walker({ w, i }: { w: (typeof WALKERS)[number]; i: number }) {
+/**
+ * Someone out shopping (see Walk in paths.ts): they pick a stall or a source, walk there along the walkways and nowhere else,
+ * stand in front of it for a few seconds looking at it, then choose the next.
+ */
+function Walker({ id, color, stops, speed, seed }: { id: string; color: string; stops: Stop[]; speed: number; seed: number }) {
   const ref = useRef<THREE.Group>(null);
-  useFrame(({ clock }) => {
+  const [mode, setMode] = useState<'walk' | 'idle'>('idle');
+  const walk = useRef<Walk | null>(null);
+  if (!walk.current) walk.current = newWalk(seed, stops);
+  const shown = useRef<'walk' | 'idle'>('idle');
+  useFrame((_, dt) => {
     const g = ref.current;
+    const w = walk.current!;
     if (!g) return;
-    const t = ((clock.elapsedTime / w.dur) + w.phase) % 1;
-    const fwd = t < 0.5;
-    const k = fwd ? t * 2 : 2 - t * 2; // there and back
-    const x = wx(w.from[0] + (w.to[0] - w.from[0]) * k);
-    const z = wz(w.from[1] + (w.to[1] - w.from[1]) * k);
-    const dx = (w.to[0] - w.from[0]) * (fwd ? 1 : -1), dz = (w.to[1] - w.from[1]) * (fwd ? 1 : -1);
-    g.position.set(x, 0, z);
-    g.rotation.y = Math.atan2(dx, dz);
+    stepWalk(w, stops, speed, Math.min(dt, 0.1));
+    g.position.set(w.x, 0, w.z);
+    g.rotation.y = w.yaw;
+    const now = w.path.length ? 'walk' : 'idle';
+    if (now !== shown.current) { shown.current = now; setMode(now); }
   });
-  return <group ref={ref}><Person id={`walker${i}`} shirt={w.color} mode="walk" scale={1.1} /></group>;
+  return <group ref={ref}><Person id={id} shirt={color} mode={mode} scale={1.1} /></group>;
 }
 
-/** A delivery truck driving the south road. */
+/** The paved walkways, drawn along the same lines the walkers follow. */
+function Walkways() {
+  return (
+    <group>
+      {EDGES.map(([a, b]) => {
+        const [x1, y1] = NODES[a], [x2, y2] = NODES[b];
+        const horizontal = y1 === y2;
+        const len = Math.hypot(x2 - x1, y2 - y1) / U + 0.7; // a little extra, so corners meet
+        return (
+          <mesh key={`${a}-${b}`} position={[wx((x1 + x2) / 2), 0.04, wz((y1 + y2) / 2)]} receiveShadow>
+            <boxGeometry args={horizontal ? [len, 0.1, 0.7] : [0.7, 0.1, len]} />
+            <meshStandardMaterial color="#e8e1d2" />
+          </mesh>
+        );
+      })}
+    </group>
+  );
+}
+
+/** A delivery truck driving the far south road. */
 function Truck() {
   const ref = useRef<THREE.Group>(null);
   useFrame(({ clock }) => {
     const g = ref.current;
     if (!g) return;
     const t = ((clock.elapsedTime / 38) + 0.2) % 1;
-    g.position.set(wx(30 + 940 * t), 0, wz(666));
+    g.position.set(wx(30 + 940 * t), 0, wz(730)); // the far south road, beyond every tree and stall
   });
   return <group ref={ref} rotation={[0, Math.PI / 2, 0]}><Vehicle kind="van" color="#d6336c" /></group>;
 }
@@ -212,9 +226,9 @@ function Festive() {
 
 function FuelQueue() {
   return (
-    <group position={[wx(890), 0, wz(360)]}>
-      {[0, 1, 2, 3].map((i) => <group key={i} position={[0, 0, i * 0.5]} rotation={[0, Math.PI, 0]} scale={0.6}><Vehicle kind="pickup" color={['#c8622e', '#2a6fdb', '#2f9e5f', '#7b4de0'][i]} /></group>)}
-      <group position={[1.2, 0, 0.6]}>
+    <group position={[wx(720), 0, wz(690)]}>
+      {[0, 1, 2, 3].map((i) => <group key={i} position={[i * 0.95, 0, 0]} rotation={[0, Math.PI / 2, 0]} scale={0.6}><Vehicle kind="pickup" color={['#c8622e', '#2a6fdb', '#2f9e5f', '#7b4de0'][i]} /></group>)}
+      <group position={[4.1, 0, 0]}>
         <mesh position={[0, 0.4, 0]} castShadow><boxGeometry args={[0.35, 0.8, 0.35]} /><meshStandardMaterial color="#d6336c" /></mesh>
         <Html zIndexRange={[5, 0]} position={[0, 1.1, 0]} center style={{ pointerEvents: 'none' }}><div style={label}>FUEL QUEUE</div></Html>
       </group>
@@ -438,6 +452,11 @@ function Scene({ state, selected, onSelect, popups, animate }: { state: GameStat
   const you = AVATAR_AT[state.you.at ?? 'produce'];
   const rain = state.shocks.some((x) => x.kind === 'rain');
   const night = light.opacity;
+  // Where townsfolk go shopping: in front of every stall that is open, and at every source.
+  const stops = useMemo(() => [
+    ...state.stalls.filter((x) => x.state !== 'closed').map((x) => stopForStall(x.id, x.market)),
+    ...state.sources.map((x) => SOURCE_STOP[x.item]),
+  ].filter((x): x is Stop => !!x), [state.stalls, state.sources]);
   return (
     <>
       <color attach="background" args={[night > 0.2 ? '#1a2548' : '#dfe5ee']} />
@@ -461,8 +480,8 @@ function Scene({ state, selected, onSelect, popups, animate }: { state: GameStat
         );
       })}
 
-      <Tree x={44} y={372} /><Tree x={958} y={392} s={0.9} /><Tree x={900} y={640} s={0.8} /><Tree x={30} y={660} s={0.7} />
-      <Tree x={150} y={355} s={0.6} /><Tree x={850} y={355} s={0.6} /><Tree x={570} y={660} s={0.7} /><Tree x={980} y={200} s={0.8} />
+      <Walkways />
+      {TREES.map(([x, y, sc], i) => <Tree key={i} x={x} y={y} s={sc} />)}
       {/* a ring of small buildings around the district to give it a skyline */}
       {[[-11, -6.5, 1.6, 2.2, '#c98a6a'], [-9, -7, 1.2, 1.6, '#d9b88f'], [11, -6.5, 1.5, 2.6, '#9fb4cf'], [9.5, -7, 1.4, 1.5, '#cfa7b5'], [-11, 6.5, 1.5, 1.9, '#a8c7a0'], [11, 6.5, 1.6, 2.1, '#d9c27a'], [0, 7.4, 2.4, 1.3, '#b9a9d4']].map(([x, z, w, h, c], i) => (
         <group key={i} position={[x as number, 0, z as number]}>
@@ -489,7 +508,7 @@ function Scene({ state, selected, onSelect, popups, animate }: { state: GameStat
           onSelect={() => onSelect({ kind: 'source', item: src.item })} />
       ))}
 
-      {animate && WALKERS.map((w, i) => <Walker key={i} w={w} i={i} />)}
+      {animate && stops.length > 1 && WALKER_COLORS.map((c, i) => <Walker key={i} id={`walker${i}`} color={c} stops={stops} speed={0.8 + (i % 3) * 0.12} seed={i * 7919 + 13} />)}
       {animate && <Truck />}
 
       <group position={[wx(you[0]), 0, wz(you[1])]}>
@@ -501,7 +520,7 @@ function Scene({ state, selected, onSelect, popups, animate }: { state: GameStat
       {state.shocks.some((x) => x.kind === 'festive season') && <Festive />}
       {state.shocks.some((x) => x.kind === 'fuel queue') && <FuelQueue />}
       {/* street lamps along the roads, glowing after dark */}
-      {[[130, 190], [130, 530], [575, 355], [575, 190], [880, 355], [330, 355]].map(([x, y], i) => <Lamp key={i} x={wx(x)} z={wz(y)} on={night >= 0.28} />)}
+      {LAMPS.map(([x, y], i) => <Lamp key={i} x={wx(x)} z={wz(y)} on={night >= 0.28} />)}
       {night >= 0.28 && state.stalls.map((st) => {
         const pos = STALL_POS[st.id] ?? PLOTS[st.market];
         return pos && st.state !== 'closed' ? <pointLight key={st.id} position={[wx(pos[0]), 1.2, wz(pos[1]) + 0.8]} intensity={5} distance={4.5} color="#ffc861" /> : null;

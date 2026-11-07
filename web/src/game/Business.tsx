@@ -4,6 +4,7 @@ import { coins } from '../api';
 import { ItemIcon } from '../art/icons';
 import { Field, NumberField } from '../ui';
 import type { Actions } from './Panels';
+import { Council } from './Council';
 
 /** Open-your-own-stall offer. Shown inside My business, and on its own when you click a free plot. */
 export function StallOffer({ state, act, focus }: { state: GameState; act: Actions; focus?: MarketId }) {
@@ -105,6 +106,8 @@ export function BusinessPanel({ state, act, onFocus }: { state: GameState; act: 
           <p className="small muted">Total {coins(total)} · paid out every evening from each merchant’s profit.</p>
         </>
       )}
+
+      <Council state={state} act={act} />
 
       <h3>What’s happened</h3>
       {b.notes.length === 0 ? (

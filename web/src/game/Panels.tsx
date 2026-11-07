@@ -23,6 +23,8 @@ export interface Actions {
   sellShares: (merchant: string, shares: number) => void;
   contribute: (merchant: string, amount: number) => void;
   openStall: (market: MarketId) => void;
+  councilPropose: (market: MarketId, lever: string, to: string) => void;
+  councilVote: (market: MarketId, yes: boolean) => void;
   stallStock: (item: Item, units: number) => void;
   stallTake: (item: Item, units: number) => void;
   stallPrice: (item: Item, buy: number, sell: number) => void;

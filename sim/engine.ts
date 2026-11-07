@@ -3,6 +3,7 @@
  * there is deliberately no price logic in this file.
  */
 import { clampPlayerPrice, merchantState, PERSONALITY_PARAMS, playerQuote, quote, Quote } from '../merchants/pricing';
+import { PAYOUT_RATE, RENT_MULT, resolveCouncils } from './council';
 import { BASE_PRICE, CARRY_VALUE, COINS, Item, MARKETS, MAX_PUBLIC_SHARES, Merchant, MarketId, PERISHABLE, Player, SHARES_TOTAL, ShockKind, World } from './world';
 
 /** Demand memory length in in-game hours. */
@@ -210,7 +211,13 @@ function ambientTrade(w: World) {
       }
     }
     if (m.state === 'closed') continue;
-    if (!m.owner) transferCoins(w, m, 'town', Math.min(m.cash, RENT_PER_HOUR));
+    if (!m.owner) {
+      // Rent is set by the market's council. At the usual level this is the old flat rent; above it, the extra goes to the levy.
+      const c = w.council[m.market];
+      const paid = Math.min(m.cash, Math.round(RENT_PER_HOUR * RENT_MULT[c.rent]));
+      transferCoins(w, m, 'town', paid);
+      c.levy += Math.max(0, paid - RENT_PER_HOUR);
+    }
     for (const item of merchantItems(m)) {
       // Everyday customers: buy a couple of units if the price is fair.
       const q = quoteFor(w, m, item);
@@ -302,7 +309,7 @@ function payDividends(w: World) {
     const profit = worth - base;
     const held = sharesHeld(m);
     if (profit > 0 && held > 0) {
-      const pool = Math.min(Math.floor(profit * DIVIDEND_RATE), Math.max(0, Math.floor(m.cash - m.cashFloor * DIVIDEND_CUSHION)));
+      const pool = Math.min(Math.floor(profit * PAYOUT_RATE[w.council[m.market].payout]), Math.max(0, Math.floor(m.cash - m.cashFloor * DIVIDEND_CUSHION)));
       let paid = 0;
       for (const [id, n] of Object.entries(m.shares)) {
         const pay = Math.floor((pool * n) / SHARES_TOTAL);
@@ -315,6 +322,31 @@ function payDividends(w: World) {
       if (paid > 0) w.events.push({ hour: w.hour, type: 'dividend', text: `${m.name} paid ${paid} coins in dividends to its shareholders.`, merchant: m.id, amount: paid });
     }
     m.dayStartWorth = merchantWorth(m); // tomorrow's baseline
+  }
+}
+
+/** End of day: the extra rent a council has collected is shared out to the market's shareholders; what the players don't hold goes back to the merchants. */
+function payLevy(w: World) {
+  for (const [market, c] of Object.entries(w.council)) {
+    const seated = w.merchants.filter((m) => m.market === market && !m.owner && m.state !== 'closed');
+    const slice = seated.length ? Math.floor(c.levy / seated.length) : 0;
+    if (slice <= 0) continue;
+    let toPlayers = 0;
+    for (const m of seated) {
+      let paid = 0;
+      for (const [id, n] of Object.entries(m.shares)) {
+        const pay = Math.floor((slice * n) / SHARES_TOTAL);
+        const holder = w.players.find((x) => x.id === id);
+        if (pay <= 0 || !holder) continue;
+        transferCoins(w, 'town', holder, pay);
+        paid += pay;
+        addNote(w, holder, `The ${MARKETS[market as MarketId].name} rent levy paid you ${pay} coins for your ${n} shares in ${m.name}.`);
+      }
+      transferCoins(w, 'town', m, slice - paid);
+      toPlayers += paid;
+    }
+    c.levy -= slice * seated.length;
+    if (toPlayers > 0) w.events.push({ hour: w.hour, type: 'council', text: `The ${MARKETS[market as MarketId].name} rent levy paid ${toPlayers} coins to its shareholders.`, amount: toPlayers });
   }
 }
 
@@ -431,7 +463,11 @@ export function tick(w: World, act: Strategy) {
   for (const p of w.players) act(w, p);
   ambientTrade(w);
   agentTrade(w);
-  if (w.hour % 24 === 23) payDividends(w);
+  if (w.hour % 24 === 23) {
+    payLevy(w);
+    payDividends(w);
+    resolveCouncils(w, (p, text) => addNote(w, p, text)); // a decision made today applies from tomorrow
+  }
   snapshot(w);
   w.hour++;
 }

@@ -285,6 +285,8 @@ export function createApp(d: AppDeps) {
           '/game/goal': () => g.chooseGoal(email, String(b.kind ?? '')),
           '/game/shares/buy': () => g.buyShares(email, merchant, Number(b.shares)),
           '/game/shares/sell': () => g.sellShares(email, merchant, Number(b.shares)),
+          '/game/council/propose': () => g.councilPropose(email, String(b.market ?? ''), String(b.lever ?? ''), String(b.to ?? '')),
+          '/game/council/vote': () => g.councilVote(email, String(b.market ?? ''), b.yes === true),
           '/game/fund': () => g.contribute(email, merchant, Number(b.amount)),
           '/game/stall/open': () => g.openStall(email, String(b.market ?? '')),
           '/game/stall/stock': () => g.stallStock(email, item, units),

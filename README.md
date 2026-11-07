@@ -23,6 +23,7 @@ Game economies are usually scripts: prices follow a table, NPCs trade nothing, a
 - **Merchants talk back.** Haggle once an hour and the merchant answers in character (cautious, greedy or loyal), and the town gazette prints what really happened: dividends, a merchant that stopped buying, a week of rain.
 - **Players move markets.** Flooding one good crashes its price for everyone. A merchant with no cash closes; a community fund can reopen it.
 - **Players own parts of the economy.** Buy up to 49% of a merchant for a share of its nightly profit, or open a stall and set your own prices.
+- **Shareholders run the markets.** Each market has a town council. Shareholders vote on its stall rent and on how much profit merchants share out, weighted by the shares they hold there, and the merchants vote too (they oppose anything that costs them). A passing vote changes how the economy runs from the next day, with no dev patch. Extra rent is paid to shareholders each evening; every coin stays on the ledger. Code: [`sim/council.ts`](sim/council.ts).
 - **A way back from broke.** Nearly out of coins with nothing to sell? Search the scrap heap, or take an odd job: a merchant who is short of a good pays you to fetch it, and pays the cost and your reward from their own till. Jobs are open only while you are short of coins, with a cooldown, so they are a way back up and not a way to farm.
 - **Delivery orders.** State the goods and the lowest price you will take; the town's carriers (a solver run by the game) sell for you when the price allows.
 
@@ -150,8 +151,8 @@ The [privacy policy](web/public/privacy.html) is served at `/privacy.html`. The 
 | Track asks for | Nims |
 |---|---|
 | NPCs with wallets | Eight merchant agents, each with its own NEAR account and its own signing |
-| Economy that evolves without a dev patch | Prices come from stock, cash and trades; shocks (rain, fuel queue, festive season) are random |
-| Player-owned markets | Own a stall, hold shares in merchants, fund a closed shop back open |
+| Economy that evolves without a dev patch | Prices come from stock, cash and trades; shocks (rain, fuel queue, festive season) are random; shareholders vote to change the rules themselves |
+| Player-owned markets | Own a stall, hold shares in merchants, fund a closed shop back open, and vote on each market's rent and payout in the town council |
 | Players never notice the chain | Google or email login, no wallet, relayer pays gas; tests assert no API response mentions wallets, keys or gas |
 | NEP-245 | One multi-token contract holds every item and the coin token |
 

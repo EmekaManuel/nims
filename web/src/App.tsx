@@ -156,6 +156,8 @@ function Game() {
     sellShares: (m, n) => run(api.sellShares(m, n), { kind: 'stall', id: m }),
     contribute: (m, amount) => run(api.contribute(m, amount), { kind: 'stall', id: m }),
     openStall: (market) => run(api.openStall(market)),
+    councilPropose: (market, lever, to) => run(api.councilPropose(market, lever, to)),
+    councilVote: (market, yes) => run(api.councilVote(market, yes)),
     stallStock: (i, u) => run(api.stallStock(i, u)),
     stallTake: (i, u) => run(api.stallTake(i, u)),
     stallPrice: (i, b, s) => run(api.stallPrice(i, b, s)),

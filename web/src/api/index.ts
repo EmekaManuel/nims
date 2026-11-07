@@ -76,7 +76,33 @@ export interface Away {
 
 export interface DeliveryOrder { id: number; item: Item; units: number; merchantId: string; minPrice: number; expiresHour: number; status: 'open' | 'filled' | 'expired' | 'cancelled'; done: number; earned: number }
 
+/** One market's council: its rules, your say, and any open vote. */
+export interface CouncilView {
+  market: MarketId;
+  name: string;
+  rent: string;
+  payout: string;
+  effects: string[];
+  options: { rent: string[]; payout: string[] };
+  /** Shares you hold in this market's merchants: your weight in a vote. */
+  seats: number;
+  canPropose: boolean;
+  proposal: {
+    lever: 'rent' | 'payout';
+    to: string;
+    effect: string;
+    by: string;
+    yes: number;
+    no: number;
+    merchants: { for: number; against: number };
+    closesIn: number;
+    yourVote: 'yes' | 'no' | null;
+  } | null;
+}
+
 export interface GameState {
+  /** Absent on older servers and in recorded fixtures. */
+  council?: CouncilView[];
   orders?: DeliveryOrder[];
   away: Away | null;
   business: Business;
@@ -214,6 +240,8 @@ export const api = {
   goal: (kind: GoalKind) => post('/game/goal', { kind }).then((r) => r.body),
   buyShares: (merchant: string, shares: number) => post('/game/shares/buy', { merchant, shares }).then((r) => r.body),
   sellShares: (merchant: string, shares: number) => post('/game/shares/sell', { merchant, shares }).then((r) => r.body),
+  councilPropose: (market: MarketId, lever: string, to: string) => post('/game/council/propose', { market, lever, to }).then((r) => r.body),
+  councilVote: (market: MarketId, yes: boolean) => post('/game/council/vote', { market, yes }).then((r) => r.body),
   contribute: (merchant: string, amount: number) => post('/game/fund', { merchant, amount }).then((r) => r.body),
   openStall: (market: MarketId) => post('/game/stall/open', { market }).then((r) => r.body),
   stallStock: (item: Item, units: number) => post('/game/stall/stock', { item, units }).then((r) => r.body),

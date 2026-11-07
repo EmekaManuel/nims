@@ -20,6 +20,7 @@ import type { GazetteFacts } from '../voice/gazette';
 import type { HaggleFacts } from '../voice/haggle';
 import { planBoard, totalDue, type Job } from './jobs';
 import { gather } from '../../sim/players';
+import { EFFECT, LEVELS, MIN_VOTING_HOURS, newCouncils, propose, seatsOf, tally, vote, type Lever } from '../../sim/council';
 import { addPlayer, BASE_PRICE, CAPACITY, CARRY_VALUE, createWorld, Item, MARKETS, MarketId, Merchant, Player, Vehicle, World } from '../../sim/world';
 
 export const UPGRADE_COST: Record<Exclude<Vehicle, 'wheelbarrow'>, number> = { pickup: 5_000, van: 18_000 };
@@ -162,6 +163,7 @@ export class Game {
         history: w.history,
         ledger: w.ledger,
         ledgerBase: this.ledgerBase,
+        council: w.council,
         rngState: w.rng.state(),
       },
       humans: [...this.humans].map(([email, p]) => [email, p.id] as [string, string]),
@@ -191,6 +193,8 @@ export class Game {
     w.events = snap.world.events;
     w.history = snap.world.history;
     w.ledger = snap.world.ledger;
+    // Saves from before the council existed have none: the markets start on the usual rules.
+    w.council = (snap.world as { council?: World['council'] }).council ?? newCouncils();
     g.ledgerBase = (snap.world as { ledgerBase?: number }).ledgerBase ?? 0;
     w.rng = makeRng(0, snap.world.rngState);
     g.humans = new Map(snap.humans.map(([email, id]) => [email, w.players.find((p) => p.id === id)!]).filter(([, p]) => p) as [string, Player][]);
@@ -642,6 +646,23 @@ export class Game {
     return ok(`You sold ${n} shares in ${m.name} for ${r.proceeds} coins.`);
   }
 
+  // ---- town council --------------------------------------------------------------------------
+
+  /** Open a vote on a market's rent or payout. You need a share in one of its merchants. */
+  councilPropose(email: string, market: string, lever: string, to: string): ActionResult {
+    const p = this.playerFor(email);
+    const r = propose(this.w, p, this.names.get(p.id) ?? 'A shareholder', market as MarketId, lever as Lever, to);
+    if ('error' in r) return fail(r.error);
+    return ok(`You put it to the ${MARKETS[market as MarketId].name} council. The vote closes this evening at the latest after ${MIN_VOTING_HOURS} hours.`);
+  }
+
+  councilVote(email: string, market: string, yes: boolean): ActionResult {
+    const p = this.playerFor(email);
+    const r = vote(this.w, p, market as MarketId, yes);
+    if ('error' in r) return fail(r.error);
+    return ok(`You voted ${yes ? 'for' : 'against'}. It counts for the shares you hold in that market.`);
+  }
+
   /** Put money into a closed shop's community fund. When the pool is full the shop reopens and you co-own it. */
   contribute(email: string, merchantId: string, amount: number): ActionResult {
     const p = this.playerFor(email);
@@ -943,6 +964,7 @@ export class Game {
         stallOffer: mine ? null : { cost: STALL_COST, markets: (Object.keys(MARKETS) as MarketId[]).map((id) => ({ id, name: MARKETS[id].name, free: STALL_MARKETS.includes(id) })) },
         notes: p.notes.slice(-12).reverse(),
       },
+      council: this.councilView(p),
       goal: pr.kind ? { kind: pr.kind, title: GOALS[pr.kind].title, blurb: GOALS[pr.kind].blurb, progress: gs!.progress, label: gs!.label, done: pr.done } : null,
       goals: (Object.keys(GOALS) as GoalKind[]).map((k) => ({ kind: k, ...GOALS[k] })),
       coach: this.coach(email, p, raw, deals),
@@ -972,5 +994,37 @@ export class Game {
         upgrades: (['pickup', 'van'] as const).map((v) => ({ vehicle: v, cost: UPGRADE_COST[v], capacity: CAPACITY[v] })),
       },
     };
+  }
+
+  /** What each market's council looks like to this player: the rules, any open vote, and what they can do. */
+  private councilView(p: Player) {
+    const w = this.w;
+    return (Object.keys(MARKETS) as MarketId[]).map((market) => {
+      const c = w.council[market];
+      const seats = seatsOf(w, market, p.id);
+      const pr = c.proposal;
+      const t = pr ? tally(w, market, pr) : null;
+      return {
+        market,
+        name: MARKETS[market].name,
+        rent: c.rent,
+        payout: c.payout,
+        effects: [EFFECT[c.rent], EFFECT[c.payout]],
+        options: { rent: [...LEVELS.rent], payout: [...LEVELS.payout] },
+        seats,
+        canPropose: seats > 0 && !pr,
+        proposal: pr && t ? {
+          lever: pr.lever,
+          to: pr.to,
+          effect: EFFECT[pr.to],
+          by: pr.byName,
+          yes: t.yes,
+          no: t.no,
+          merchants: t.merchants,
+          closesIn: Math.max(0, pr.closesHour - w.hour),
+          yourVote: pr.votes[p.id] ? (pr.votes[p.id].yes ? 'yes' as const : 'no' as const) : null,
+        } : null,
+      };
+    });
   }
 }

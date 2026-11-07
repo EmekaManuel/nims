@@ -1,4 +1,5 @@
 import { MerchantState, Personality } from '../merchants/pricing';
+import { Councils, newCouncils } from './council';
 import { makeRng, Rng } from './rng';
 
 export type Item = 'tomatoes' | 'pepper' | 'flour' | 'cotton' | 'lace' | 'thread' | 'iron' | 'copper wire';
@@ -100,7 +101,7 @@ export interface Shock {
 
 export interface WorldEvent {
   hour: number;
-  type: 'shock' | 'state' | 'revived' | 'dividend';
+  type: 'shock' | 'state' | 'revived' | 'dividend' | 'council';
   text: string;
   /** Merchant this is about (state, revived, dividend). */
   merchant?: string;
@@ -153,6 +154,8 @@ export interface World {
   events: WorldEvent[];
   history: Snapshot[];
   ledger: LedgerEntry[];
+  /** Per-market rules the shareholders vote on (see council.ts). */
+  council: Councils;
 }
 
 function merchant(
@@ -231,6 +234,7 @@ export function createWorld(seed = 1, players: Player[] = []): World {
     events: [],
     history: [],
     ledger: [],
+    council: newCouncils(),
   };
   // Genesis: what every account starts with, so the ledger alone explains every balance.
   for (const m of w.merchants) {

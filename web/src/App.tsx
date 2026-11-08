@@ -15,6 +15,13 @@ import { Login } from './game/Login';
 import { FastForwardPage } from './sim/Fastforward';
 import { TownBoard } from './town/TownBoard';
 
+/** A friend's invite code from the link (?invite=CODE), kept until this player has signed in and it has been redeemed. */
+const INVITE_KEY = 'nims-invite';
+try {
+  const code = new URLSearchParams(location.search).get('invite');
+  if (code && /^[0-9a-z]{4,16}$/i.test(code)) localStorage.setItem(INVITE_KEY, code);
+} catch { /* private mode: the invite is simply not remembered */ }
+
 function useHash() {
   const [hash, setHash] = useState(() => location.hash);
   useEffect(() => {
@@ -88,6 +95,16 @@ function Game() {
     const t = window.setInterval(() => void refresh(), 2000);
     return () => window.clearInterval(t);
   }, [refresh]);
+
+  // Once signed in, redeem a friend's invite code from the link, once.
+  const invited = useRef(false);
+  useEffect(() => {
+    if (!state || invited.current) return;
+    invited.current = true;
+    let code: string | null = null;
+    try { code = localStorage.getItem(INVITE_KEY); localStorage.removeItem(INVITE_KEY); } catch { /* nothing to redeem */ }
+    if (code) void api.redeemInvite(code).then((r) => setToast({ ok: r.ok, text: r.message }));
+  }, [state]);
 
   // Remember the peak (silently on arrival, so reaching the game never fires a celebration).
   useEffect(() => {

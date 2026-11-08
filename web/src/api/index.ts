@@ -136,6 +136,8 @@ export interface GameState {
     starter: { done: number; total: number };
     daily: { day: number; reward: number; ready: boolean };
   };
+  /** Your invite link's code, and how many friends joined and were rewarded. */
+  invite?: { code: string; joined: number; rewarded: number; max: number; reward: number };
   you: {
     /** The name other traders and the town board see. */
     name: string;
@@ -294,6 +296,7 @@ export const api = {
   setName: (name: string) => post('/game/name', { name }).then((r) => r.body),
   claimQuest: (id: string) => post('/game/quest/claim', { id }).then((r) => r.body),
   claimDaily: () => post('/game/daily', {}).then((r) => r.body),
+  redeemInvite: (code: string) => post('/game/invite', { code }).then((r) => r.body),
 };
 
 export const coins = (n: number) => `${Math.round(n).toLocaleString('en-US')} coins`;

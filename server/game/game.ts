@@ -42,6 +42,9 @@ const LEDGER_KEEP = 20_000;
 export const SNAPSHOT_VERSION = 3;
 
 const FORTUNE_TARGET = 10_000;
+/** Invite a friend: what each of you gets when they make their first sale, and how many friends one player can be rewarded for. */
+export const INVITE_REWARD = 300;
+export const INVITE_MAX = 10;
 
 export type GoalKind = 'fortune' | 'reach' | 'stake' | 'district';
 
@@ -155,6 +158,8 @@ export class Game {
   private jobDone = new Map<string, number>();
   /** player id -> quests and daily rewards (quests.ts). */
   private quests = new Map<string, QuestState>();
+  /** invited player id -> who invited them, and whether the reward has been paid (it pays on their first sale). */
+  private invites = new Map<string, { by: string; paid: boolean }>();
   /** The real clock, for daily rewards. Tests replace it. */
   clock: () => number = Date.now;
   /** Players who chose the name others see (setName). The email-based name never replaces a chosen one. */
@@ -212,6 +217,7 @@ export class Game {
       activity: this.activity.toJSON(),
       chosenNames: [...this.chosen],
       quests: [...this.quests],
+      invites: [...this.invites],
     };
   }
 
@@ -237,6 +243,7 @@ export class Game {
     g.names = new Map(snap.names);
     g.chosen = new Set((snap as { chosenNames?: string[] }).chosenNames ?? []);
     g.quests = new Map((snap as { quests?: [string, QuestState][] }).quests ?? []);
+    g.invites = new Map((snap as { invites?: [string, { by: string; paid: boolean }][] }).invites ?? []);
     g.renameFromEmails();
     g.haggled = new Map(snap.haggled);
     const o = snap as { orders?: [string, Order[]][]; nextOrderId?: number };
@@ -447,10 +454,52 @@ export class Game {
   /** Count what a player just did towards their quests, and tell them when one is ready to claim. */
   private track(p: Player, e: QuestEvent) {
     if (!this.humanIds().has(p.id)) return;
+    if (e.kind === 'sell') this.payInvite(p);
     for (const q of record(this.questsOf(p), e)) addNote(this.w, p, `Quest complete: ${q.title}. Claim ${q.reward} coins in Quests.`);
   }
 
   private humanIds() { return new Set([...this.humans.values()].map((p) => p.id)); }
+
+  // ---- invite a friend ----------------------------------------------------------------------
+
+  /** A player's invite code: from their opaque id, never their email. */
+  inviteCode(p: Player) { return p.id.replace(/^h-/, '').slice(0, 8).toUpperCase(); }
+
+  /**
+   * A new player says who invited them. Only before their first sale, only once, never themselves, and each inviter is
+   * rewarded for at most INVITE_MAX friends. The reward is paid later, on the friend's first sale (payInvite).
+   */
+  redeemInvite(email: string, code: string): ActionResult {
+    const p = this.playerFor(email);
+    const want = code.trim().toUpperCase();
+    const inviter = [...this.humans.values()].find((x) => this.inviteCode(x) === want);
+    if (!inviter) return fail('That invite link is not valid.');
+    if (inviter.id === p.id) return fail('That is your own invite link. Send it to a friend.');
+    if (this.invites.has(p.id)) return fail('You have already joined with an invite.');
+    if (Object.values(p.reputation).some((r) => (r ?? 0) > 0)) return fail('Invite links are for new players, before their first sale.');
+    if ([...this.invites.values()].filter((i) => i.by === inviter.id && i.paid).length >= INVITE_MAX) return fail('Your friend has already invited as many players as an invite can reward.');
+    this.invites.set(p.id, { by: inviter.id, paid: false });
+    return ok(`Welcome! You were invited by ${this.names.get(inviter.id) ?? 'a friend'}. Make your first sale and you both get ${INVITE_REWARD} coins.`);
+  }
+
+  /** On an invited player's first sale, pay them and whoever invited them. */
+  private payInvite(p: Player) {
+    const inv = this.invites.get(p.id);
+    if (!inv || inv.paid) return;
+    const inviter = this.w.players.find((x) => x.id === inv.by);
+    if (!inviter) return;
+    if ([...this.invites.values()].filter((i) => i.by === inv.by && i.paid).length >= INVITE_MAX) return;
+    inv.paid = true;
+    transferCoins(this.w, 'town', p, INVITE_REWARD);
+    transferCoins(this.w, 'town', inviter, INVITE_REWARD);
+    addNote(this.w, p, `Your first sale: you and ${this.names.get(inviter.id) ?? 'your friend'} each got ${INVITE_REWARD} coins for the invite.`);
+    addNote(this.w, inviter, `${this.names.get(p.id) ?? 'A friend you invited'} made their first sale: you each got ${INVITE_REWARD} coins.`);
+  }
+
+  private inviteView(p: Player) {
+    const mine = [...this.invites.values()].filter((i) => i.by === p.id);
+    return { code: this.inviteCode(p), joined: mine.length, rewarded: mine.filter((i) => i.paid).length, max: INVITE_MAX, reward: INVITE_REWARD };
+  }
 
   /** Claim a finished quest's reward. The town pays it, through the ledger. */
   claimQuest(email: string, id: string): ActionResult {
@@ -1195,6 +1244,7 @@ export class Game {
       sources: w.sources.map((s) => ({ item: s.item, label: s.label, units: Math.floor(s.units), cost: s.cost })),
       events: w.events.slice(-12).reverse(),
       quests: questView(this.questsOf(p), this.clock()),
+      invite: this.inviteView(p),
       you: {
         name: this.names.get(p.id) ?? 'Trader',
         cash: Math.round(p.cash),

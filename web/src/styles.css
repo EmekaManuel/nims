@@ -598,3 +598,9 @@ th { font-size: .7rem; letter-spacing: .06em; text-transform: uppercase; color: 
 .objectives .bar { grid-column: 1 / -1; height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; }
 .objectives .bar i { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
 .objectives li.met .bar i { background: var(--good); }
+
+.invite { margin-top: 1rem; padding: .75rem .85rem; border-radius: 14px; border: 1px dashed var(--line-strong); background: var(--surface-2); }
+.invite p { margin: .2rem 0 .5rem; }
+.invite-link { display: flex; gap: .5rem; }
+.invite-link input { flex: 1; min-width: 0; font: inherit; font-size: .85rem; padding: .45rem .6rem; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
+.login .invited { margin: 0; padding: .55rem .8rem; border-radius: 12px; background: var(--gold-soft); border: 1px solid #f0d58a; font-weight: 600; color: var(--warn); }

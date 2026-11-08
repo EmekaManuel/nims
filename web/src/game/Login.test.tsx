@@ -38,4 +38,11 @@ describe('login', () => {
     expect(screen.getByRole('link', { name: /week of the market/ }).getAttribute('href')).toBe('#sim');
     expect(screen.queryByRole('region', { name: /The town right now/ })).toBeNull();
   });
+
+  it('welcomes a player who came from a friend\'s invite link', async () => {
+    vi.spyOn(api, 'providers').mockResolvedValue({ google: false });
+    window.history.pushState({}, '', '/?invite=AB12CD34');
+    render(<Login onIn={() => {}} />);
+    expect(screen.getByRole('status').textContent).toMatch(/A friend invited you/);
+  });
 });

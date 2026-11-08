@@ -86,7 +86,7 @@ export function GameScreen(p: GameScreenProps) {
   if (stall) drawer = { title: stall.name, body: <StallPanel stall={stall} state={state} act={act} /> };
   else if (p.selected?.kind === 'source') drawer = { title: 'Collect goods', body: <SourcePanel item={p.selected.item} state={state} act={act} /> };
   else if (p.selected?.kind === 'plot') drawer = { title: 'A free plot', body: <section className="panel"><h2>A free plot</h2><StallOffer state={state} act={act} focus={p.selected.market} /></section> };
-  else if (p.tab === 'quests' && state.quests) drawer = { title: 'Quests', body: <QuestsPanel quests={state.quests} act={act} /> };
+  else if (p.tab === 'quests' && state.quests) drawer = { title: 'Quests', body: <QuestsPanel quests={state.quests} act={act} invite={state.invite} /> };
   else if (p.tab === 'deals') drawer = { title: 'Deals', body: <DealsDrawer state={state} act={act} onFocus={p.onFocus} forceTab={p.dealsTab} /> };
   else if (p.tab === 'prices') drawer = { title: 'Prices', body: <PriceBoard state={state} /> };
   else if (p.tab === 'business') drawer = { title: 'My business', body: <BusinessPanel state={state} act={act} onFocus={(id) => p.onSelect({ kind: 'stall', id })} /> };

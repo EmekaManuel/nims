@@ -52,4 +52,13 @@ describe('quests tab', () => {
     render(<Dock tab={null} onTab={() => {}} questCount={2} />);
     expect(screen.getByLabelText('2 to claim')).toBeTruthy();
   });
+
+  it('shows your invite link with a copy button and how many friends joined', () => {
+    render(<QuestsPanel quests={base} act={acts()} invite={{ code: 'AB12CD34', joined: 2, rewarded: 1, max: 10, reward: 300 }} />);
+    const card = screen.getByRole('group', { name: 'Invite a friend' });
+    expect((within(card).getByLabelText('Your invite link') as HTMLInputElement).value).toMatch(/\?invite=AB12CD34$/);
+    expect(card.textContent).toMatch(/300 coins/);
+    expect(card.textContent).toMatch(/Friends joined: 2 · rewarded: 1 of 10/);
+    expect(within(card).getByRole('button', { name: 'Copy' })).toBeTruthy();
+  });
 });

@@ -12,7 +12,7 @@ import { makeRng } from '../../sim/rng';
 import { act, newPlayer } from '../../sim/players';
 import {
   activeShock, addNote, buyFromMerchant, buyShares, contributeToFund, gatherRate, merchantItems, openOwnerStall, ownerStallOf,
-  loadFare, merchantWorth, publicSharesLeft, quoteFor, sellShares, sellToMerchant, sharePrice, STALL_COST, STALL_MARKETS, tick, transferCoins, unitFare,
+  loadFare, playerWorth, merchantWorth, publicSharesLeft, quoteFor, sellShares, sellToMerchant, sharePrice, STALL_COST, STALL_MARKETS, tick, transferCoins, unitFare,
 } from '../../sim/engine';
 import { clampPlayerPrice, MAX_MULT, MIN_MULT, type Personality } from '../../merchants/pricing';
 import type { VoiceFacts } from '../voice/voice';
@@ -21,9 +21,9 @@ import type { HaggleFacts } from '../voice/haggle';
 import { planBoard, totalDue, type Job } from './jobs';
 import { gather } from '../../sim/players';
 import { EFFECT, isRegular, LEVELS, MIN_VOTING_HOURS, newCouncils, propose, seatsOf, tally, vote, type Lever } from '../../sim/council';
-import { addPlayer, BASE_PRICE, CAPACITY, CARRY_VALUE, createWorld, Item, MARKETS, MarketId, Merchant, Player, Vehicle, World } from '../../sim/world';
+import { addPlayer, BASE_PRICE, CAPACITY, createWorld, VEHICLE_VALUE, Item, MARKETS, MarketId, Merchant, Player, Vehicle, World } from '../../sim/world';
 
-export const UPGRADE_COST: Record<Exclude<Vehicle, 'wheelbarrow'>, number> = { pickup: 5_000, van: 18_000 };
+export const UPGRADE_COST: Record<Exclude<Vehicle, 'wheelbarrow'>, number> = { pickup: VEHICLE_VALUE.pickup, van: VEHICLE_VALUE.van };
 const SOURCE_LABEL: Record<string, string> = {};
 const START_CASH = 4_000;
 /** Away for this many in-game hours (about 1.5 minutes of real time) and you get a summary on return. */
@@ -37,7 +37,7 @@ const LEDGER_KEEP = 20_000;
  */
 export const SNAPSHOT_VERSION = 3;
 
-const FORTUNE_TARGET = 12_000;
+const FORTUNE_TARGET = 10_000;
 
 export type GoalKind = 'fortune' | 'reach' | 'stake' | 'district';
 
@@ -356,11 +356,10 @@ export class Game {
     if (st && st.progress >= 1) pr.done = true;
   }
 
-  /** Cash, what you carry, your shares at today's price, and your stall's till and stock. */
+  /** Cash, what you carry, your vehicle, your shares at today's price, and your stall's till and stock. */
   private netWorth(p: Player) {
-    let worth = p.cash + Object.entries(p.inventory).reduce((a, [i, n]) => a + (n ?? 0) * BASE_PRICE[i as Item] * CARRY_VALUE, 0);
+    let worth = playerWorth(this.w, p);
     for (const m of this.w.merchants) {
-      if (m.shares[p.id]) worth += m.shares[p.id] * sharePrice(m);
       if (m.owner === p.id) worth += m.cash + Object.entries(m.stock).reduce((a, [i, n]) => a + (n ?? 0) * BASE_PRICE[i as Item], 0);
     }
     return Math.round(worth - (p.fareOwed ?? 0));

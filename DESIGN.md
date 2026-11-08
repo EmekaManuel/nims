@@ -24,7 +24,7 @@ y# Nims — Design
 ### Sources (where players gather)
 - **Farms** on the edge of town → tomatoes, pepper (flour is stocked by merchants).
 - **Scrap spots** around the map → iron, copper wire. Supply refills slowly on a timer.
-- **Wholesaler** → buy bulk cotton at a fixed price (a stable price anchor).
+- **Wholesaler** → buy bulk cotton at the wholesale price (a stable price anchor).
 
 Sources sell at a **wholesale price: 50% of a good's usual price**. They are not free. If goods cost nothing, the first trip is worth thousands and the market stops mattering; at wholesale, starting cash is the limit and the profit is in price gaps, shortages and shocks. (See "Economy balance" below.)
 
@@ -152,7 +152,8 @@ The economy is the gameplay, so it has to stay healthy without a human in it. Th
 |---|---|---|
 | Wholesale rate | 50% of usual price | Goods are not free. Starting cash limits you, so growth is earned. |
 | Starting cash | 4,000 coins | Enough for a first small load, not enough to flood a market. |
-| Carried goods in net worth | 80% of usual price | Collecting a load is not instant profit. |
+| Carried goods in net worth | what they cost at their source (80% of usual price for a good no source sells) | Collecting a load is not instant profit: it was valued at 80% while costing 50%, so goal progress jumped before any trade. |
+| Vehicle in net worth | what it cost | Buying a pickup turns coins into a pickup. It used to count for nothing, so upgrading set you back on the goal. |
 | Everyday demand | per good, per stall, per hour (`DEMAND_PER_HOUR`) | Town-wide demand roughly matches each source's supply, so prices hover near fair value instead of sitting on the floor. |
 | Merchant restock | below 85% of target | Stalls don't sit understocked, which would hold prices permanently high. |
 | NPC gatherers | every 3rd hour, only when the best price beats cost by 40%, sell above cost + 10% | A trader, not a firehose. Supply follows profit, so a glut corrects itself. |
@@ -162,11 +163,11 @@ The economy is the gameplay, so it has to stay healthy without a human in it. Th
 | Share price | a purchase costs n% of the merchant after the money is in its till (n x worth / (100 - n)); selling pays n% of worth | Priced on the worth before the payment, a buyer could pay 45,000 and sell back for 61,000. Now a round trip is a wash. |
 | Dividend and levy | only on shares held since the day began | No buying at 10pm to collect and sell. |
 | Merchant upkeep | a quarter of the cash above 40,000 (plus what shareholders paid in), each evening, after dividends | Without a sink merchants earn forever and a share (1% of worth) rises tenfold in a few months. |
-| Merchants' guild | upkeep goes to open merchants under 6,000 coins; the rest to the town | Smooths a lean spell. A closed shop is left for the community fund. Over 120 days stores are open all the time (before: about half). |
-| Fortune goal | 12,000 coins | A calm player reaches it in roughly 12 to 20 minutes. |
+| Merchants' guild | upkeep goes to open merchants under 6,000 coins; the rest to the town | Smooths a lean spell. A closed shop is left for the community fund. `sim/guild.test.ts` runs 120 days and checks no store is closed more than 2% of the time or low on cash more than 5%. |
+| Fortune goal | 10,000 coins | Hauling alone levels off at about 9,500 to 16,000 coins (prices fall as you sell, and merchants' cash is finite); growing beyond that takes shares or a stall. At 12,000 the goal sat on that ceiling. `npm run balance`: a trader acting every 2.5 to 3.3 seconds reaches 10,000 in 14 of 16 seeded runs, from under a minute to about 14 minutes. |
 | Ranks | 3,000 / 7,000 / 15,000 / 35,000 | A new rank every few minutes early on. |
 
-Before this pass a calm player reached the goal in about 40 seconds and Tycoon in 2.5 minutes: free goods plus an oversupplied market made money a fountain. After it, the same bot takes about 12 to 20 minutes for the goal.
+Before this pass a calm player reached the goal in about 40 seconds and Tycoon in 2.5 minutes: free goods plus an oversupplied market made money a fountain. Wholesale prices, fares and upkeep now make it slow; `npm run balance` prints the current times.
 
 ## 9. Getting back up when broke
 

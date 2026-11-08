@@ -18,13 +18,31 @@ describe('goods are not free', () => {
     }
   });
 
-  it('carried goods count in net worth at 80% of the usual price, so collecting is not instant profit', () => {
+  it('carried goods count at what they cost at their source, so collecting is not instant profit', () => {
+    const g = new Game(3);
+    g.state('a@x.io');
+    const before = g.state('a@x.io').you.netWorth;
+    expect(g.gather('a@x.io', 'iron').ok).toBe(true);
+    expect(g.state('a@x.io').you.inventory[0].units).toBeGreaterThan(0);
+    expect(g.state('a@x.io').you.netWorth).toBe(before);
+  });
+
+  it('a good no source sells counts at 80% of its usual price', () => {
     const g = new Game(3);
     g.state('a@x.io');
     const p = g.w.players.find((x) => x.strategy === 'human')!;
     p.cash = 0;
-    p.inventory = { iron: 10 };
-    expect(g.state('a@x.io').you.netWorth).toBe(Math.round(10 * BASE_PRICE.iron * CARRY_VALUE));
+    p.inventory = { lace: 10 };
+    expect(g.state('a@x.io').you.netWorth).toBe(Math.round(10 * BASE_PRICE.lace * CARRY_VALUE));
+  });
+
+  it('buying a vehicle turns coins into the vehicle, so it does not set you back on your net worth', () => {
+    const g = new Game(3);
+    g.state('a@x.io');
+    g.w.players.find((x) => x.strategy === 'human')!.cash = 6_000;
+    const before = g.state('a@x.io').you.netWorth;
+    expect(g.upgrade('a@x.io', 'pickup').ok).toBe(true);
+    expect(g.state('a@x.io').you.netWorth).toBe(before);
   });
 });
 

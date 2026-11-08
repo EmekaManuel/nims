@@ -1,6 +1,6 @@
 /**
- * Balance check: how fast does a SENSIBLE player get rich? A bot that acts twice per in-game hour (one hour is
- * 4 real seconds), buys the source whose goods sell best after the fare, sells in lots to the best stall,
+ * Balance check: how fast does a SENSIBLE player get rich? A bot that acts a few times per in-game hour (one hour is
+ * 10 real seconds at the default TICK_MS, so 3 actions an hour is one every 3 seconds or so), buys the source whose goods sell best after the fare, sells in lots to the best stall,
  * holds rather than sell at a loss, and upgrades its vehicle. Prints net worth over time and when each
  * rank and the fortune goal are reached, in real minutes.
  *
@@ -50,16 +50,15 @@ function play(seed: number, rate: number, hours: number, actionsPerHour: number)
     g.tickOnce();
     const nw = g.state(me).you.netWorth;
     worth.push(nw);
-    for (const t of [3_000, 7_000, 12_000, 35_000]) if (nw >= t && hit[t] === undefined) hit[t] = h;
+    for (const t of [3_000, 7_000, 10_000, 15_000]) if (nw >= t && hit[t] === undefined) hit[t] = h;
   }
   return { worth, hit };
 }
-const mins = (h?: number) => (h === undefined ? 'never' : `${(h * 4 / 60).toFixed(1)}m`);
-for (const rate of [0.5]) {
-  console.log(`\n=== wholesale ${Math.round(rate * 100)}% of usual price ===`);
-  for (const seed of [1, 2, 3, 4]) {
-    const r = play(seed, rate, 450, 2);
-    const at = (h: number) => r.worth[h].toLocaleString();
-    console.log(`seed ${seed}: @15h ${at(15)}  @60h ${at(60)}  @150h ${at(150)}  @449h ${at(449)} | R2 ${mins(r.hit[3000])}  R3 ${mins(r.hit[7000])}  GOAL12k ${mins(r.hit[12000])}  TYCOON ${mins(r.hit[35000])}`);
+const mins = (h?: number) => (h === undefined ? 'never' : `${((h * 10) / 60).toFixed(1)}m`);
+for (const actions of [3, 4]) {
+  console.log(`\n=== ${actions} actions per game hour; times are real minutes at 10 s a game hour ===`);
+  for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) {
+    const r = play(seed, 0.5, 240, actions);
+    console.log(`seed ${seed}: peak ${Math.max(...r.worth).toLocaleString()}, after 40 min ${r.worth[239].toLocaleString()} | rank 2 ${mins(r.hit[3000])}  rank 3 ${mins(r.hit[7000])}  GOAL 10k ${mins(r.hit[10000])}  rank 4 ${mins(r.hit[15000])}`);
   }
 }

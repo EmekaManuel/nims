@@ -8,7 +8,7 @@
 
 [Play it live](https://nims-app.up.railway.app) · [Demo video (132 s)](docs/nims-demo.mp4) · [Judge walk-through](docs/DEMO.md) · Contract: `oja-items.testnet`
 
-![NEAR testnet](https://img.shields.io/badge/NEAR-testnet-00ec97) ![NEP-245](https://img.shields.io/badge/items-NEP--245-blue) ![tests](https://img.shields.io/badge/tests-444%20passing-brightgreen) ![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)
+![NEAR testnet](https://img.shields.io/badge/NEAR-testnet-00ec97) ![NEP-245](https://img.shields.io/badge/items-NEP--245-blue) ![tests](https://img.shields.io/badge/tests-464%20passing-brightgreen) ![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)
 
 </div>
 
@@ -23,7 +23,7 @@ Game economies are usually scripts: prices follow a table, NPCs trade nothing, a
 - **Merchants talk back.** Haggle once an hour and the merchant answers in character (cautious, greedy or loyal), and the town gazette prints what really happened: dividends, a merchant that stopped buying, a week of rain.
 - **Players move markets.** Flooding one good crashes its price for everyone. A merchant that runs out of cash and stock closes; a community fund can reopen it. Carrying goods to another market costs a fare that is a small share of what they are worth (3% of the usual price), cheaper in a pickup or a van.
 - **Players own parts of the economy.** Buy up to 49% of a merchant for a share of its nightly profit, or open a stall and set your own prices. A purchase is priced on the merchant after your money is in its till, so buying and selling straight back is a wash and nobody can make coins by moving the price. Dividends go only to shares held since the day began.
-- **Stores stay in business.** Wholesalers charge relative to the going price (they used to charge a fixed amount, which bankrupted every merchant whose goods gatherers kept cheap). Merchants spend surplus cash on upkeep each evening, so a share stays at a price a new player can reach however long the town has been running, and that upkeep is shared out to merchants that are running low (the merchants' guild). Over 120 simulated days stores are open all of the time; before, about half.
+- **Stores stay in business.** Wholesalers charge relative to the going price (they used to charge a fixed amount, which bankrupted every merchant whose goods gatherers kept cheap). Merchants spend surplus cash on upkeep each evening, so a share stays at a price a new player can reach however long the town has been running, and that upkeep is shared out to merchants that are running low (the merchants' guild). A test runs the town for 120 simulated days and checks that no store is closed more than 2% of the time or low on cash more than 5% of it ([`sim/guild.test.ts`](sim/guild.test.ts)).
 - **Shareholders run the markets.** Each market has a town council. Players vote on its stall rent and on how much profit merchants share out. Trading in a market gives you a seat there, and each share you hold adds another, so a new player can vote without buying a share. The merchants vote too (they oppose anything that costs them). A passing vote changes how the economy runs from the next day, with no dev patch. Extra rent is paid to shareholders each evening; every coin stays on the ledger. Code: [`sim/council.ts`](sim/council.ts).
 - **A 3D town.** The game opens in a 3D town (React Three Fiber): stalls with real goods in their crates, shopkeepers and townsfolk, day and night, rain. The townsfolk walk only on paved walkways and stop in front of stalls and sources, and a test simulates them to check they never touch a building. Phones and tablets, small windows, reduced-motion settings and browsers without WebGL start on the 2D map instead, a button on the map switches either way, and the game remembers your choice. If the 3D town ever fails to start, the 2D map takes over. If it opens in 3D on its own and runs slowly (under about 22 frames a second over the first few seconds), the game drops to the 2D map, says so, offers **Try 3D anyway**, and does not try again by itself on that browser. A view you chose yourself is never overridden.
 - **A way back from broke.** Nearly out of coins with nothing to sell? Search the scrap heap, or take an odd job: a merchant who is short of a good pays you to fetch it, and pays the cost and your reward from their own till. Jobs are open only while you are short of coins, with a cooldown, so they are a way back up and not a way to farm.
@@ -61,7 +61,7 @@ The chain is invisible: sign in with Google or an emailed link, no wallet, no se
 | Town gazette (optional) | **NEAR AI Cloud** turns the town's latest events into a few newspaper headlines in the News tab. Same rules as the merchant voice: facts only from the game, every number checked, plain event list as the fallback | [`server/voice/gazette.ts`](server/voice/gazette.ts) |
 | Merchant voice (optional) | **NEAR AI Cloud** (OpenAI-compatible API) rewrites a merchant's price reasoning in their own words when a player hovers a price. Prices never depend on it: the reply is used only if every number matches `pricing.ts`, and the plain explanation shows otherwise. Set `NEAR_AI_API_KEY` to turn it on. The line is also spoken aloud: with **ElevenLabs** natural voices (one stock voice per merchant) when `ELEVENLABS_API_KEY` is set, otherwise with the browser's built-in speech. It follows the sound switch | [`server/voice/voice.ts`](server/voice/voice.ts), [`llm.ts`](server/voice/llm.ts) |
 | Council record (optional) | Every town-council vote is also written to a **SputnikDAO** on testnet (`nims-council.sputnikv2.testnet`): a Vote proposal when it opens, approved or rejected when it closes, so the decisions are public. **The game counts the votes and stays the authority; the DAO is only the record.** Player names are never written. Calls retry with back-off and never block gameplay | [`server/chain/dao.ts`](server/chain/dao.ts) |
-| Town Clerk (optional) | An agent wallet custodied by **OutLayer** (testnet): its key lives in a secure enclave and the server holds only an API key. It is the DAO's only council member and signs the record. Its OutLayer policy allows only contract calls, only to the DAO account, within spending caps (1.5 NEAR per call, 10 per hour, 30 per day); transfers, withdrawals and everything else are denied. **The merchants' own accounts are not custodied this way: the server still holds their keys** | [`server/chain/outlayer.ts`](server/chain/outlayer.ts) |
+| Town Clerk (optional) | An agent wallet custodied by **OutLayer** (testnet): its key lives in a secure enclave and the server holds only an API key. It is the DAO's only council member and signs the record. Its OutLayer policy, set in the OutLayer dashboard rather than in this repo, allows only contract calls, only to the DAO account, within spending caps (1.5 NEAR per call, 10 per hour, 30 per day); transfers, withdrawals and everything else are denied. `npm run chain:outlayer -- check` prints the live policy. **The merchants' own accounts are not custodied this way: the server still holds their keys** | [`server/chain/outlayer.ts`](server/chain/outlayer.ts) |
 | Delivery orders | Intents-style: state the outcome and a limit price, a solver fills it. Implemented inside the game (`Game.placeOrder`, `fillOrders`) | [`server/game/game.ts`](server/game/game.ts) |
 
 NEAR **testnet only**. No mainnet or real funds are used.
@@ -87,12 +87,12 @@ npm run setup     # installs the server and the web app
 npm run dev       # starts both; open the address Vite prints (usually http://localhost:5173)
 ```
 
-**The newest parts** (council, 3D view; they need a build of `main`):
+**The newest parts** (council, 3D view):
 
 1. Collect some goods (the tomato field, say) and sell one unit to a merchant in the Produce Market. You are now a regular there.
 2. Open **My business → Town council → Produce Market**. It shows your seat. Press **Low** under **Stall rent**. The merchants back a cut, so it passes at the end of the game day (use `TICK_MS=1000 npm run dev` to get there in a few minutes), and the news feed says so.
-3. Press **3D view** on the map. Click a stall to open its panel. Drag to turn the view; watch the townsfolk walk to the stalls.
-4. With `SPUTNIK_DAO_ID` (and optionally `OUTLAYER_API_KEY`) set, the same vote appears on the DAO: `npm run chain:dao -- proposals` lists it as Approved or Rejected. Proposal #0 on `nims-council.sputnikv2.testnet` is from a test run, not from real play.
+3. On a desktop browser the map opens in 3D (**2D map** switches to the flat map and back). Click a stall to open its panel. Drag to turn the view; watch the townsfolk walk to the stalls.
+4. With `SPUTNIK_DAO_ID` (and optionally `OUTLAYER_API_KEY`) set, the same vote appears on the DAO: `npm run chain:dao -- proposals` lists it as Approved or Rejected. Proposal #0 on `nims-council.sputnikv2.testnet` is from a test run, not from real play; the later ones are from the demo and from play.
 
 **Optional extras** (all off unless you set them in `.env`; see `.env.example`):
 
@@ -198,11 +198,11 @@ The [privacy policy](web/public/privacy.html) is served at `/privacy.html`. The 
 
 ```bash
 npm test               # economy, pricing, server, API, chain  (281 tests)
-npm run test:web       # the UI against real game state, 3D walkways  (163 tests)
-npm run contract:test  # the NEP-245 contract                (needs Rust)
+npm run test:web       # the UI against real game state, 3D walkways, the 3D speed check  (183 tests)
+npm run contract:test  # the NEP-245 contract  (18 tests, needs Rust)
 ```
 
-`sim/economy.test.ts` guards the balance: flooding a good crashes its price, and a calm player reaches the 12,000-coin goal in roughly 12 to 20 minutes.
+`sim/economy.test.ts` guards the balance: sources charge for goods, a buy-and-sell trip changes net worth by a modest amount, every good averages near its usual price over a quiet week, and a flooder still crashes iron. `npm run balance` plays a scripted trader and prints how long it takes, in real minutes, to reach each rank and the 10,000-coin goal (14 of 16 seeded runs reach it, from under a minute to about 14 minutes).
 
 To verify the chain side, copy `.env.example` to `.env` with a testnet account, then:
 

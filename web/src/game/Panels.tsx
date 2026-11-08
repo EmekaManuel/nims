@@ -20,6 +20,8 @@ export interface Actions {
   gather: (item: Item) => void;
   upgrade: (to: string) => void;
   setName: (name: string) => void;
+  claimQuest: (id: string) => void;
+  claimDaily: () => void;
   buyShares: (merchant: string, shares: number) => void;
   sellShares: (merchant: string, shares: number) => void;
   contribute: (merchant: string, amount: number) => void;

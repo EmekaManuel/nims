@@ -10,6 +10,7 @@
 import { samePlan, targetOf } from '../../sim/plan';
 import type { ChosenPlan, PlanFacts } from '../agents/planner';
 import { Activity, type ActivityJSON } from './activity';
+import { claim, claimDaily, newQuestState, questView, record, type QuestEvent, type QuestState } from './quests';
 import { createHash } from 'node:crypto';
 import { makeRng } from '../../sim/rng';
 import { act, newPlayer } from '../../sim/players';
@@ -152,6 +153,10 @@ export class Game {
   private scavenged = new Map<string, number>();
   /** email -> hour of the last delivered job. */
   private jobDone = new Map<string, number>();
+  /** player id -> quests and daily rewards (quests.ts). */
+  private quests = new Map<string, QuestState>();
+  /** The real clock, for daily rewards. Tests replace it. */
+  clock: () => number = Date.now;
   /** Players who chose the name others see (setName). The email-based name never replaces a chosen one. */
   private chosen = new Set<string>();
   /** What real people have been doing, in real time, for /stats. Counts and opaque ids only. */
@@ -206,6 +211,7 @@ export class Game {
       jobDone: [...this.jobDone],
       activity: this.activity.toJSON(),
       chosenNames: [...this.chosen],
+      quests: [...this.quests],
     };
   }
 
@@ -230,6 +236,7 @@ export class Game {
     g.progress = new Map((snap.progress as [string, Progress & { marketsSold: MarketId[] }][]).map(([email, pr]) => [email, { ...pr, marketsSold: new Set(pr.marketsSold) }]));
     g.names = new Map(snap.names);
     g.chosen = new Set((snap as { chosenNames?: string[] }).chosenNames ?? []);
+    g.quests = new Map((snap as { quests?: [string, QuestState][] }).quests ?? []);
     g.renameFromEmails();
     g.haggled = new Map(snap.haggled);
     const o = snap as { orders?: [string, Order[]][]; nextOrderId?: number };
@@ -310,6 +317,7 @@ export class Game {
     if (mine.filter((o) => o.status === 'open').length >= MAX_OPEN_ORDERS) return fail(`You can have ${MAX_OPEN_ORDERS} open orders at a time. Cancel one first.`);
     const o: Order = { id: this.nextOrderId++, item, units, merchantId, minPrice: Math.round(minPrice), placedHour: this.w.hour, expiresHour: this.w.hour + ORDER_HOURS, status: 'open', done: 0, earned: 0 };
     this.orders.set(email, [...mine.filter((x) => x.status === 'open' || this.w.hour - x.placedHour < 72), o]);
+    this.track(p, { kind: 'order' });
     return ok(`Order placed: sell ${units} ${item} at ${m.name} for at least ${o.minPrice} coins each. The carriers will take it as soon as the price is right (up to ${ORDER_HOURS} hours).`);
   }
 
@@ -426,6 +434,42 @@ export class Game {
     // Only whole-word matches, so renaming "Ada" never touches "Adaeze".
     const re = new RegExp(`(?<![\\p{L}])${old.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\p{L}])`, 'gu');
     for (const e of this.w.events) e.text = e.text.replace(re, now);
+  }
+
+  // ---- quests and daily rewards (quests.ts) --------------------------------------------------
+
+  private questsOf(p: Player): QuestState {
+    let s = this.quests.get(p.id);
+    if (!s) this.quests.set(p.id, (s = newQuestState()));
+    return s;
+  }
+
+  /** Count what a player just did towards their quests, and tell them when one is ready to claim. */
+  private track(p: Player, e: QuestEvent) {
+    if (!this.humanIds().has(p.id)) return;
+    for (const q of record(this.questsOf(p), e)) addNote(this.w, p, `Quest complete: ${q.title}. Claim ${q.reward} coins in Quests.`);
+  }
+
+  private humanIds() { return new Set([...this.humans.values()].map((p) => p.id)); }
+
+  /** Claim a finished quest's reward. The town pays it, through the ledger. */
+  claimQuest(email: string, id: string): ActionResult {
+    const p = this.playerFor(email);
+    const r = claim(this.questsOf(p), id);
+    if ('error' in r) return fail(r.error);
+    transferCoins(this.w, 'town', p, r.reward);
+    this.checkDone(email);
+    return ok(`Quest done: ${r.quest.title}. You earned ${r.reward} coins.`);
+  }
+
+  /** Claim today's daily reward. It grows each day you come back in a row. */
+  claimDailyReward(email: string): ActionResult {
+    const p = this.playerFor(email);
+    const r = claimDaily(this.questsOf(p), this.clock());
+    if ('error' in r) return fail(r.error);
+    transferCoins(this.w, 'town', p, r.reward);
+    this.checkDone(email);
+    return ok(r.day > 1 ? `Day ${r.day} in a row: ${r.reward} coins. Come back tomorrow for more.` : `Daily reward: ${r.reward} coins. Come back tomorrow and it grows.`);
   }
 
   /** Choose the name other players (and the town board) see. Letters, spaces, hyphens and apostrophes; 2 to 16 characters. */
@@ -599,6 +643,7 @@ export class Game {
     const fare = this.settleFare(p);
     this.activeJobs.delete(email);
     this.jobDone.set(email, this.w.hour);
+    this.track(p, { kind: 'job' });
     return ok(`Delivered ${job.units} ${job.item} to ${to.name} and earned ${job.reward} coins.${fare > 0 ? ` The fare you owed (${fare} coins) came out of it.` : ''}`);
   }
 
@@ -619,6 +664,7 @@ export class Game {
     const n = gather(this.w, p, item);
     if (n === 0) return fail(src.units <= 0 ? 'Someone has already cleared this spot. It refills over time.' : 'You could not carry any more.');
     const rain = activeShock(this.w, 'rain') ? ' Rain slowed you down.' : '';
+    this.track(p, { kind: 'collect', item, units: n });
     return ok(`You collected ${n} ${item}.${rain}`);
   }
 
@@ -645,6 +691,7 @@ export class Game {
     this.checkDone(email);
     this.tellOwner(m, p, `bought ${sold} ${item} from`, `sold you`, sold, item, 'sell');
     this.activity.trade(p.id);
+    this.track(p, { kind: 'sell', item, units: sold, market: m.market, haggled: haggle && mult !== 1 });
     return this.withHaggle(ok(`Sold ${sold} ${item} to ${m.name}.${haggle ? ` You haggled a ${Math.round((mult - 1) * 100)}% better price.` : ''}${fareTaken > 0 ? ` The fare for the trip (${fareTaken} coins) came out of the sale.` : ''}${(p.fareOwed ?? 0) > 0 ? ` You still owe ${p.fareOwed} coins for the trip.` : ''}`), haggle, m);
   }
 
@@ -667,6 +714,7 @@ export class Game {
     if (haggle) this.lastHaggle.set(email, { id: m.id, merchant: m.name, personality: m.personality, item, side: 'bought', units: bought, usual: q.sellPrice, deal: Math.round(q.sellPrice / mult), pct: Math.round((mult - 1) * 100) });
     this.tellOwner(m, p, '', '', bought, item, 'buy');
     this.activity.trade(p.id);
+    this.track(p, { kind: 'buy', item, units: bought, market: m.market });
     return this.withHaggle(ok(`Bought ${bought} ${item} from ${m.name}.`), haggle, m);
   }
 
@@ -707,6 +755,7 @@ export class Game {
     if ('error' in r) return fail(r.error);
     this.checkDone(email);
     this.activity.trade(p.id);
+    this.track(p, { kind: 'shares', n });
     return ok(`You bought ${n} shares in ${m.name} for ${r.cost} coins. You'll share in their profit each evening.`);
   }
 
@@ -728,6 +777,7 @@ export class Game {
     const r = propose(this.w, p, this.names.get(p.id) ?? 'A shareholder', market as MarketId, lever as Lever, to);
     if ('error' in r) return fail(r.error);
     this.activity.vote(p.id);
+    this.track(p, { kind: 'vote' });
     return ok(`You put it to the ${MARKETS[market as MarketId].name} council. The vote closes this evening at the latest after ${MIN_VOTING_HOURS} hours.`);
   }
 
@@ -736,6 +786,7 @@ export class Game {
     const r = vote(this.w, p, market as MarketId, yes);
     if ('error' in r) return fail(r.error);
     this.activity.vote(p.id);
+    this.track(p, { kind: 'vote' });
     return ok(`You voted ${yes ? 'for' : 'against'}. It counts for the shares you hold in that market.`);
   }
 
@@ -847,6 +898,7 @@ export class Game {
     transferCoins(this.w, p, 'town', UPGRADE_COST[to]);
     p.vehicle = to;
     this.checkDone(email);
+    this.track(p, { kind: 'upgrade' });
     return ok(`You bought a ${to}. It carries ${CAPACITY[to]}.`);
   }
 
@@ -1142,6 +1194,7 @@ export class Game {
       board,
       sources: w.sources.map((s) => ({ item: s.item, label: s.label, units: Math.floor(s.units), cost: s.cost })),
       events: w.events.slice(-12).reverse(),
+      quests: questView(this.questsOf(p), this.clock()),
       you: {
         name: this.names.get(p.id) ?? 'Trader',
         cash: Math.round(p.cash),

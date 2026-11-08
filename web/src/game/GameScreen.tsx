@@ -11,6 +11,7 @@ import { useSpeedCheck } from './speed';
 import { readViewChoice, SLOW_KEY } from './view';
 import { Mission } from './Mission';
 import { NewsFeed } from './NewsFeed';
+import { QuestsPanel, questsReady } from './Quests';
 import { SourcePanel, StallPanel } from './Panels';
 import { PriceBoard } from './PriceBoard';
 
@@ -85,6 +86,7 @@ export function GameScreen(p: GameScreenProps) {
   if (stall) drawer = { title: stall.name, body: <StallPanel stall={stall} state={state} act={act} /> };
   else if (p.selected?.kind === 'source') drawer = { title: 'Collect goods', body: <SourcePanel item={p.selected.item} state={state} act={act} /> };
   else if (p.selected?.kind === 'plot') drawer = { title: 'A free plot', body: <section className="panel"><h2>A free plot</h2><StallOffer state={state} act={act} focus={p.selected.market} /></section> };
+  else if (p.tab === 'quests' && state.quests) drawer = { title: 'Quests', body: <QuestsPanel quests={state.quests} act={act} /> };
   else if (p.tab === 'deals') drawer = { title: 'Deals', body: <DealsDrawer state={state} act={act} onFocus={p.onFocus} forceTab={p.dealsTab} /> };
   else if (p.tab === 'prices') drawer = { title: 'Prices', body: <PriceBoard state={state} /> };
   else if (p.tab === 'business') drawer = { title: 'My business', body: <BusinessPanel state={state} act={act} onFocus={(id) => p.onSelect({ kind: 'stall', id })} /> };
@@ -111,7 +113,7 @@ export function GameScreen(p: GameScreenProps) {
         </div>
         {drawer && <Drawer title={drawer.title} onClose={p.onDrawerClose}>{drawer.body}</Drawer>}
       </main>
-      <Dock tab={p.selected ? null : p.tab} onTab={p.onTab} newsCount={p.newsCount} />
+      <Dock tab={p.selected ? null : p.tab} onTab={p.onTab} newsCount={p.newsCount} questCount={questsReady(state.quests)} />
       <div className="aria-live" aria-live="polite">{p.toast?.text} {p.toast?.line}</div>
       {p.toast && <div className={`toast ${p.toast.ok ? 'good' : 'bad'}`}>{p.toast.text}{p.toast.line && <div className="toastline">{p.toast.line}</div>}</div>}
       {!!p.confetti && p.confetti > 0 && <Confetti key={p.confetti} />}

@@ -19,10 +19,10 @@ const act = (): Actions => new Proxy({}, { get: () => vi.fn() }) as Actions;
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); localStorage.clear(); });
 
 describe('dock and drawer', () => {
-  it('shows four tabs, marks the open one, and reports taps', () => {
+  it('shows five tabs, marks the open one, and reports taps', () => {
     const onTab = vi.fn();
     render(<Dock tab="prices" onTab={onTab} />);
-    expect(screen.getAllByRole('button').map((b) => b.textContent)).toEqual(['Deals', 'Prices', 'My business', 'News']);
+    expect(screen.getAllByRole('button').map((b) => b.textContent)).toEqual(['Quests', 'Deals', 'Prices', 'My business', 'News']);
     expect(screen.getByRole('button', { name: 'Prices' }).getAttribute('aria-pressed')).toBe('true');
     expect(screen.getByRole('button', { name: 'Deals' }).getAttribute('aria-pressed')).toBe('false');
     fireEvent.click(screen.getByRole('button', { name: 'My business' }));

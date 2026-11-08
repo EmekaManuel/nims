@@ -16,7 +16,7 @@ import { StallPanel, SourcePanel, Actions } from './Panels';
 afterEach(cleanup);
 const state = fixture as unknown as GameState;
 const act = (): Actions => ({
-  sell: vi.fn(), buy: vi.fn(), order: vi.fn(), cancelOrder: vi.fn(), gather: vi.fn(), upgrade: vi.fn(), setName: vi.fn(), buyShares: vi.fn(), sellShares: vi.fn(), contribute: vi.fn(),
+  sell: vi.fn(), buy: vi.fn(), order: vi.fn(), cancelOrder: vi.fn(), gather: vi.fn(), upgrade: vi.fn(), setName: vi.fn(), claimQuest: vi.fn(), claimDaily: vi.fn(), buyShares: vi.fn(), sellShares: vi.fn(), contribute: vi.fn(),
   openStall: vi.fn(), councilPropose: vi.fn(), councilVote: vi.fn(), stallStock: vi.fn(), stallTake: vi.fn(), stallPrice: vi.fn(), stallDeposit: vi.fn(), stallWithdraw: vi.fn(), ack: vi.fn(), scavenge: vi.fn(), takeJob: vi.fn(), deliverJob: vi.fn(), dropJob: vi.fn(),
 });
 /** What it costs to walk the test player's load to each market: the panel shows the one for the stall's own market. */

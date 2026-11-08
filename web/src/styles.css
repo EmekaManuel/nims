@@ -575,3 +575,26 @@ th { font-size: .7rem; letter-spacing: .06em; text-transform: uppercase; color: 
 .nameline { margin: .2rem 0 .6rem; color: var(--ink-2); }
 .nameform { display: grid; gap: .5rem; margin: .3rem 0 .8rem; }
 .nameform .row { display: flex; gap: .5rem; }
+
+/* Quests tab: the daily reward and the quests you're on */
+.quests .daily { display: flex; gap: .8rem; align-items: center; justify-content: space-between; padding: .7rem .85rem; border-radius: 14px; border: 1px solid var(--line); background: var(--surface-2); margin: .3rem 0 .9rem; }
+.quests .daily.ready { background: var(--gold-soft); border-color: #f0d58a; }
+.quests .daily p { margin: .15rem 0 .35rem; }
+.daily-h { font-size: .72rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--warn); }
+.streak { display: flex; gap: 5px; list-style: none; margin: 0; padding: 0; }
+.streak li { width: 22px; height: 8px; border-radius: 4px; background: var(--line); }
+.streak li.got { background: var(--gold-deep); }
+.streak li.today { background: var(--gold); box-shadow: 0 0 0 2px var(--gold-soft); }
+.quest { border: 1px solid var(--line); border-radius: 14px; padding: .75rem .85rem; margin-bottom: .7rem; background: var(--surface); }
+.quest.complete { border-color: var(--good); box-shadow: 0 0 0 3px var(--good-soft); }
+.quest header { display: flex; justify-content: space-between; align-items: center; }
+.quest-chain { font-size: .72rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--accent-deep); }
+.quest-reward { font-weight: 800; color: var(--gold-deep); }
+.quest h3 { margin: .3rem 0 .1rem; }
+.objectives { list-style: none; margin: .5rem 0; padding: 0; display: grid; gap: .45rem; }
+.objectives li { display: grid; grid-template-columns: 1fr auto; gap: .2rem .6rem; font-size: .9rem; }
+.objectives li.met { color: var(--good); font-weight: 700; }
+.objectives .count { font-variant-numeric: tabular-nums; color: var(--ink-3); }
+.objectives .bar { grid-column: 1 / -1; height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; }
+.objectives .bar i { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
+.objectives li.met .bar i { background: var(--good); }

@@ -130,6 +130,12 @@ export interface GameState {
   board: { market: MarketId; item: Item; base: number; price: number | null }[];
   sources: { item: Item; label: string; units: number; cost: number }[];
   events: { hour: number; type: string; text: string }[];
+  /** Quests you're on and today's daily reward (server/game/quests.ts). */
+  quests?: {
+    active: { id: string; chain: 'starter' | 'realm'; title: string; story: string; reward: number; complete: boolean; objectives: { label: string; done: number; target: number }[] }[];
+    starter: { done: number; total: number };
+    daily: { day: number; reward: number; ready: boolean };
+  };
   you: {
     /** The name other traders and the town board see. */
     name: string;
@@ -286,6 +292,8 @@ export const api = {
   dropJob: () => post('/game/job/drop', {}).then((r) => r.body),
   upgrade: (to: string) => post('/game/upgrade', { to }).then((r) => r.body),
   setName: (name: string) => post('/game/name', { name }).then((r) => r.body),
+  claimQuest: (id: string) => post('/game/quest/claim', { id }).then((r) => r.body),
+  claimDaily: () => post('/game/daily', {}).then((r) => r.body),
 };
 
 export const coins = (n: number) => `${Math.round(n).toLocaleString('en-US')} coins`;

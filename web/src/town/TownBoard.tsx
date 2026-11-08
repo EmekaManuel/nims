@@ -107,8 +107,8 @@ export function TownBoard() {
           </div>
 
           <p className="muted small town-foot">
-            Counts only people signed in to the game, never the simulated traders. Names are the first names players already see in the
-            town; no emails. Updates every 15 seconds.
+            Counts only people signed in to the game, never the simulated traders. Names are first names, or just an initial; never an
+            email. Updates every 15 seconds.
           </p>
         </>
       )}

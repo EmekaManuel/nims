@@ -62,9 +62,17 @@ describe('the game counts what people do', () => {
     expect(out).not.toMatch(/lovelace|@|example/i);
   });
 
+  it('shows only an initial for a username in one piece, which may hold a surname', () => {
+    const g = new Game(5);
+    for (const e of ['nwosustephen@example.com', 'emeka.m@example.com', 'tunde92@example.com']) { g.state(e); g.gather(e, 'tomatoes'); g.sell(e, 'mira', 'tomatoes', 1); }
+    const names = g.publicStats().leaders.map((l) => l.name).sort();
+    expect(names).toEqual(['Emeka', 'N.', 'Tunde']);
+    expect(JSON.stringify(g.publicStats())).not.toMatch(/nwosu|stephen/i);
+  });
+
   it('ranks the people who have played by net worth, and leaves out anyone who has done nothing yet', () => {
     const g = new Game(5);
-    for (const [email, cash] of [['bo@x.io', 9_000], ['cy@x.io', 6_000], ['di@x.io', 0]] as const) {
+    for (const [email, cash] of [['bo.k@x.io', 9_000], ['cy.l@x.io', 6_000], ['di.m@x.io', 0]] as const) {
       g.state(email);
       g.w.players[g.w.players.length - 1].cash = cash || 4_000;
       if (cash) { g.gather(email, 'tomatoes'); g.sell(email, 'mira', 'tomatoes', 1); }

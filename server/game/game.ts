@@ -63,6 +63,16 @@ interface Progress {
 }
 
 /** A friendly name from the part of the email before the @, e.g. ada.obi@x.com -> "Ada". Never the full address. */
+/**
+ * The name the public town board shows. When the email splits into parts (ada.lovelace@, ada_l@, ada92@) the first part
+ * is very likely a first name, so it is shown as in the game. A username in one piece (adalovelace@) may well hold a
+ * surname too, so the board shows only its initial ("A.").
+ */
+export function boardName(email: string): string {
+  const local = email.split('@')[0];
+  return /[._\-+0-9]/.test(local) ? displayName(email) : `${displayName(email).charAt(0)}.`;
+}
+
 export function displayName(email: string): string {
   const first = email.split('@')[0].split(/[._\-+0-9]+/).find((x) => x.length > 0) ?? 'Trader';
   const name = first.slice(0, 12);
@@ -927,12 +937,12 @@ export class Game {
   publicStats() {
     const open = this.w.merchants.filter((m) => !m.owner && m.state !== 'closed').length;
     // Only people who have done something: a trade, a share, a stall. Shown by the same first name other players already see.
-    const leaders = [...this.humans.values()]
-      .map((p) => {
+    const leaders = [...this.humans.entries()]
+      .map(([email, p]) => {
         const shares = this.w.merchants.reduce((n, m) => n + (m.shares[p.id] ?? 0), 0);
         const stall = this.w.merchants.some((m) => m.owner === p.id);
         const traded = Object.values(p.reputation).some((r) => (r ?? 0) > 0);
-        return { name: this.names.get(p.id) ?? 'A trader', worth: this.netWorth(p), shares, stall, vehicle: p.vehicle, active: traded || shares > 0 || stall };
+        return { name: boardName(email), worth: this.netWorth(p), shares, stall, vehicle: p.vehicle, active: traded || shares > 0 || stall };
       })
       .filter((x) => x.active)
       .sort((a, b) => b.worth - a.worth)

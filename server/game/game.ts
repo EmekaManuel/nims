@@ -64,14 +64,16 @@ interface Progress {
 
 /**
  * The name other players see: in the town, on stall signs, in the news and on the public town board. Never the address.
- * When the email's username splits into parts (ada.obi@, ada_l@, ada92@) the first part is very likely a first name, so
- * it is used ("Ada"). A username in one piece (adaobi@) may well hold a surname too, so only its initial is shown ("A.").
+ * When the email's username splits into words (ada.obi@, ada_l@, ada-obi@) the first word is very likely a first name,
+ * so it is used ("Ada"). A username in one word (adaobi@, adaobi92@) may well hold a surname too, so only its initial is
+ * shown ("A."). Digits are dropped and never count as a split.
  */
 export function displayName(email: string): string {
-  const local = email.split('@')[0];
-  const first = local.split(/[._\-+0-9]+/).find((x) => x.length > 0) ?? 'Trader';
+  const words = email.split('@')[0].replace(/[0-9]+/g, '').split(/[._\-+]+/).filter((x) => x.length > 0);
+  const first = words[0];
+  if (!first) return 'Trader';
   const name = first.charAt(0).toUpperCase() + first.slice(1, 12).toLowerCase();
-  return first === local ? `${name.charAt(0)}.` : name;
+  return words.length > 1 ? name : `${name.charAt(0)}.`;
 }
 
 /**

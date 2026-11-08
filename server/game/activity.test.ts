@@ -64,12 +64,15 @@ describe('the game counts what people do', () => {
 
   it('the name players see is a first name, or only an initial for a username in one piece (it may hold a surname)', () => {
     expect(displayName('emeka.m@example.com')).toBe('Emeka');
-    expect(displayName('tunde92@example.com')).toBe('Tunde');
+    expect(displayName('tunde92@example.com')).toBe('T.');
+    expect(displayName('nwosustephen1@gmail.com')).toBe('N.');
+    expect(displayName('ada.92@example.com')).toBe('A.'); // a word and a number is still one word
+    expect(displayName('ada92.obi@example.com')).toBe('Ada');
     expect(displayName('ada_lovelace@example.com')).toBe('Ada');
     expect(displayName('nwosustephen@example.com')).toBe('N.');
     const g = new Game(5);
     for (const e of ['nwosustephen@example.com', 'emeka.m@example.com', 'tunde92@example.com']) { g.state(e); g.gather(e, 'tomatoes'); g.sell(e, 'mira', 'tomatoes', 1); }
-    expect(g.publicStats().leaders.map((l) => l.name).sort()).toEqual(['Emeka', 'N.', 'Tunde']);
+    expect(g.publicStats().leaders.map((l) => l.name).sort()).toEqual(['Emeka', 'N.', 'T.']);
     expect(JSON.stringify(g.publicStats())).not.toMatch(/nwosu|stephen/i);
   });
 

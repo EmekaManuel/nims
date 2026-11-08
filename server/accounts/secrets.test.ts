@@ -48,4 +48,8 @@ describe('offline chain', () => {
     await expect(offlineChain.transferItem({ accountId: 'a', secretKey: 'k' }, 'b', 'iron', 3)).resolves.toBeUndefined();
     await expect(offlineChain.itemBalance('a', 'iron')).resolves.toBe(0);
   });
+  it('accepts secrets pasted with a stray space or newline (as a hosting dashboard may keep them)', () => {
+    const k = 'a'.repeat(64);
+    expect(loadSecrets({ MASTER_KEY: ` ${k}\n`, SESSION_SECRET: `${'b'.repeat(64)} ` }, '/nonexistent/never-written.json')).toEqual({ masterKey: k, sessionSecret: 'b'.repeat(64), generated: false });
+  });
 });

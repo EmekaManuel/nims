@@ -1,3 +1,4 @@
+import type { Avatar } from '../art/avatar';
 /** Typed client for the Nims game server. Nothing here knows about wallets — the player never sees the chain. */
 export type Item = 'tomatoes' | 'pepper' | 'flour' | 'cotton' | 'lace' | 'thread' | 'iron' | 'copper wire';
 export type MarketId = 'produce' | 'fabric' | 'scrap';
@@ -141,6 +142,8 @@ export interface GameState {
   you: {
     /** The name other traders and the town board see. */
     name: string;
+    /** The look you chose, or null before you create one. */
+    avatar: Avatar | null;
     cash: number;
     /** Fare you couldn't pay up front. It comes out of your next sale. */
     fareOwed: number;
@@ -191,7 +194,7 @@ export interface TownStats {
   total: { trades: number; votes: number; decisions: number; passed: number };
   shops: { open: number; total: number; playerStalls: number };
   /** The ten richest people who have played, by the first name others see in the game. */
-  leaders: { name: string; worth: number; shares: number; stall: boolean; vehicle: 'wheelbarrow' | 'pickup' | 'van' }[];
+  leaders: { name: string; avatar?: Avatar | null; worth: number; shares: number; stall: boolean; vehicle: 'wheelbarrow' | 'pickup' | 'van' }[];
   /** The latest town-council decisions, newest first. */
   decisions: { day: number; market: string; lever: string; to: string; passed: boolean; yes: number; no: number; daoId: number | null }[];
 }
@@ -294,6 +297,7 @@ export const api = {
   dropJob: () => post('/game/job/drop', {}).then((r) => r.body),
   upgrade: (to: string) => post('/game/upgrade', { to }).then((r) => r.body),
   setName: (name: string) => post('/game/name', { name }).then((r) => r.body),
+  setAvatar: (avatar: Avatar) => post('/game/avatar', { avatar }).then((r) => r.body),
   claimQuest: (id: string) => post('/game/quest/claim', { id }).then((r) => r.body),
   claimDaily: () => post('/game/daily', {}).then((r) => r.body),
   redeemInvite: (code: string) => post('/game/invite', { code }).then((r) => r.body),

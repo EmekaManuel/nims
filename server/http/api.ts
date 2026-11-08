@@ -294,6 +294,7 @@ export function createApp(d: AppDeps) {
           '/game/quest/claim': () => g.claimQuest(email, String(b.id ?? '')),
           '/game/daily': () => g.claimDailyReward(email),
           '/game/invite': () => g.redeemInvite(email, String(b.code ?? '')),
+          '/game/avatar': () => g.setAvatar(email, b.avatar),
           '/game/shares/buy': () => g.buyShares(email, merchant, Number(b.shares)),
           '/game/shares/sell': () => g.sellShares(email, merchant, Number(b.shares)),
           '/game/council/propose': () => g.councilPropose(email, String(b.market ?? ''), String(b.lever ?? ''), String(b.to ?? '')),

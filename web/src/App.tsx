@@ -7,6 +7,7 @@ import { rankOf } from './lib/rank';
 import { setSound, sfx, soundOn } from './lib/sfx';
 import { Actions } from './game/Panels';
 import { AwayModal, GoalPicker, HowToPlay } from './game/Modals';
+import { AvatarCreator } from './game/AvatarCreator';
 import { GameScreen } from './game/GameScreen';
 import { Loading } from './game/Loading';
 import { IconSprite } from './art/icons';
@@ -73,7 +74,9 @@ function Game() {
   };
 
   // Ask for a goal once when there isn't one (or when the last one is done).
-  const needGoal = !!state && (state.goal === null || state.goal.done);
+  // A new player creates their trader first (look and name), then picks a goal.
+  const needAvatar = !!state && state.you.avatar === null;
+  const needGoal = !!state && !needAvatar && (state.goal === null || state.goal.done);
   useEffect(() => {
     if (needGoal && !asked.current) { asked.current = true; setGoalOpen(true); }
     if (!needGoal) asked.current = false;
@@ -171,6 +174,7 @@ function Game() {
     gather: (i) => run(api.gather(i), { kind: 'source', id: i }),
     upgrade: (to) => run(api.upgrade(to)),
     setName: (name) => run(api.setName(name)),
+    setAvatar: (a) => run(api.setAvatar(a)),
     claimQuest: (id) => run(api.claimQuest(id)),
     claimDaily: () => run(api.claimDaily()),
     buyShares: (m, n) => run(api.buyShares(m, n), { kind: 'stall', id: m }),
@@ -238,7 +242,8 @@ function Game() {
     >
       {help && <HowToPlay onClose={closeHelp} />}
       {!help && state.away && <AwayModal away={state.away} onClose={() => act.ack()} />}
-      {!help && !state.away && goalOpen && <GoalPicker goals={state.goals} current={state.goal?.kind} onPick={pickGoal} onClose={() => setGoalOpen(false)} />}
+      {!help && !state.away && needAvatar && <AvatarCreator first initial={null} name={state.you.name} onSave={(a, name) => { act.setAvatar(a); if (name) act.setName(name); }} />}
+      {!help && !state.away && !needAvatar && goalOpen && <GoalPicker goals={state.goals} current={state.goal?.kind} onPick={pickGoal} onClose={() => setGoalOpen(false)} />}
     </GameScreen>
   );
 }

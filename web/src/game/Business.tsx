@@ -4,6 +4,8 @@ import { coins } from '../api';
 import { ItemIcon } from '../art/icons';
 import { Field, NumberField, TextField } from '../ui';
 import type { Actions } from './Panels';
+import { AvatarCreator } from './AvatarCreator';
+import { AvatarFigure, type Avatar } from '../art/avatar';
 import { Council } from './Council';
 
 /** Open-your-own-stall offer. Shown inside My business, and on its own when you click a free plot. */
@@ -96,6 +98,19 @@ function NameEditor({ name, act }: { name: string; act: Actions }) {
   );
 }
 
+/** Your look, as others see it, and a way to change it. */
+function LookEditor({ avatar, name, act }: { avatar: Avatar | null; name: string; act: Actions }) {
+  const [open, setOpen] = useState(false);
+  if (!avatar) return null;
+  return (
+    <div className="lookline">
+      <AvatarFigure a={avatar} size={40} />
+      <button className="link" onClick={() => setOpen(true)}>Change your look</button>
+      {open && <AvatarCreator initial={avatar} name={name} onSave={(a, n) => { act.setAvatar(a); if (n) act.setName(n); setOpen(false); }} onClose={() => setOpen(false)} />}
+    </div>
+  );
+}
+
 export function BusinessPanel({ state, act, onFocus }: { state: GameState; act: Actions; onFocus: (id: string) => void }) {
   const b = state.business;
   const total = b.shares.reduce((a, s) => a + s.value, 0);
@@ -103,6 +118,7 @@ export function BusinessPanel({ state, act, onFocus }: { state: GameState; act: 
     <section className="panel ledger" aria-labelledby="biz-h">
       <h2 id="biz-h">My business</h2>
       <NameEditor name={state.you.name} act={act} />
+      <LookEditor avatar={state.you.avatar} name={state.you.name} act={act} />
 
       <h3>My stall</h3>
       {b.stall ? <Manager key={b.stall.id} state={state} act={act} /> : <StallOffer state={state} act={act} />}

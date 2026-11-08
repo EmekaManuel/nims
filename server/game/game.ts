@@ -10,6 +10,7 @@
 import { samePlan, targetOf } from '../../sim/plan';
 import type { ChosenPlan, PlanFacts } from '../agents/planner';
 import { Activity, type ActivityJSON } from './activity';
+import { parseAvatar, type Avatar } from './avatar';
 import { claim, claimDaily, newQuestState, questView, record, type QuestEvent, type QuestState } from './quests';
 import { createHash } from 'node:crypto';
 import { makeRng } from '../../sim/rng';
@@ -158,6 +159,8 @@ export class Game {
   private jobDone = new Map<string, number>();
   /** player id -> quests and daily rewards (quests.ts). */
   private quests = new Map<string, QuestState>();
+  /** player id -> the look they chose (avatar.ts). Absent until they create one. */
+  private avatars = new Map<string, Avatar>();
   /** invited player id -> who invited them, and whether the reward has been paid (it pays on their first sale). */
   private invites = new Map<string, { by: string; paid: boolean }>();
   /** The real clock, for daily rewards. Tests replace it. */
@@ -218,6 +221,7 @@ export class Game {
       chosenNames: [...this.chosen],
       quests: [...this.quests],
       invites: [...this.invites],
+      avatars: [...this.avatars],
     };
   }
 
@@ -243,6 +247,7 @@ export class Game {
     g.names = new Map(snap.names);
     g.chosen = new Set((snap as { chosenNames?: string[] }).chosenNames ?? []);
     g.quests = new Map((snap as { quests?: [string, QuestState][] }).quests ?? []);
+    g.avatars = new Map((snap as { avatars?: [string, Avatar][] }).avatars ?? []);
     g.invites = new Map((snap as { invites?: [string, { by: string; paid: boolean }][] }).invites ?? []);
     g.renameFromEmails();
     g.haggled = new Map(snap.haggled);
@@ -459,6 +464,18 @@ export class Game {
   }
 
   private humanIds() { return new Set([...this.humans.values()].map((p) => p.id)); }
+
+  // ---- avatar --------------------------------------------------------------------------------
+
+  /** Choose your look. Every part must be one of the allowed picks. */
+  setAvatar(email: string, raw: unknown): ActionResult {
+    const p = this.playerFor(email);
+    const a = parseAvatar(raw);
+    if (!a) return fail('Pick each part of your look from the choices.');
+    const first = !this.avatars.has(p.id);
+    this.avatars.set(p.id, a);
+    return ok(first ? 'Welcome to Nims. Your trader is ready.' : 'Your new look is saved.');
+  }
 
   // ---- invite a friend ----------------------------------------------------------------------
 
@@ -1141,7 +1158,7 @@ export class Game {
         const shares = this.w.merchants.reduce((n, m) => n + (m.shares[p.id] ?? 0), 0);
         const stall = this.w.merchants.some((m) => m.owner === p.id);
         const traded = Object.values(p.reputation).some((r) => (r ?? 0) > 0);
-        return { name: this.names.get(p.id) ?? 'A trader', worth: this.netWorth(p), shares, stall, vehicle: p.vehicle, active: traded || shares > 0 || stall };
+        return { name: this.names.get(p.id) ?? 'A trader', avatar: this.avatars.get(p.id) ?? null, worth: this.netWorth(p), shares, stall, vehicle: p.vehicle, active: traded || shares > 0 || stall };
       })
       .filter((x) => x.active)
       .sort((a, b) => b.worth - a.worth)
@@ -1247,6 +1264,7 @@ export class Game {
       invite: this.inviteView(p),
       you: {
         name: this.names.get(p.id) ?? 'Trader',
+        avatar: this.avatars.get(p.id) ?? null,
         cash: Math.round(p.cash),
         fareOwed: Math.round(p.fareOwed ?? 0),
         netWorth: worth,

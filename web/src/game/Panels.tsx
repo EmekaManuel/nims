@@ -1,3 +1,4 @@
+import type { Avatar } from '../art/avatar';
 import { useState } from 'react';
 import type { GameState, Item, MarketId, Stall } from '../api';
 import { coins } from '../api';
@@ -20,6 +21,7 @@ export interface Actions {
   gather: (item: Item) => void;
   upgrade: (to: string) => void;
   setName: (name: string) => void;
+  setAvatar: (a: Avatar) => void;
   claimQuest: (id: string) => void;
   claimDaily: () => void;
   buyShares: (merchant: string, shares: number) => void;

@@ -1,3 +1,4 @@
+import { SHIRTS } from '../art/avatar';
 import type { Focus, GameState, Item, MarketId, Offer, Stall } from '../api';
 import { itemId } from '../art/icons';
 
@@ -252,11 +253,11 @@ function Life({ moving }: { moving: boolean }) {
 }
 
 /** You: a blue character with your vehicle. When you go to another market you walk there. */
-function You({ at, vehicle }: { at: MarketId; vehicle: 'wheelbarrow' | 'pickup' | 'van' }) {
+function You({ at, vehicle, shirt = '#1d63d6' }: { at: MarketId; vehicle: 'wheelbarrow' | 'pickup' | 'van'; shirt?: string }) {
   const [x, y] = AVATAR_AT[at];
   return (
     <g className="you" style={{ transform: `translate(${x}px, ${y}px)` }} aria-hidden="true">
-      <g className="bob"><Bean color="#1d63d6" size={1.35} /></g>
+      <g className="bob"><Bean color={shirt} size={1.35} /></g>
       <use href={`#v-${vehicle}`} x="12" y="-24" width="46" height="30" />
       <g transform="translate(0 -34)">
         <rect x="-15" y="-9" width="30" height="16" rx="8" className="you-tag" />
@@ -410,7 +411,7 @@ export function DistrictMap({ state, selected, onSelect, popups = [], moving }: 
       })}
 
       <Life moving={animate} />
-      <You at={state.you.at ?? 'produce'} vehicle={state.you.vehicle} />
+      <You at={state.you.at ?? 'produce'} vehicle={state.you.vehicle} shirt={state.you.avatar ? SHIRTS[state.you.avatar.shirt] : undefined} />
 
       {focus && (() => {
         // The "NEXT" pill is drawn last so no stall or awning can cover it.

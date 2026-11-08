@@ -1,3 +1,4 @@
+import { DEFAULT_AVATAR, HAIR, SHIRTS, SKIN, type Avatar } from '../art/avatar';
 import { createContext, useContext, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Html, OrbitControls, RoundedBox } from '@react-three/drei';
@@ -55,18 +56,18 @@ const label: React.CSSProperties = {
   borderRadius: 8, whiteSpace: 'nowrap', pointerEvents: 'none', textAlign: 'center',
 };
 
-const SKIN = ['#f1c9a5', '#e0a98a', '#c68863', '#a56b45', '#7b4a2e', '#5a3622'];
-const HAIR = ['#1c1410', '#3a2618', '#6b4423', '#b8862b', '#8a8a8a', '#a1311f'];
 const PANTS = ['#2b3a55', '#3d3d4a', '#5a4632', '#33503f'];
 const hashOf = (id: string) => [...id].reduce((a, c) => a * 31 + c.charCodeAt(0), 7) >>> 0;
 
 /** A small articulated person: head, hair, eyes, torso, swinging arms and legs. Faces +z. */
-function Person({ id, shirt, scale = 1, mode = 'idle', apron, cap }: { id: string; shirt: string; scale?: number; mode?: 'idle' | 'walk'; apron?: string; cap?: string }) {
+function Person({ id, shirt, scale = 1, mode = 'idle', apron, cap, look }: { id: string; shirt: string; scale?: number; mode?: 'idle' | 'walk'; apron?: string; cap?: string; look?: Avatar }) {
   const h = hashOf(id);
-  const skin = SKIN[h % SKIN.length];
-  const hair = HAIR[(h >> 3) % HAIR.length];
+  // a chosen look (an avatar) wins; everyone else gets a look picked from their id
+  const skin = look ? SKIN[look.skin] : SKIN[h % SKIN.length];
+  const hair = look ? HAIR[look.hair] : HAIR[(h >> 3) % HAIR.length];
   const pants = PANTS[(h >> 5) % PANTS.length];
-  const long = (h >> 7) % 3 === 0;
+  const long = look ? look.style === 'long' : (h >> 7) % 3 === 0;
+  const bald = look?.style === 'bald';
   const legL = useRef<THREE.Group>(null), legR = useRef<THREE.Group>(null);
   const armL = useRef<THREE.Group>(null), armR = useRef<THREE.Group>(null);
   const body = useRef<THREE.Group>(null);
@@ -113,7 +114,7 @@ function Person({ id, shirt, scale = 1, mode = 'idle', apron, cap }: { id: strin
         <group position={[0, 0.79, 0]}>
           <mesh castShadow><sphereGeometry args={[0.105, 20, 20]} /><meshStandardMaterial color={skin} /></mesh>
           {/* hair cap (top half, set back a touch) */}
-          <mesh position={[0, 0.012, -0.012]} rotation={[-0.25, 0, 0]}><sphereGeometry args={[0.112, 20, 20, 0, Math.PI * 2, 0, Math.PI * 0.55]} /><meshStandardMaterial color={hair} /></mesh>
+          {!bald && <mesh position={[0, 0.012, -0.012]} rotation={[-0.25, 0, 0]}><sphereGeometry args={[0.112, 20, 20, 0, Math.PI * 2, 0, Math.PI * 0.55]} /><meshStandardMaterial color={hair} /></mesh>}
           {long && <mesh position={[0, -0.06, -0.06]}><capsuleGeometry args={[0.085, 0.1, 4, 10]} /><meshStandardMaterial color={hair} /></mesh>}
           {cap && (
             <group position={[0, 0.045, 0.005]}>
@@ -564,7 +565,11 @@ function Scene({ state, selected, onSelect, popups, animate }: { state: GameStat
       {animate && <Truck />}
 
       <group position={[wx(you[0]), 0, wz(you[1])]}>
-        <Person id="you" shirt="#1d63d6" cap="#14253d" scale={1.45} />
+        {(() => {
+          const look = state.you.avatar ?? DEFAULT_AVATAR;
+          const shirt = SHIRTS[look.shirt];
+          return <Person id="you" shirt={shirt} look={look} cap={look.hat === 'cap' ? mix(shirt, '#000000', 0.45) : undefined} scale={1.45} />;
+        })()}
         <group position={[0.6, 0, 0.1]} rotation={[0, 0.3, 0]}><Vehicle kind={state.you.vehicle} /></group>
         <Html zIndexRange={[5, 0]} position={[0, 1.55, 0]} center style={{ pointerEvents: 'none' }}><div style={{ ...label, background: '#1d63d6' }}>You</div></Html>
       </group>

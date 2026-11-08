@@ -549,8 +549,9 @@ th { font-size: .7rem; letter-spacing: .06em; text-transform: uppercase; color: 
 .leaders .top-1 .place { background: var(--gold); border-color: var(--gold-deep); color: #4a3300; }
 .leaders .top-2 .place { background: #e3e8f0; border-color: #b7c2d3; color: #34404f; }
 .leaders .top-3 .place { background: #f3d2b3; border-color: #cf9a6b; color: #5b3414; }
-.leaders .who { display: grid; min-width: 0; }
-.leaders .who b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.leaders .who { display: flex; align-items: center; gap: .55rem; min-width: 0; }
+.leaders .who-t { display: grid; min-width: 0; }
+.leaders .who-t b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .leaders .holds { display: flex; gap: .35rem; align-items: center; }
 .leaders .chip { font-size: .75rem; font-weight: 700; padding: .1rem .5rem; border-radius: 999px; background: var(--accent-soft); color: var(--accent-deep); white-space: nowrap; }
 .leaders .worth { font-weight: 800; text-align: right; white-space: nowrap; }
@@ -604,3 +605,18 @@ th { font-size: .7rem; letter-spacing: .06em; text-transform: uppercase; color: 
 .invite-link { display: flex; gap: .5rem; }
 .invite-link input { flex: 1; min-width: 0; font: inherit; font-size: .85rem; padding: .45rem .6rem; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
 .login .invited { margin: 0; padding: .55rem .8rem; border-radius: 12px; background: var(--gold-soft); border: 1px solid #f0d58a; font-weight: 600; color: var(--warn); }
+
+/* Create your trader */
+.creator { max-width: 42rem; }
+.creator-body { display: grid; grid-template-columns: auto 1fr; gap: 1rem 1.4rem; align-items: start; }
+.creator-preview { display: grid; place-items: center; padding: .4rem; }
+.creator-picks { display: grid; gap: .6rem; }
+.pick-row { border: 0; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; }
+.pick-row legend { width: 100%; font-size: .78rem; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--ink-3); margin-bottom: .15rem; }
+.pick-row button { padding: .3rem .7rem; border-radius: 999px; font-size: .85rem; }
+.pick-row button.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-deep); font-weight: 700; }
+.pick-row .swatch { width: 30px; height: 30px; padding: 0; border-radius: 50%; border: 2px solid rgba(0,0,0,.12); }
+.pick-row .swatch.on { border-color: var(--ink); box-shadow: 0 0 0 3px var(--accent-soft); background-clip: padding-box; }
+.creator-actions { justify-content: flex-end; gap: .5rem; display: flex; }
+.lookline { display: flex; align-items: center; gap: .6rem; margin: -.2rem 0 .7rem; }
+@media (max-width: 560px) { .creator-body { grid-template-columns: 1fr; } }

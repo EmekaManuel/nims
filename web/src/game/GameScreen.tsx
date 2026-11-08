@@ -6,6 +6,8 @@ import { Confetti, Dock, Drawer, type Tab } from './Dock';
 import { DealsDrawer, type Which } from './DealsDrawer';
 import { Hud } from './Hud';
 import { DistrictMap, type Popup, type Selection } from './Map';
+import { Map3DBoundary } from './Map3DBoundary';
+import { readView } from './view';
 import { Mission } from './Mission';
 import { NewsFeed } from './NewsFeed';
 import { SourcePanel, StallPanel } from './Panels';
@@ -51,7 +53,8 @@ export interface GameScreenProps {
  */
 export function GameScreen(p: GameScreenProps) {
   const { state, act } = p;
-  const [view3d, setView3d] = useState(() => { try { return localStorage.getItem('nims-3d') === '1'; } catch { return false; } });
+  // 3D where it will work well (a wide screen, a mouse, WebGL, no reduced motion), 2D otherwise; the button and a remembered choice override that
+  const [view3d, setView3d] = useState(readView);
   const toggle3d = () => setView3d((v) => { try { localStorage.setItem('nims-3d', v ? '0' : '1'); } catch { /* ignore */ } return !v; });
   const sel = p.selected;
   const stall = sel?.kind === 'stall' ? state.stalls.find((s) => s.id === sel.id) : undefined;
@@ -74,7 +77,11 @@ export function GameScreen(p: GameScreenProps) {
         <div className="viewport">
           <div className="mapscroll">
             {view3d || p.drive
-              ? <Suspense fallback={<div className="map map3d-loading">Loading 3D town…</div>}><DistrictMap3D state={state} selected={p.selected} onSelect={p.onSelect} popups={p.popups} drive={p.drive} /></Suspense>
+              ? (
+                <Map3DBoundary fallback={<DistrictMap state={state} selected={p.selected} onSelect={p.onSelect} popups={p.popups} />} onFail={() => setView3d(false)}>
+                  <Suspense fallback={<div className="map map3d-loading">Loading 3D town…</div>}><DistrictMap3D state={state} selected={p.selected} onSelect={p.onSelect} popups={p.popups} drive={p.drive} /></Suspense>
+                </Map3DBoundary>
+              )
               : <DistrictMap state={state} selected={p.selected} onSelect={p.onSelect} popups={p.popups} />}
             {!p.drive && <button type="button" className="view-toggle" onClick={toggle3d} aria-pressed={view3d}>{view3d ? '2D map' : '3D view'}</button>}
           </div>

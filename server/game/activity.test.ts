@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { Activity } from './activity';
-import { Game } from './game';
+import { displayName, Game } from './game';
 
 const HOUR = 3_600_000;
 
@@ -62,9 +62,38 @@ describe('the game counts what people do', () => {
     expect(out).not.toMatch(/lovelace|@|example/i);
   });
 
+  it('the name players see is a first name, or only an initial for a username in one piece (it may hold a surname)', () => {
+    expect(displayName('emeka.m@example.com')).toBe('Emeka');
+    expect(displayName('tunde92@example.com')).toBe('Tunde');
+    expect(displayName('ada_lovelace@example.com')).toBe('Ada');
+    expect(displayName('nwosustephen@example.com')).toBe('N.');
+    const g = new Game(5);
+    for (const e of ['nwosustephen@example.com', 'emeka.m@example.com', 'tunde92@example.com']) { g.state(e); g.gather(e, 'tomatoes'); g.sell(e, 'mira', 'tomatoes', 1); }
+    expect(g.publicStats().leaders.map((l) => l.name).sort()).toEqual(['Emeka', 'N.', 'Tunde']);
+    expect(JSON.stringify(g.publicStats())).not.toMatch(/nwosu|stephen/i);
+  });
+
+  it('a save from before the rule gets the safe name everywhere others see it: the name, the stall, the proposal, the news', () => {
+    const g = new Game(5);
+    const e = 'nwosustephen@example.com';
+    g.state(e);
+    const p = g.w.players[g.w.players.length - 1];
+    p.cash = 50_000;
+    expect(g.openStall(e, 'fabric').ok).toBe(true);
+    const snap = JSON.parse(JSON.stringify(g.snapshot()));
+    // what an older save held: the whole username as the name
+    snap.names = snap.names.map(([id, n]: [string, string]) => [id, id === p.id ? 'Nwosustephen' : n]);
+    for (const m of snap.world.merchants) if (m.owner === p.id) { m.ownerName = 'Nwosustephen'; m.name = "Nwosustephen's stall"; }
+    snap.world.events.push({ hour: 1, type: 'state', text: "Nwosustephen's stall opened in the Fabric Market." });
+    const back = Game.restore(snap);
+    const out = JSON.stringify([back.state(e), back.publicStats(), back.snapshot().world.events, back.snapshot().world.merchants]);
+    expect(out).not.toMatch(/nwosu|stephen/i);
+    expect(back.state(e).business.stall!.name).toBe("N.'s stall");
+  });
+
   it('ranks the people who have played by net worth, and leaves out anyone who has done nothing yet', () => {
     const g = new Game(5);
-    for (const [email, cash] of [['bo@x.io', 9_000], ['cy@x.io', 6_000], ['di@x.io', 0]] as const) {
+    for (const [email, cash] of [['bo.k@x.io', 9_000], ['cy.l@x.io', 6_000], ['di.m@x.io', 0]] as const) {
       g.state(email);
       g.w.players[g.w.players.length - 1].cash = cash || 4_000;
       if (cash) { g.gather(email, 'tomatoes'); g.sell(email, 'mira', 'tomatoes', 1); }

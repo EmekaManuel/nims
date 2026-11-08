@@ -8,7 +8,7 @@
 
 [Play it live](https://nims-app.up.railway.app) · [Demo video (132 s)](docs/nims-demo.mp4) · [Judge walk-through](docs/DEMO.md) · Contract: `oja-items.testnet`
 
-![NEAR testnet](https://img.shields.io/badge/NEAR-testnet-00ec97) ![NEP-245](https://img.shields.io/badge/items-NEP--245-blue) ![tests](https://img.shields.io/badge/tests-479%20passing-brightgreen) ![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)
+![NEAR testnet](https://img.shields.io/badge/NEAR-testnet-00ec97) ![NEP-245](https://img.shields.io/badge/items-NEP--245-blue) ![tests](https://img.shields.io/badge/tests-481%20passing-brightgreen) ![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)
 
 </div>
 
@@ -79,7 +79,7 @@ NEAR **testnet only**. No mainnet or real funds are used.
 7. Open the **News** tab. See the town gazette and the plain list of events.
 8. Open **Fast-forward** (or add `#sim` to the address, no login). See a simulated week as price and shop-cash charts, driven by the same pricing code as the live game.
 9. Open `/chain/status` on the live address. See the contract, the settlement namespace, and how far settlement has got. `behind` counts game ledger entries not yet on chain. Settlement works through the game in windows of 6 game hours (one real minute), widening up to 96 when it falls behind ([`chainsync.ts`](server/chain/chainsync.ts)), so `behind` rises and falls with each window instead of sitting at zero; `lastSettledAt` moving shows it is keeping up.
-10. Open the **town board** (`#town` on the live address, or **See who's playing** on the sign-in screen; no login). See how many people have played, trades and players in the last 24 real hours, council votes passed, shops open, the ten richest traders and the latest council decisions. It counts only signed-in people, shows the first names players already see in the game and never an email ([`web/src/town/TownBoard.tsx`](web/src/town/TownBoard.tsx), [`server/game/activity.ts`](server/game/activity.ts)); the same numbers are JSON at `/stats`.
+10. Open the **town board** (`#town` on the live address, or **See who's playing** on the sign-in screen; no login). See how many people have played, trades and players in the last 24 real hours, council votes passed, shops open, the ten richest traders and the latest council decisions. It counts only signed-in people and never shows an email: players appear, here and in the game, by a first name, or only an initial when the email's username is one word and may hold a surname ([`web/src/town/TownBoard.tsx`](web/src/town/TownBoard.tsx), [`server/game/activity.ts`](server/game/activity.ts)); the same numbers are JSON at `/stats`.
 
 **Locally:**
 
@@ -204,7 +204,7 @@ Games With Real Economies asks for *"NPCs with wallets, player-owned markets and
 ## Tests and chain verification
 
 ```bash
-npm test               # economy, pricing, server, API, chain  (292 tests)
+npm test               # economy, pricing, server, API, chain  (294 tests)
 npm run test:web       # the UI against real game state, 3D walkways, the 3D speed check, the town board  (187 tests)
 npm run contract:test  # the NEP-245 contract  (18 tests, needs Rust)
 ```

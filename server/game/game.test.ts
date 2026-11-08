@@ -268,12 +268,12 @@ describe('ownership', () => {
     expect(g.contribute(me, 'mira', 50).ok).toBe(false); // too small
     const r1 = g.contribute(me, 'mira', 5_000);
     expect(r1.ok).toBe(true);
-    expect(g.state(me).stalls.find((x) => x.id === 'mira')!.fund!.contributors).toEqual([{ name: 'Ada', put: 5_000 }]);
+    expect(g.state(me).stalls.find((x) => x.id === 'mira')!.fund!.contributors).toEqual([{ name: 'A.', put: 5_000 }]); // ada@: a one-word username shows only its initial
     const r2 = g.contribute(me, 'mira', 7_000);
     expect(r2.message).toMatch(/open again/);
     const mira = g.state(me).stalls.find((x) => x.id === 'mira')!;
     expect(mira.state).toBe('open');
-    expect(mira.sign).toEqual(['Ada']);
+    expect(mira.sign).toEqual(['A.']);
     expect(mira.shares!.yours).toBeGreaterThan(0);
   });
 
@@ -293,7 +293,7 @@ describe('ownership', () => {
     expect(g.openStall(me, 'produce').ok).toBe(false); // one per player
     const s = g.state(me);
     expect(s.business.stall).toMatchObject({ market: 'fabric', till: 0 });
-    expect(s.stalls.find((x) => x.owner?.mine)!.name).toBe("Ada's stall");
+    expect(s.stalls.find((x) => x.owner?.mine)!.name).toBe("A.'s stall");
     expect(s.business.stallOffer).toBeNull();
   });
 
@@ -334,7 +334,7 @@ describe('ownership', () => {
     g.state(bo);
     g.w.players.find((x) => x.id !== human(g)!.id && x.strategy === 'human')!.cash = 1_000;
     expect(g.buy(bo, 'stall-' + human(g)!.id, 'thread', 2).ok).toBe(true);
-    expect(g.state(me).business.notes[0].text).toContain('Bo bought 2 thread from your stall');
+    expect(g.state(me).business.notes[0].text).toContain('B. bought 2 thread from your stall');
     expect(g.state(me).business.stall!.till).toBeGreaterThan(0);
   });
 

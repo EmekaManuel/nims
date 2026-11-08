@@ -57,7 +57,7 @@ describe('saving and restoring the game', () => {
     expect(r.sell(me, 'ruth', 'iron', 5, true).ok).toBe(false);
     r.chooseGoal(me, 'reach');
     expect(r.state(me).goal!.label).toContain('1 of 3 markets'); // the Set of markets was restored
-    expect(r.state(me).business.stall!.name).toBe("Ada's stall"); // the display name was restored
+    expect(r.state(me).business.stall!.name).toBe("A.'s stall"); // the display name was restored
   });
 
   it('writes a file and reads it back, leaving no temp file behind', () => {

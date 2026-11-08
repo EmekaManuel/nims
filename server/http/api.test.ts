@@ -244,7 +244,7 @@ describe('public stats', () => {
     expect(s.players).toBeGreaterThanOrEqual(1);
     expect(s.last24h.players).toBeGreaterThanOrEqual(1);
     expect(s.shops.total).toBe(8);
-    expect(s.leaders[0].name).toBe('Ada');
+    expect(s.leaders[0].name).toBe('A.'); // a one-word username may hold a surname: initial only
     expect(body).not.toMatch(/@|example\.com/);
     expect(body).not.toMatch(WALLET_WORDS);
   });

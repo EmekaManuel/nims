@@ -58,7 +58,7 @@ The chain is invisible: sign in with Google or an emailed link, no wallet, no se
 |---|---|---|
 | Every good and the `coins` token | One **NEP-245** multi-token contract (no per-item contracts), deployed as `oja-items.testnet` | [`contracts/items/`](contracts/items/) |
 | Player accounts | Created behind email sign-in; keys held encrypted by the server | [`server/accounts/accounts.ts`](server/accounts/accounts.ts) |
-| Gas | A relayer pays through **NEP-366** delegate actions | [`server/chain/relayer.ts`](server/chain/relayer.ts) |
+| Gas | A relayer pays through **NEP-366** delegate actions: each merchant or player signs its own `send_many` as a delegate action, and the relayer submits it and pays the gas | [`server/chain/agent-chain.ts`](server/chain/agent-chain.ts) (the live settler), [`server/chain/relayer.ts`](server/chain/relayer.ts) (single transfers when the settler is off) |
 | Merchant agents | Each has its own account and signs its own transfers | [`merchants/agents/`](merchants/agents/), [`server/chain/rounds.ts`](server/chain/rounds.ts) |
 | Settlement | Trades apply instantly in the game, then settle to the chain in merged batches with per-signer sequence numbers, so a retry can never apply twice | [`server/chain/chainsync.ts`](server/chain/chainsync.ts) |
 | Merchant agents (optional) | **NEAR AI Cloud** plans each merchant's day: which goods to stock up on or run down, and keener or wider prices, with a reason. The game bounds every choice and ignores a reply that fails its checks; without NEAR AI the merchants keep their usual settings. `MERCHANT_AGENTS=0` turns it off | [`server/agents/planner.ts`](server/agents/planner.ts), [`sim/plan.ts`](sim/plan.ts) |

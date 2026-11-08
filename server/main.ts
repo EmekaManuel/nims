@@ -26,8 +26,17 @@ import { createGoogle } from './http/google';
 /** The built web app. When it exists this server serves the game's pages too (see Dockerfile). */
 const WEB_DIST = resolve('web/dist');
 
-const secrets = loadSecrets();
-if (secrets.generated) console.log('No MASTER_KEY/SESSION_SECRET in .env: using generated development secrets (server/data/dev-secrets.json).');
+// Where accounts, wallets, chain progress and the save live. Override to run a second copy (e.g. to record a demo) without touching the first.
+const DATA = process.env.DATA_DIR ?? 'server/data';
+// Generated secrets are kept beside the save, on the same disk: if they were lost on a redeploy while the save survived,
+// every wallet on that disk would become unreadable (a new chain epoch) and every player would be signed out.
+const SECRETS_FILE = `${DATA}/dev-secrets.json`;
+const secrets = loadSecrets(process.env, SECRETS_FILE);
+for (const k of ['MASTER_KEY', 'SESSION_SECRET'] as const) {
+  const v = process.env[k];
+  if (v && !/^[0-9a-f]{64}$/i.test(v.trim())) console.log(`${k} is set but is not 64 hex characters (make one with: openssl rand -hex 32), so it is ignored.`);
+}
+if (secrets.generated) console.log(`No MASTER_KEY/SESSION_SECRET set: using generated secrets kept in ${SECRETS_FILE}.`);
 
 // Testnet is optional. With credentials the game settles to the chain in the background; without them
 // it runs exactly the same, and just doesn't settle anywhere. Gameplay never depends on the chain.
@@ -43,8 +52,6 @@ try {
 } catch (e) {
   console.log(`Running without the chain: ${(e as Error).message} The game itself is unaffected.`);
 }
-// Where accounts, wallets and chain progress live. Override to run a second copy (e.g. to record a demo) without touching the first.
-const DATA = process.env.DATA_DIR ?? 'server/data';
 const port = Number(process.env.PORT ?? 3000);
 const SAVE_FILE = process.env.SAVE_FILE ?? `${DATA}/game.json`;
 const restored = loadGame(SAVE_FILE);

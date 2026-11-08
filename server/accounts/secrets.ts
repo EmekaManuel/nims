@@ -3,8 +3,8 @@
  * (signs login links and sessions).
  *
  * Real deployments set both in .env. For a first run with no .env we create random ones and keep
- * them in server/data/dev-secrets.json (mode 0600, gitignored), so sessions survive restarts and a
- * reviewer can start the game with zero setup.
+ * them in dev-secrets.json in the data folder (mode 0600, gitignored), beside the save, so sessions and
+ * encrypted wallets survive restarts and redeploys, and a reviewer can start the game with zero setup.
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
@@ -18,9 +18,12 @@ export interface Secrets {
 }
 
 const isKey = (s: unknown): s is string => typeof s === 'string' && /^[0-9a-f]{64}$/i.test(s);
+const clean = (s: string | undefined) => s?.trim();
 
 export function loadSecrets(env: Record<string, string | undefined> = process.env, file = 'server/data/dev-secrets.json'): Secrets {
-  if (isKey(env.MASTER_KEY) && isKey(env.SESSION_SECRET)) return { masterKey: env.MASTER_KEY, sessionSecret: env.SESSION_SECRET, generated: false };
+  const masterKey = clean(env.MASTER_KEY);
+  const sessionSecret = clean(env.SESSION_SECRET);
+  if (isKey(masterKey) && isKey(sessionSecret)) return { masterKey, sessionSecret, generated: false };
   if (existsSync(file)) {
     try {
       const saved = JSON.parse(readFileSync(file, 'utf8'));

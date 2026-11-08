@@ -12,7 +12,7 @@ import { makeRng } from '../../sim/rng';
 import { act, newPlayer } from '../../sim/players';
 import {
   activeShock, addNote, buyFromMerchant, buyShares, contributeToFund, gatherRate, merchantItems, openOwnerStall, ownerStallOf,
-  loadFare, merchantWorth, publicSharesLeft, quoteFor, refreshState, sellShares, sellToMerchant, sharePrice, STALL_COST, STALL_MARKETS, tick, transferCoins, unitFare,
+  loadFare, merchantWorth, publicSharesLeft, quoteFor, sellShares, sellToMerchant, sharePrice, STALL_COST, STALL_MARKETS, tick, transferCoins, unitFare,
 } from '../../sim/engine';
 import { clampPlayerPrice, MAX_MULT, MIN_MULT, type Personality } from '../../merchants/pricing';
 import type { VoiceFacts } from '../voice/voice';

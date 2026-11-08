@@ -7,9 +7,6 @@ import type { GameState, Item, MarketId, Stall } from '../api';
 import { PLOTS, STALL_POS, ZONES, crateCount, lightAt, type Popup, type Selection } from './Map';
 import { EDGES, LAMPS, newWalk, NODES, seeded, SOURCE_POS, SOURCE_STOP, stepWalk, stopForStall, TREES, U, walkAt, wx, wz, type Stop, type Walk } from './paths';
 
-const SOURCE_COLOR: Record<string, string> = {
-  tomatoes: '#d93b2b', pepper: '#e24a22', iron: '#8e99a8', 'copper wire': '#c8782e', cotton: '#e6ebf3',
-};
 const CANOPY: Record<MarketId, [string, string]> = {
   produce: ['#2f9e5f', '#f1f8f3'], fabric: ['#2a6fdb', '#f1f6fe'], scrap: ['#c8622e', '#f1ede7'],
 };

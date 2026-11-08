@@ -926,11 +926,33 @@ export class Game {
    */
   publicStats() {
     const open = this.w.merchants.filter((m) => !m.owner && m.state !== 'closed').length;
+    // Only people who have done something: a trade, a share, a stall. Shown by the same first name other players already see.
+    const leaders = [...this.humans.values()]
+      .map((p) => {
+        const shares = this.w.merchants.reduce((n, m) => n + (m.shares[p.id] ?? 0), 0);
+        const stall = this.w.merchants.some((m) => m.owner === p.id);
+        const traded = Object.values(p.reputation).some((r) => (r ?? 0) > 0);
+        return { name: this.names.get(p.id) ?? 'A trader', worth: this.netWorth(p), shares, stall, vehicle: p.vehicle, active: traded || shares > 0 || stall };
+      })
+      .filter((x) => x.active)
+      .sort((a, b) => b.worth - a.worth)
+      .slice(0, 10)
+      .map(({ active: _, ...x }) => x);
+    const decisions = this.w.events
+      .filter((e) => e.type === 'council' && e.decision)
+      .slice(-5)
+      .reverse()
+      .map((e) => {
+        const d = e.decision!;
+        return { day: Math.floor(e.hour / 24) + 1, market: MARKETS[d.market].name, lever: d.lever, to: d.to, passed: d.passed, yes: d.yes, no: d.no, daoId: d.daoId ?? null };
+      });
     return {
       ...this.activity.summary(),
       players: this.humans.size,
       day: Math.floor(this.w.hour / 24) + 1,
       shops: { open, total: this.w.merchants.filter((m) => !m.owner).length, playerStalls: this.w.merchants.filter((m) => m.owner).length },
+      leaders,
+      decisions,
     };
   }
 

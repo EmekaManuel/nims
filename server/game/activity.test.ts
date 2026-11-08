@@ -52,11 +52,36 @@ describe('the game counts what people do', () => {
     expect(back.publicStats().total.trades).toBe(1);
   });
 
-  it('never names anyone', () => {
+  it('shows only the first name other players already see: never an email or a surname', () => {
     const g = new Game(5);
     g.state('ada.lovelace@example.com');
     g.gather('ada.lovelace@example.com', 'tomatoes');
     g.sell('ada.lovelace@example.com', 'mira', 'tomatoes', 1);
-    expect(JSON.stringify(g.publicStats())).not.toMatch(/ada|lovelace|@/i);
+    const out = JSON.stringify(g.publicStats());
+    expect(out).toContain('"name":"Ada"');
+    expect(out).not.toMatch(/lovelace|@|example/i);
+  });
+
+  it('ranks the people who have played by net worth, and leaves out anyone who has done nothing yet', () => {
+    const g = new Game(5);
+    for (const [email, cash] of [['bo@x.io', 9_000], ['cy@x.io', 6_000], ['di@x.io', 0]] as const) {
+      g.state(email);
+      g.w.players[g.w.players.length - 1].cash = cash || 4_000;
+      if (cash) { g.gather(email, 'tomatoes'); g.sell(email, 'mira', 'tomatoes', 1); }
+    }
+    const names = g.publicStats().leaders.map((l) => l.name);
+    expect(names).toEqual(['Bo', 'Cy']);
+    expect(g.publicStats().leaders[0]).toMatchObject({ shares: 0, stall: false, vehicle: 'wheelbarrow' });
+  });
+
+  it('lists the latest council decisions, newest first', () => {
+    const g = new Game(5);
+    const me = 'ada@example.com';
+    g.state(me);
+    g.gather(me, 'tomatoes');
+    g.sell(me, 'mira', 'tomatoes', 1);
+    g.councilPropose(me, 'produce', 'rent', 'low');
+    for (let h = 0; h < 48; h++) g.tickOnce();
+    expect(g.publicStats().decisions[0]).toMatchObject({ market: 'Produce Market', lever: 'rent', to: 'low', passed: true });
   });
 });

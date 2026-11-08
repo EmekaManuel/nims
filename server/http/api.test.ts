@@ -220,7 +220,7 @@ describe('ownership routes', () => {
 
 
 describe('public stats', () => {
-  it('needs no login, counts what people did, and names nobody', async () => {
+  it('needs no login, counts what people did, and shows no email', async () => {
     const { Game } = await import('../game/game');
     server.close();
     const a2 = createApp({
@@ -244,6 +244,7 @@ describe('public stats', () => {
     expect(s.players).toBeGreaterThanOrEqual(1);
     expect(s.last24h.players).toBeGreaterThanOrEqual(1);
     expect(s.shops.total).toBe(8);
+    expect(s.leaders[0].name).toBe('Ada');
     expect(body).not.toMatch(/@|example\.com/);
     expect(body).not.toMatch(WALLET_WORDS);
   });

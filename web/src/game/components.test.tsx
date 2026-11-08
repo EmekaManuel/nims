@@ -16,7 +16,7 @@ import { StallPanel, SourcePanel, Actions } from './Panels';
 afterEach(cleanup);
 const state = fixture as unknown as GameState;
 const act = (): Actions => ({
-  sell: vi.fn(), buy: vi.fn(), order: vi.fn(), cancelOrder: vi.fn(), gather: vi.fn(), upgrade: vi.fn(), buyShares: vi.fn(), sellShares: vi.fn(), contribute: vi.fn(),
+  sell: vi.fn(), buy: vi.fn(), order: vi.fn(), cancelOrder: vi.fn(), gather: vi.fn(), upgrade: vi.fn(), setName: vi.fn(), buyShares: vi.fn(), sellShares: vi.fn(), contribute: vi.fn(),
   openStall: vi.fn(), councilPropose: vi.fn(), councilVote: vi.fn(), stallStock: vi.fn(), stallTake: vi.fn(), stallPrice: vi.fn(), stallDeposit: vi.fn(), stallWithdraw: vi.fn(), ack: vi.fn(), scavenge: vi.fn(), takeJob: vi.fn(), deliverJob: vi.fn(), dropJob: vi.fn(),
 });
 /** What it costs to walk the test player's load to each market: the panel shows the one for the stall's own market. */
@@ -342,6 +342,18 @@ describe('ownership', () => {
     render(<StallOffer state={{ ...noStall, you: { ...noStall.you, cash: 1000 } }} act={act()} />);
     expect(screen.getByText(/You need 5,000 coins more/)).toBeTruthy();
     expect((screen.getByText('Fabric Market') as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('shows the name others see you by, and lets you choose one', () => {
+    const a = act();
+    render(<BusinessPanel state={{ ...state, you: { ...state.you, name: 'N.' } }} act={a} onFocus={() => {}} />);
+    expect(screen.getByText(/Other traders see you as/).textContent).toMatch(/N\./);
+    fireEvent.click(screen.getByRole('button', { name: 'Change' }));
+    const input = screen.getByLabelText('Your name in town') as HTMLInputElement;
+    expect(input.value).toBe(''); // an initial is not a name to edit: start blank
+    fireEvent.change(input, { target: { value: 'Stephen' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(a.setName).toHaveBeenCalledWith('Stephen');
   });
 
   it('manages your stall: set prices, move stock, use the till', () => {

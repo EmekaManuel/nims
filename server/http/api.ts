@@ -290,6 +290,7 @@ export function createApp(d: AppDeps) {
           '/game/buy': () => g.buy(email, merchant, item, units, haggle),
           '/game/upgrade': () => g.upgrade(email, String(b.to ?? '')),
           '/game/goal': () => g.chooseGoal(email, String(b.kind ?? '')),
+          '/game/name': () => g.setName(email, String(b.name ?? '')),
           '/game/shares/buy': () => g.buyShares(email, merchant, Number(b.shares)),
           '/game/shares/sell': () => g.sellShares(email, merchant, Number(b.shares)),
           '/game/council/propose': () => g.councilPropose(email, String(b.market ?? ''), String(b.lever ?? ''), String(b.to ?? '')),

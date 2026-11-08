@@ -153,6 +153,7 @@ function Game() {
     cancelOrder: (id) => run(api.cancelOrder(id)),
     gather: (i) => run(api.gather(i), { kind: 'source', id: i }),
     upgrade: (to) => run(api.upgrade(to)),
+    setName: (name) => run(api.setName(name)),
     buyShares: (m, n) => run(api.buyShares(m, n), { kind: 'stall', id: m }),
     sellShares: (m, n) => run(api.sellShares(m, n), { kind: 'stall', id: m }),
     contribute: (m, amount) => run(api.contribute(m, amount), { kind: 'stall', id: m }),

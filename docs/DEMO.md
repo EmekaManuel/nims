@@ -45,6 +45,7 @@ Go back to the game (**Back to the game**), sign in with any email, and pick **B
 - Tap a merchant and look at **Own a piece**. Buy a few shares. Every evening they pay out a cut of the day's profit, on the shares you held since the day began (so nobody can buy at 10pm to collect and sell). The price is fair both ways: buying and selling straight back loses at most a coin or two.
 - Tap a **closed** stall (the shutters are down). **Put in** some money to its **community fund**. When the fund fills, the shop reopens and your name goes on its sign.
 - Tap a **free plot** on the map to open your own stall. Set your prices, stock it, put cash in the till. Merchants in that market will trade with you.
+- **My business** shows the name other traders see you by; **Change** picks your own (it goes on your stall, in the news and on the town board).
 - Leave the tab alone for a couple of minutes and come back: **Welcome back** shows what happened while you were away.
 
 ## 3b. The town council (2 minutes)

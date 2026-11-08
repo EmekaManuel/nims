@@ -131,6 +131,8 @@ export interface GameState {
   sources: { item: Item; label: string; units: number; cost: number }[];
   events: { hour: number; type: string; text: string }[];
   you: {
+    /** The name other traders and the town board see. */
+    name: string;
     cash: number;
     /** Fare you couldn't pay up front. It comes out of your next sale. */
     fareOwed: number;
@@ -283,6 +285,7 @@ export const api = {
   deliverJob: () => post('/game/job/deliver', {}).then((r) => r.body),
   dropJob: () => post('/game/job/drop', {}).then((r) => r.body),
   upgrade: (to: string) => post('/game/upgrade', { to }).then((r) => r.body),
+  setName: (name: string) => post('/game/name', { name }).then((r) => r.body),
 };
 
 export const coins = (n: number) => `${Math.round(n).toLocaleString('en-US')} coins`;

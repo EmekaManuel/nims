@@ -70,6 +70,19 @@ interface Progress {
  * so it is used ("Ada"). A username in one word (adaobi@, adaobi92@) may well hold a surname too, so only its initial is
  * shown ("A."). Digits are dropped and never count as a split.
  */
+/** Words a chosen name may not contain (a short list; names are short and public). */
+// Kept to words that don't occur inside real names (no 'dick', which would block Dickson; no 'fag', Fagbemi).
+const BLOCKED = ['fuck', 'shit', 'cunt', 'nigger', 'nigga', 'bitch', 'whore', 'slut', 'nazi', 'hitler', 'porn', 'pussy', 'admin', 'moderator'];
+
+/** Why a chosen name can't be used, or null if it can. */
+export function nameProblem(name: string): string | null {
+  if (name.length < 2 || name.length > 16) return 'A name is 2 to 16 characters.';
+  if (!/^\p{L}[\p{L} '\-]*$/u.test(name)) return 'Use letters, spaces, hyphens or apostrophes, starting with a letter.';
+  const flat = name.toLowerCase().replace(/[^\p{L}]/gu, '');
+  if (BLOCKED.some((w) => flat.includes(w))) return 'Pick a different name.';
+  return null;
+}
+
 export function displayName(email: string): string {
   const words = email.split('@')[0].replace(/[0-9]+/g, '').split(/[._\-+]+/).filter((x) => x.length > 0);
   const first = words[0];
@@ -139,6 +152,8 @@ export class Game {
   private scavenged = new Map<string, number>();
   /** email -> hour of the last delivered job. */
   private jobDone = new Map<string, number>();
+  /** Players who chose the name others see (setName). The email-based name never replaces a chosen one. */
+  private chosen = new Set<string>();
   /** What real people have been doing, in real time, for /stats. Counts and opaque ids only. */
   activity = new Activity();
   /** player id -> the name shown on signs and stalls. */
@@ -190,6 +205,7 @@ export class Game {
       scavenged: [...this.scavenged],
       jobDone: [...this.jobDone],
       activity: this.activity.toJSON(),
+      chosenNames: [...this.chosen],
     };
   }
 
@@ -213,6 +229,7 @@ export class Game {
     g.humans = new Map(snap.humans.map(([email, id]) => [email, w.players.find((p) => p.id === id)!]).filter(([, p]) => p) as [string, Player][]);
     g.progress = new Map((snap.progress as [string, Progress & { marketsSold: MarketId[] }][]).map(([email, pr]) => [email, { ...pr, marketsSold: new Set(pr.marketsSold) }]));
     g.names = new Map(snap.names);
+    g.chosen = new Set((snap as { chosenNames?: string[] }).chosenNames ?? []);
     g.renameFromEmails();
     g.haggled = new Map(snap.haggled);
     const o = snap as { orders?: [string, Order[]][]; nextOrderId?: number };
@@ -392,19 +409,35 @@ export class Game {
    * could show a whole one-word username, which may hold a surname.
    */
   private renameFromEmails() {
-    for (const [email, p] of this.humans) {
-      const old = this.names.get(p.id);
-      const now = displayName(email);
-      this.names.set(p.id, now);
-      if (!old || old === now) continue;
-      for (const m of this.w.merchants) {
-        if (m.owner !== p.id) continue;
-        m.ownerName = now;
-        if (m.name === `${old}'s stall`) m.name = `${now}'s stall`;
-      }
-      for (const c of Object.values(this.w.council)) if (c.proposal?.by === p.id) c.proposal.byName = now;
-      for (const e of this.w.events) if (e.text.includes(old)) e.text = e.text.split(old).join(now);
+    for (const [email, p] of this.humans) if (!this.chosen.has(p.id)) this.rename(p, displayName(email));
+  }
+
+  /** Give a player a new name wherever others can see it: the name, their stall's name and owner, an open proposal, the news. */
+  private rename(p: Player, now: string) {
+    const old = this.names.get(p.id);
+    this.names.set(p.id, now);
+    if (!old || old === now) return;
+    for (const m of this.w.merchants) {
+      if (m.owner !== p.id) continue;
+      m.ownerName = now;
+      if (m.name === `${old}'s stall`) m.name = `${now}'s stall`;
     }
+    for (const c of Object.values(this.w.council)) if (c.proposal?.by === p.id) c.proposal.byName = now;
+    // Only whole-word matches, so renaming "Ada" never touches "Adaeze".
+    const re = new RegExp(`(?<![\\p{L}])${old.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\p{L}])`, 'gu');
+    for (const e of this.w.events) e.text = e.text.replace(re, now);
+  }
+
+  /** Choose the name other players (and the town board) see. Letters, spaces, hyphens and apostrophes; 2 to 16 characters. */
+  setName(email: string, raw: string): ActionResult {
+    const p = this.playerFor(email);
+    const name = raw.replace(/\s+/g, ' ').trim();
+    const check = nameProblem(name);
+    if (check) return fail(check);
+    if (this.names.get(p.id) === name) return ok(`You are already ${name}.`);
+    this.chosen.add(p.id);
+    this.rename(p, name);
+    return ok(`Other traders will now see you as ${name}.`);
   }
 
   /** The player for this login. Created on first visit; the id is opaque. */
@@ -1110,6 +1143,7 @@ export class Game {
       sources: w.sources.map((s) => ({ item: s.item, label: s.label, units: Math.floor(s.units), cost: s.cost })),
       events: w.events.slice(-12).reverse(),
       you: {
+        name: this.names.get(p.id) ?? 'Trader',
         cash: Math.round(p.cash),
         fareOwed: Math.round(p.fareOwed ?? 0),
         netWorth: worth,

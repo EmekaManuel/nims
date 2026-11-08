@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { GameState, Item, MarketId } from '../api';
 import { coins } from '../api';
 import { ItemIcon } from '../art/icons';
-import { Field, NumberField } from '../ui';
+import { Field, NumberField, TextField } from '../ui';
 import type { Actions } from './Panels';
 import { Council } from './Council';
 
@@ -74,12 +74,35 @@ function Manager({ state, act }: { state: GameState; act: Actions }) {
   );
 }
 
+/** The name other traders and the town board see, and a way to change it. */
+function NameEditor({ name, act }: { name: string; act: Actions }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(name);
+  if (!editing) {
+    return (
+      <p className="nameline">
+        Other traders see you as <b>{name}</b>. <button className="link" onClick={() => { setDraft(name.endsWith('.') ? '' : name); setEditing(true); }}>Change</button>
+      </p>
+    );
+  }
+  return (
+    <form className="nameform" onSubmit={(e) => { e.preventDefault(); act.setName(draft); setEditing(false); }}>
+      <TextField label="Your name in town" value={draft} onChange={setDraft} placeholder="e.g. Ngozi" hint="2 to 16 letters. Shown on your stall, in the news and on the town board." />
+      <div className="row">
+        <button className="primary" disabled={draft.trim().length < 2}>Save</button>
+        <button type="button" onClick={() => setEditing(false)}>Cancel</button>
+      </div>
+    </form>
+  );
+}
+
 export function BusinessPanel({ state, act, onFocus }: { state: GameState; act: Actions; onFocus: (id: string) => void }) {
   const b = state.business;
   const total = b.shares.reduce((a, s) => a + s.value, 0);
   return (
     <section className="panel ledger" aria-labelledby="biz-h">
       <h2 id="biz-h">My business</h2>
+      <NameEditor name={state.you.name} act={act} />
 
       <h3>My stall</h3>
       {b.stall ? <Manager key={b.stall.id} state={state} act={act} /> : <StallOffer state={state} act={act} />}

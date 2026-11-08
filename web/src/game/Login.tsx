@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useState } from 'react';
-import { api } from '../api';
+import { api, type TownStats } from '../api';
 import { Mascot } from '../art/Mascot';
 import { TextField } from '../ui';
 
@@ -20,6 +20,13 @@ export function Login({ onIn, presetEmail, showGoogle }: { onIn: () => void; pre
     void api.providers().then((p) => live && setGoogle(p.google));
     return () => { live = false; };
   }, [showGoogle]);
+  const [stats, setStats] = useState<TownStats | null>(null);
+  useEffect(() => {
+    if (presetEmail !== undefined) return; // the demo video's sign-in screen stays as it was filmed
+    let live = true;
+    void api.stats().then((s) => live && setStats(s));
+    return () => { live = false; };
+  }, [presetEmail]);
   /** Something wrong with the email itself, shown on the field. */
   const [error, setError] = useState('');
   const [devLink, setDevLink] = useState('');
@@ -61,7 +68,26 @@ export function Login({ onIn, presetEmail, showGoogle }: { onIn: () => void; pre
       {msg && <p role="status" className="note">{msg}</p>}
       <p className="muted small">Buy low, carry it, sell high. No password, no wallet — just your email.</p>
       <a className="simlink" href="#sim">Or watch a week of the market unfold →</a>
+      {stats && <LiveNow s={stats} />}
     </main>
+  );
+}
+
+const n = (x: number) => x.toLocaleString('en-US');
+const plural = (x: number, one: string, many: string) => `${n(x)} ${x === 1 ? one : many}`;
+
+/** The town right now, from GET /stats: real people and real trades, so a visitor can see it is alive before signing in. */
+function LiveNow({ s }: { s: TownStats }) {
+  return (
+    <section className="live-now" aria-label="The town right now">
+      <h2><span className="dot" aria-hidden="true" />Live in the town · day {n(s.day)}</h2>
+      <ul>
+        <li><b>{plural(s.players, 'person has', 'people have')}</b> played</li>
+        <li>{s.last24h.trades ? <><b>{plural(s.last24h.trades, 'trade', 'trades')}</b> by {plural(s.last24h.players, 'player', 'players')} in the last 24 hours</> : <><b>Quiet right now:</b> be the first to trade today</>}</li>
+        <li>{s.total.passed ? <><b>{plural(s.total.passed, 'council vote', 'council votes')}</b> passed, changing the rules</> : <><b>No council vote</b> has passed yet</>}</li>
+        <li><b>{n(s.shops.open)} of {n(s.shops.total)}</b> shops open{s.shops.playerStalls ? `, plus ${plural(s.shops.playerStalls, 'player stall', 'player stalls')}` : ''}</li>
+      </ul>
+    </section>
   );
 }
 

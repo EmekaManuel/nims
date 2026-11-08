@@ -171,6 +171,15 @@ export interface VoiceReply { text: string | null; audio: string | null }
 
 export interface ChainProof { account: string; explorer: string; behind: number }
 
+/** Public numbers about the town (GET /stats). Activity is in real time; `day` is the town's own day count. */
+export interface TownStats {
+  day: number;
+  players: number;
+  last24h: { players: number; trades: number; votes: number };
+  total: { trades: number; votes: number; decisions: number; passed: number };
+  shops: { open: number; total: number; playerStalls: number };
+}
+
 export const api = {
   /** Where this player's goods and coins live on the testnet, or null when the live chain is off. */
   async chain(): Promise<ChainProof | null> {
@@ -228,6 +237,15 @@ export const api = {
       return { google: r.status === 200 && r.body?.google === true };
     } catch {
       return { google: false };
+    }
+  },
+  /** How busy the town is: public counts, no names. Never throws: null when the server can't say. */
+  async stats(): Promise<TownStats | null> {
+    try {
+      const r = await json<TownStats>('/stats');
+      return r.status === 200 && r.body && typeof r.body.day === 'number' ? r.body : null;
+    } catch {
+      return null;
     }
   },
   /** Open a sign-in link (dev only: the server returns it directly). */

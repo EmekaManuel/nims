@@ -8,7 +8,7 @@
 
 [Play it live](https://nims-app.up.railway.app) · [Demo video (132 s)](docs/nims-demo.mp4) · [Judge walk-through](docs/DEMO.md) · Contract: `oja-items.testnet`
 
-![NEAR testnet](https://img.shields.io/badge/NEAR-testnet-00ec97) ![NEP-245](https://img.shields.io/badge/items-NEP--245-blue) ![tests](https://img.shields.io/badge/tests-467%20passing-brightgreen) ![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)
+![NEAR testnet](https://img.shields.io/badge/NEAR-testnet-00ec97) ![NEP-245](https://img.shields.io/badge/items-NEP--245-blue) ![tests](https://img.shields.io/badge/tests-477%20passing-brightgreen) ![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)
 
 </div>
 
@@ -79,6 +79,7 @@ NEAR **testnet only**. No mainnet or real funds are used.
 7. Open the **News** tab. See the town gazette and the plain list of events.
 8. Open **Fast-forward** (or add `#sim` to the address, no login). See a simulated week as price and shop-cash charts, driven by the same pricing code as the live game.
 9. Open `/chain/status` on the live address. See the contract, the settlement namespace, and how far settlement has got.
+10. Open `/stats` on the live address, or look under the sign-in form. See how many people have played, trades and players in the last 24 real hours, council votes passed and shops open. Counts only: no names or emails ([`server/game/activity.ts`](server/game/activity.ts)).
 
 **Locally:**
 
@@ -203,8 +204,8 @@ Games With Real Economies asks for *"NPCs with wallets, player-owned markets and
 ## Tests and chain verification
 
 ```bash
-npm test               # economy, pricing, server, API, chain  (284 tests)
-npm run test:web       # the UI against real game state, 3D walkways, the 3D speed check  (183 tests)
+npm test               # economy, pricing, server, API, chain  (290 tests)
+npm run test:web       # the UI against real game state, 3D walkways, the 3D speed check  (187 tests)
 npm run contract:test  # the NEP-245 contract  (18 tests, needs Rust)
 ```
 

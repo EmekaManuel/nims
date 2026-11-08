@@ -1,18 +1,19 @@
 # Nims demo video (Remotion)
 
-1080p, about 132 s, narrated in a cloned ElevenLabs voice, set **at night in the 3D town**. It is **not a screen recording**: Remotion draws the game's real React screen (`web/src/game/GameScreen`) and its real 3D town (`Map3D`, React Three Fiber) from states produced by the real game engine, with a scripted cursor and cameras. Every frame is drawn from the time of the frame alone (walkers, the truck, rain and limb swing are pure functions of time), so frames can render in any order, in parallel.
+1080p, about 143 s, narrated in a cloned ElevenLabs voice, set **at night in the 3D town**. It is **not a screen recording**: Remotion draws the game's real React screen (`web/src/game/GameScreen`) and its real 3D town (`Map3D`, React Three Fiber) from states produced by the real game engine, with a scripted cursor and cameras. Every frame is drawn from the time of the frame alone (walkers, the truck, rain and limb swing are pure functions of time), so frames can render in any order, in parallel.
 
 What is real in it:
 
 - **The screen:** the same components the live game uses (3D map, HUD, stall panel, deals drawer, council panel, news), drawn from `GameState` objects. The picture is set at night by moving each shot's game hour into the dark, so the lamps, windows and stall lights come on.
 - **The numbers and events:** played through the real `Game` class (`scripts/play-session.ts`): the loading screen and sign-in (Google button and email), collecting cotton, selling with a haggle, a town council vote (a rent cut that passes at the end of the day), running out of coins, the scrap heap, taking and delivering an odd job. The "run out of coins" moment is staged by moving coins through the ledger.
 - **The council record:** with `SPUTNIK_DAO_ID` and `OUTLAYER_API_KEY` set, the same script writes that vote to the real SputnikDAO through the OutLayer-custodied Town Clerk, exactly as the live server does, and the record scene shows the proposal it made.
+- **The merchants' plans:** before the first shot the recording runs the same planner as the live server, so every merchant has decided its day through NEAR AI Cloud; the plan scene shows Lena's.
 - **The words:** the merchant's price explanation, the haggle reaction and the gazette headlines come from the real NEAR AI Cloud calls. The merchants' spoken lines are real ElevenLabs clips of those words. For the video each merchant line is trimmed to its first sentence so it stays short.
 - **The chain scene:** the live testnet contract's batch count, block height and balance, read by `chain-snapshot.mjs`.
 - **The fast-forward week** is the real dashboard (`FastForwardPage` in replay mode) drawn from a run of the real engine (`scripts/make-ffrun.ts` → `src/data/ffrun.json`), frozen at the hour the video has reached and scrolled down the page.
 
 ## Render
-**It renders one browser tab at a time, on purpose** (`Config.setConcurrency(1)` in `remotion.config.ts`). With several tabs the 3D town glitches, because they share one GPU: a frame comes out with the wrong camera, or with no town at all. One tab is just as fast, since the tabs were slowing each other down. After any render, check it: `node scripts/check-video.mjs out/nims-demo.mp4 0 387 718 954 1362 1731 2179 2511 2667 2982 3277 3625` (the numbers are the frames where a scene is expected to cut) looks for a frame that differs a lot from both its neighbours, which are alike, and exits non-zero if it finds one.
+**It renders one browser tab at a time, on purpose** (`Config.setConcurrency(1)` in `remotion.config.ts`). With several tabs the 3D town glitches, because they share one GPU: a frame comes out with the wrong camera, or with no town at all. One tab is just as fast, since the tabs were slowing each other down. After any render, check it: `node scripts/check-video.mjs out/nims-demo.mp4 0 387 718 954 1303 1697 2063 2511 2843 2999 3314 3609 3957` (the numbers are the frames where a scene is expected to cut) looks for a frame that differs a lot from both its neighbours, which are alike, and exits non-zero if it finds one.
 
 - `npm install`, then `npm run studio` to preview; `npm run render` (voiced) or `npm run render:silent` (no narration, for your own voice).
 

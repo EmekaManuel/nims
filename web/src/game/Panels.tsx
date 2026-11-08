@@ -19,6 +19,7 @@ export interface Actions {
   cancelOrder: (id: number) => void;
   gather: (item: Item) => void;
   upgrade: (to: string) => void;
+  setName: (name: string) => void;
   buyShares: (merchant: string, shares: number) => void;
   sellShares: (merchant: string, shares: number) => void;
   contribute: (merchant: string, amount: number) => void;

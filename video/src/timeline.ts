@@ -27,6 +27,7 @@ const DEFS: Def[] = [
   { key: 'signin', kind: 'app', chapter: 'Sign in with Google or an email', delay: 1.9, extra: 1.6 },
   { key: 'collect', kind: 'app', chapter: 'Buy low, carry it, sell high', delay: 0.3, extra: 0.6 },
   { key: 'tooltip', kind: 'app', chapter: 'Every price explains itself', delay: 0.3, clip: 'lena-price', clipGap: 0.3 },
+  { key: 'plan', kind: 'app', chapter: 'Merchants plan their own day', delay: 0.3, extra: 0.8 },
   { key: 'sale', kind: 'app', chapter: 'Instant settlement', delay: 0.3, clip: 'haggle-reaction', clipGap: 0.35 },
   { key: 'council', kind: 'app', chapter: 'Players run the market', delay: 0.3, extra: 1.6 },
   { key: 'broke', kind: 'app', chapter: 'Never stuck', delay: 0.3, extra: 2.6 },

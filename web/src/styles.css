@@ -570,3 +570,8 @@ th { font-size: .7rem; letter-spacing: .06em; text-transform: uppercase; color: 
 .plannote p { margin: .15rem 0 0; font-style: italic; color: var(--ink); }
 .plannote ul { list-style: none; display: flex; flex-wrap: wrap; gap: .3rem; margin: .4rem 0 0; padding: 0; }
 .plannote li { font-size: .75rem; font-weight: 700; padding: .1rem .5rem; border-radius: 999px; background: var(--surface); color: var(--accent-deep); border: 1px solid #c9dcfb; }
+
+/* My business: the name other traders see */
+.nameline { margin: .2rem 0 .6rem; color: var(--ink-2); }
+.nameform { display: grid; gap: .5rem; margin: .3rem 0 .8rem; }
+.nameform .row { display: flex; gap: .5rem; }

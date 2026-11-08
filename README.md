@@ -40,6 +40,10 @@ The chain is invisible: sign in with Google or an emailed link, no wallet, no se
 <td width="50%"><img src="docs/img/prices.jpg" alt="The price board" /><br /><sub><b>The price board.</b> Every good in every market against its usual price: dear, cheap, or about usual.</sub></td>
 </tr>
 <tr>
+<td width="50%"><img src="docs/img/plan.jpg" alt="A stall showing the merchant's own plan for the day, written through NEAR AI Cloud" /><br /><sub><b>Today's plan.</b> Each morning the merchant reads its own books and decides, through NEAR AI Cloud, what to stock up on or run down and how hard to price. A real reply, from a local test game.</sub></td>
+<td width="50%"><img src="docs/img/board.jpg" alt="The public town board: players, trades, richest traders and council decisions" /><br /><sub><b>The town board.</b> Public, no login (<code>#town</code>): who is playing, the richest traders and every council decision. Shown here from a local test game with six test players.</sub></td>
+</tr>
+<tr>
 <td width="50%"><img src="docs/img/council.jpg" alt="A town council vote on cutting a market's rent" /><br /><sub><b>The town council.</b> Trade in a market and you get a seat. A vote to cut the rent, with the merchants' stance. It passes at the end of the day, with no dev patch.</sub></td>
 <td width="50%"><img src="docs/img/record.jpg" alt="A council vote recorded on a SputnikDAO by an OutLayer-custodied Town Clerk" /><br /><sub><b>On the record.</b> Every vote is also written to a SputnikDAO on testnet by an OutLayer-custodied Town Clerk. This is a real proposal from the demo's own vote.</sub></td>
 </tr>

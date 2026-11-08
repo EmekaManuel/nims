@@ -110,7 +110,9 @@ Pricing is a **pure function**: same inputs, same price. The live game and fast-
 | Gas | A relayer pays for meta-transactions, so player actions are signed silently. |
 | Speed | Trades apply instantly to game state, then **batch-settle** to the chain in the background (time-windowed, merged, every account signing its own). The player never waits on a block. |
 | Exactness | Calls carry per-signer sequence numbers, so a retry after a timeout can never apply twice. If a call is ever rejected, a fresh **epoch** (new namespace, minted from the game's state) starts instead of patching. |
-| Merchants | Each agent owns a NEAR account and signs its own settlements. |
+| Merchants | Each agent owns a NEAR account and signs its own settlements. The server holds those keys (encrypted). |
+| Council record | Every town-council vote is also written to a **SputnikDAO** on testnet: a Vote proposal when it opens, approved or rejected when it closes. The game counts the votes and decides; the DAO is a public record. No player names are written. Failures retry with back-off and never block play. |
+| Town Clerk | The DAO's only council member is an agent wallet custodied by **OutLayer**: its key lives in a secure enclave and the server holds only an API key. Its OutLayer policy allows only contract calls, only to the DAO, with spending caps. |
 | Cross-market moves | **Delivery orders**, an intents-style flow: the player states the outcome ("sell 50 iron at Hardware for at least 280 each") and the town's carriers (a solver run by the game, every tick) wait for the price, make the trip and sell it through the normal sale. The result settles to the chain like any trade. This follows the *shape* of NEAR Intents (declare the result, let a solver find the path, enforce the limit). It does **not** call the NEAR Intents protocol or its solver network; wiring a real Intents solver is future work. |
 | Fund pools and shares | A small contract (or contract module) tracks contributions and pays out. |
 
@@ -155,6 +157,12 @@ The economy is the gameplay, so it has to stay healthy without a human in it. Th
 | Merchant restock | below 85% of target | Stalls don't sit understocked, which would hold prices permanently high. |
 | NPC gatherers | every 3rd hour, only when the best price beats cost by 40%, sell above cost + 10% | A trader, not a firehose. Supply follows profit, so a glut corrects itself. |
 | Market flooder | bankrolled with 60,000 coins | It is a saboteur who dumps goods whatever they cost, so it needs deep pockets. |
+| Fare to another market | 3% of the goods' usual price per unit (min 1); x0.7 pickup, x0.5 van; x1.5 in a fuel queue | A small share of what is carried, so cheap goods are not taxed like dear ones and bigger vehicles haul cheaper. It was a flat 20 a unit, a fifth of a tomato's price. |
+| Wholesaler price to a merchant | at most 85% of the going price, never above 95% of usual | A fixed price bankrupted every merchant whose goods gatherers kept cheap (iron sold near 200, cost 285). |
+| Share price | a purchase costs n% of the merchant after the money is in its till (n x worth / (100 - n)); selling pays n% of worth | Priced on the worth before the payment, a buyer could pay 45,000 and sell back for 61,000. Now a round trip is a wash. |
+| Dividend and levy | only on shares held since the day began | No buying at 10pm to collect and sell. |
+| Merchant upkeep | a quarter of the cash above 40,000 (plus what shareholders paid in), each evening, after dividends | Without a sink merchants earn forever and a share (1% of worth) rises tenfold in a few months. |
+| Merchants' guild | upkeep goes to open merchants under 6,000 coins; the rest to the town | Smooths a lean spell. A closed shop is left for the community fund. Over 120 days stores are open all the time (before: about half). |
 | Fortune goal | 12,000 coins | A calm player reaches it in roughly 12 to 20 minutes. |
 | Ranks | 3,000 / 7,000 / 15,000 / 35,000 | A new rank every few minutes early on. |
 
@@ -168,3 +176,21 @@ A player with no coins, nothing carried and no shares would be stuck: sources se
 - **Odd jobs board.** Merchants are nearly always a little under their target stock, and the farms, scrap spots and wholesaler have goods to spare. A short merchant posts a job: collect up to 5 units at the source (free for the courier, taken from the source's stock, reserved so they cannot be sold elsewhere), carry them over, and on delivery the merchant pays the goods' cost to the town plus a reward (about 10% of the usual price per unit, plus a flat 30). Nothing is printed: the merchant's own cash pays. Jobs are open only while you hold under 10 times the cheapest wholesale price, one at a time, and one every 8 in-game hours. A job that is dropped or lapses (48 hours) sends the goods back to the source.
 
 Measured: from 5 coins a player is back above 600 within 3 to 5 minutes at the default tick, and jobs then close to them. A deliberate exploiter who parks coins in shares to stay eligible gains about 5,000 net worth per hour. `server/game/recovery.test.ts` guards the ledger balance, the reservation and the farming cap.
+
+## 10. The town council
+
+Each market has a council that votes on two rules, so the economy can change without a dev patch (`sim/council.ts`):
+
+- **Stall rent**: low (x0.5), normal, or high (x2). Rent above normal goes into a levy that is paid to the market's shareholders each evening; the merchants carry the cost.
+- **Profit payout**: lean (20% of a day's profit), normal (30%), or generous (50%).
+
+**Seats.** One seat for being a regular (you have traded with a merchant in that market) and one per share you hold in its merchants. Shares get dear in an old town, so the trading seat keeps new players in the vote. Each open merchant has a seat worth 8 and always votes against anything that costs it money (it backs a cut), so a rise needs shareholders to organise while a cut passes easily.
+
+**Voting.** Anyone with a seat can propose; one vote per market at a time; it stays open at least 6 game hours and closes at the end of the day. More seats for than against passes (a tie fails). The change applies from the next day, and the result is in the news and in each voter's notes. At normal settings the game behaves exactly as it did before the council.
+
+**The record.** If `SPUTNIK_DAO_ID` is set, each vote is also written to a SputnikDAO (see section 4). The DAO does not count anything: it is a record of how each vote ended.
+
+## 11. Fares and the 3D town
+
+- **Fares** are in the balance table (section 8). Using your own stall puts you at its market, so selling there afterwards costs no second fare.
+- **The 3D view** (`web/src/game/Map3D.tsx`, React Three Fiber) draws the same state as the 2D map. Townsfolk move along a walkway graph (`web/src/game/paths.ts`) and stop in front of open stalls and the sources; `paths.test.ts` samples every walkway and simulates walkers to check they never touch a stall, plot, source, tree or lamp.

@@ -5,6 +5,11 @@ const withText = (sel: string, test: (t: string) => boolean) => all(sel).find((e
 export const FINDERS: Record<string, () => HTMLElement | null> = {
   'dock:deals': () => withText('.dock button', (t) => t === 'Deals'),
   'dock:news': () => withText('.dock button', (t) => t.startsWith('News')),
+  'dock:business': () => withText('.dock button', (t) => t.startsWith('My business')),
+  'map3d': () => document.querySelector<HTMLElement>('.map3d'),
+  'council:fabric': () => document.querySelector<HTMLElement>('[data-demo="council:fabric"]'),
+  'btn:rent:low': () => { const box = document.querySelector<HTMLElement>('[data-demo="council:fabric"]'); return box ? [...box.querySelectorAll<HTMLElement>('button')].find((b) => b.textContent?.trim() === 'Low') ?? null : null; },
+  'btn:vote:for': () => { const box = document.querySelector<HTMLElement>('[data-demo="council:fabric"]'); return box ? [...box.querySelectorAll<HTMLElement>('button')].find((b) => b.textContent?.trim() === 'For') ?? null : null; },
   'map:cotton': () => document.querySelector<HTMLElement>('.map g.source[aria-label^="Wholesaler"]') ?? document.querySelector<HTMLElement>('.map g.source[aria-label*="cotton"]'),
   'map:lena': () => document.querySelector<HTMLElement>('.map g.stall[aria-label^="Lena"]'),
   'btn:collect': () => withText('button', (t) => t.startsWith('Collect')),

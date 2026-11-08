@@ -9,7 +9,7 @@ function Market({ c, act }: { c: CouncilView; act: Actions }) {
   const total = pr ? pr.yes + pr.no : 0;
   const share = pr && total > 0 ? Math.round((pr.yes / total) * 100) : 0;
   return (
-    <div className="council-market">
+    <div className="council-market" data-demo={`council:${c.market}`}>
       <h4>{c.name}</h4>
       <p className="small">
         <b>Rent {c.rent}</b> · <b>Payout {c.payout}</b>
@@ -56,7 +56,7 @@ export function Council({ state, act }: { state: GameState; act: Actions }) {
   if (markets.length === 0) return null;
   return (
     <>
-      <h3>Town council</h3>
+      <h3 data-demo="council-top">Town council</h3>
       <p className="small muted">
         Shareholders run each market. Vote on what merchants pay in rent and how much profit they share out. Trading in a market gives you a seat there, and each share you hold adds another. The merchants vote too. Votes close in the evening.
       </p>

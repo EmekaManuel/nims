@@ -7,6 +7,7 @@
     "render": "remotion render src/index.ts Nims out/nims-demo.mp4",
     "render:silent": "remotion render src/index.ts NimsSilent out/nims-demo-silent.mp4",
     "session": "cd .. && npx tsx --env-file=.env video/scripts/play-session.ts",
+    "ffrun": "cd .. && npx tsx video/scripts/make-ffrun.ts",
     "measure": "node scripts/measure-targets.mjs"
   },
   "dependencies": {

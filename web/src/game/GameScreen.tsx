@@ -12,6 +12,7 @@ import { SourcePanel, StallPanel } from './Panels';
 import { PriceBoard } from './PriceBoard';
 
 const DistrictMap3D = lazy(() => import('./Map3D').then((m) => ({ default: m.DistrictMap3D })));
+import type { VideoDrive } from './Map3D';
 
 export interface ToastView { ok: boolean; text: string; line?: string }
 
@@ -37,6 +38,8 @@ export interface GameScreenProps {
   offline?: boolean;
   toast?: ToastView | null;
   confetti?: number;
+  /** The demo video shows the 3D town and drives its time and camera from outside (see Map3D.tsx). Hides the 2D/3D switch. */
+  drive?: VideoDrive;
   /** Modals (how to play, welcome back, goal picker) go here, on top of the screen. */
   children?: React.ReactNode;
 }
@@ -70,10 +73,10 @@ export function GameScreen(p: GameScreenProps) {
       <main className="stage">
         <div className="viewport">
           <div className="mapscroll">
-            {view3d
-              ? <Suspense fallback={<div className="map map3d-loading">Loading 3D town…</div>}><DistrictMap3D state={state} selected={p.selected} onSelect={p.onSelect} popups={p.popups} /></Suspense>
+            {view3d || p.drive
+              ? <Suspense fallback={<div className="map map3d-loading">Loading 3D town…</div>}><DistrictMap3D state={state} selected={p.selected} onSelect={p.onSelect} popups={p.popups} drive={p.drive} /></Suspense>
               : <DistrictMap state={state} selected={p.selected} onSelect={p.onSelect} popups={p.popups} />}
-            <button type="button" className="view-toggle" onClick={toggle3d} aria-pressed={view3d}>{view3d ? '2D map' : '3D view'}</button>
+            {!p.drive && <button type="button" className="view-toggle" onClick={toggle3d} aria-pressed={view3d}>{view3d ? '2D map' : '3D view'}</button>}
           </div>
           <Mission state={state} onFocus={p.onFocus} onPickGoal={p.onPickGoal} />
         </div>

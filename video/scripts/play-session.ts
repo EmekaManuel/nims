@@ -18,6 +18,8 @@ import { createVoice } from '../../server/voice/voice';
 import { createHaggler } from '../../server/voice/haggle';
 import { createGazette } from '../../server/voice/gazette';
 import { createSpeaker } from '../../server/voice/speaker';
+import { clerkDao, CouncilRecorder, nearDaoViews, type DaoPort } from '../../server/chain/dao';
+import { outlayer } from '../../server/chain/outlayer';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const out = join(here, '..', 'src', 'data', 'session.json');
@@ -84,6 +86,40 @@ const reaction = firstSentence(reactionFull);
 const hClip = await clip('haggle-reaction', { id: hf.id, personality: hf.personality }, reaction);
 shot('reaction', { kind: 'stall', id: 'lena' }, null, { toast: { ok: true, text: sale.message, line: `${hf.merchant}: “${reaction}”` }, audio: hClip });
 
+// 3b. The town council. Selling to Lena made the player a regular in the Fabric Market, which is a seat on its council: put a rent cut
+// to a vote (the merchants back a cut), let the day end, and the rule changes. With SPUTNIK_DAO_ID and OUTLAYER_API_KEY set, the vote is
+// also written to the real SputnikDAO by the OutLayer-custodied Town Clerk, exactly as the live server does.
+shot('council', null, 'business');
+let dao: { id: string; proposalId: number | null; description: string | null; status: string | null; clerk: string | null } | null = null;
+const daoId = process.env.SPUTNIK_DAO_ID?.trim();
+let recorder: CouncilRecorder | null = null;
+if (daoId && process.env.OUTLAYER_API_KEY?.trim()) {
+  const clerk = outlayer({ apiKey: need('OUTLAYER_API_KEY') });
+  const views = nearDaoViews(daoId);
+  const port: DaoPort = clerkDao({ clerk, daoId, views });
+  recorder = new CouncilRecorder({ game: g, dao: port, log: (m) => console.log(`  [dao] ${m}`) });
+  dao = { id: daoId, proposalId: null, description: null, status: null, clerk: await clerk.address() };
+}
+const prop = g.councilPropose(me, 'fabric', 'rent', 'low');
+if (!prop.ok) throw new Error(prop.message);
+if (recorder) await recorder.sweep(); // the vote opens on the DAO
+shot('council-open', null, 'business');
+for (let i = 0; i < 60 && g.w.council.fabric.proposal; i++) g.tickOnce(); // to the end of the day: the vote closes
+if (g.w.council.fabric.proposal) throw new Error('the council vote did not close');
+if (g.w.council.fabric.rent !== 'low') throw new Error('the rent cut did not pass');
+if (recorder && dao) {
+  await recorder.sweep(); // the DAO proposal is approved
+  const views = nearDaoViews(daoId!);
+  const last = (await views.lastProposalId()) - 1;
+  const p = await views.proposal(last);
+  const full = p as unknown as { description: string; status: string } | null;
+  dao.proposalId = last;
+  dao.description = full?.description ?? null;
+  dao.status = full?.status ?? null;
+  console.log(`  DAO proposal #${last}: ${dao.status}`);
+}
+shot('council-done', null, 'business');
+
 // 4. Run out of coins, and the way back. (Staged: the player's coins are moved through the ledger like any payment.)
 const p = g.playerFor(me);
 if (p.cash > 5) transferCoins(g.w, p, 'town', p.cash - 5);
@@ -113,7 +149,7 @@ const heads = await gazette.headlines(g.gazetteFacts());
 if (!heads) throw new Error('NEAR AI gave no usable gazette headlines');
 shot('news', null, 'news', { gazette: heads });
 
-writeFileSync(out, JSON.stringify({ seed, me, shots }, null, 1));
+writeFileSync(out, JSON.stringify({ seed, me, shots, dao }, null, 1));
 const s = (id: string) => shots.find((x) => x.id === id)!.state as { you: { cash: number; carrying: number; netWorth: number } };
 console.log(`wrote ${shots.length} shots, ${(JSON.stringify(shots).length / 1024).toFixed(0)} KB`);
 console.log(`cash: start ${s('town').you.cash} -> collected ${s('collected').you.cash} -> sold ${s('sold').you.cash} -> broke ${s('broke').you.cash} -> job done ${s('job-done').you.cash}`);

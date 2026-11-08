@@ -21,6 +21,8 @@ Set these as variables on the host to turn the extras on (each falls back to pla
 
 - `NEAR_AI_API_KEY`: NEAR AI Cloud writes the merchant voice, the town gazette and haggling reactions. Optional `NEAR_AI_MODEL`.
 - `ELEVENLABS_API_KEY`: natural spoken merchants. Optional `ELEVENLABS_VOICES` (a JSON map of merchant id to voice id), `ELEVENLABS_VOICE`, `ELEVENLABS_MODEL`.
+- `SPUTNIK_DAO_ID`: records each town-council vote on this SputnikDAO (a `*.testnet` account), so the decisions are public. Make one with `npm run chain:dao -- create <name>` from a machine with the testnet `.env`.
+- `OUTLAYER_API_KEY`: makes an OutLayer-custodied agent wallet (the Town Clerk) the one that signs the DAO record, so no key of ours can. Make it with `npm run chain:outlayer -- register`, fund it with `npm run chain:outlayer -- fund 4`, and set its policy in the OutLayer dashboard (contract calls only, the DAO account only, spending caps). Needs `SPUTNIK_DAO_ID`. Optional `OUTLAYER_URL` (testnet hosts only).
 - `TICK_MS`: real milliseconds per game hour (default 10000).
 
-Both keys cost credits per use, though results are cached and capped at 20 AI calls and 20 speech clips a minute. Keep them in the host's secret settings, never in the repository.
+The AI and speech keys cost credits per use, though results are cached and capped at 20 AI calls and 20 speech clips a minute. The Town Clerk needs a little testnet NEAR in its own wallet (about 4 for a long run: each proposal posts a 1 NEAR bond, returned when it is approved). Keep all keys in the host's secret settings, never in the repository. The DAO record is optional and off unless `SPUTNIK_DAO_ID` is set; the game never waits on it.

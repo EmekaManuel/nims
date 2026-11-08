@@ -12,16 +12,22 @@ const HOURS_PER_SECOND = 168 / 12;
 
 const reducedMotion = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-export function FastForwardPage() {
+/**
+ * `replay` shows a recorded run frozen at one hour, with no fetching and no playback: the demo video uses it to draw the dashboard
+ * frame by frame from data made by the real engine.
+ */
+export function FastForwardPage({ replay }: { replay?: { data: FastForward; cursor: number } } = {}) {
   const [params, setParams] = useState<FastForwardParams>(DEFAULTS);
-  const [data, setData] = useState<FastForward | null>(null);
+  const [liveData, setData] = useState<FastForward | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [cursor, setCursor] = useState(0);
+  const [liveCursor, setCursor] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
   const [hover, setHover] = useState<number | null>(null);
   const pos = useRef(0); // fractional hour, so playback is smooth at any speed
+  const data = replay ? replay.data : liveData;
+  const cursor = replay ? replay.cursor : liveCursor;
 
   const run = useCallback(async (p: FastForwardParams) => {
     setLoading(true);
@@ -41,10 +47,10 @@ export function FastForwardPage() {
   }, []);
 
   // The page opens already running, so it is never an empty shell.
-  useEffect(() => { void run(DEFAULTS); }, [run]);
+  useEffect(() => { if (!replay) void run(DEFAULTS); }, [run, replay]);
 
   useEffect(() => {
-    if (!playing || !data) return;
+    if (replay || !playing || !data) return;
     let raf = 0;
     let last = performance.now();
     const step = (now: number) => {

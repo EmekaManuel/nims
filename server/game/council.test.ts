@@ -22,7 +22,7 @@ describe('town council through the game', () => {
   it('every market shows its rules; you can only propose where you hold shares', () => {
     const g = new Game(5);
     const s = g.state(me);
-    expect(s.council.map((c) => c.market)).toEqual(['produce', 'fabric', 'scrap']);
+    expect(s.council.map((c) => c.market)).toEqual(['produce', 'fabric', 'scrap', 'harbour']);
     expect(s.council[1]).toMatchObject({ rent: 'normal', payout: 'normal', seats: 0, canPropose: false, proposal: null });
     expect(g.councilPropose(me, 'fabric', 'rent', 'low')).toMatchObject({ ok: false });
   });

@@ -65,6 +65,14 @@ export const QUESTS: QuestDef[] = [
     objectives: [{ on: 'shares', target: 1, label: 'Buy a share' }], reward: 250, after: 'two-markets' },
   { id: 'your-say', chain: 'starter', title: 'Have your say', story: 'Each market is run by a council. Trade there and you have a seat: propose a change or vote.',
     objectives: [{ on: 'vote', target: 1, label: 'Propose or vote in a town council' }], reward: 300, after: 'a-stake' },
+
+  // The road to Saltmere: opens once a player knows the town. Each step takes them further, and pays for the trip.
+  { id: 'beyond-the-hills', chain: 'realm', title: 'Beyond the hills', story: 'There is a harbour past the hills where ships bring spice. Take the road out of town to Saltmere.',
+    objectives: [{ on: 'travel', target: 1, realm: 'saltmere', label: 'Travel to Saltmere Harbour' }], reward: 300, after: 'two-markets' },
+  { id: 'ships-need-thread', chain: 'realm', title: 'What the ships need', story: 'The harbour pays well for thread and iron from town: the ships go through it fast. Sell to Marlow Chandlery.',
+    objectives: [{ on: 'sell', target: 10, market: 'harbour', label: 'Sell 10 units at Saltmere Harbour' }], reward: 400, after: 'beyond-the-hills' },
+  { id: 'spice-road', chain: 'realm', title: 'The spice road', story: 'The town has no spice of its own. Buy it at the harbour, carry it home, and sell it in the Produce Market.',
+    objectives: [{ on: 'sell', target: 5, item: 'spice', market: 'produce', label: 'Sell 5 spice in the Produce Market' }], reward: 500, after: 'ships-need-thread' },
 ];
 
 /** Daily reward by streak day (1-based); day 7 and after pay the last amount. */

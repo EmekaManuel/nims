@@ -56,15 +56,15 @@ describe('a first trip is worth something, not a fortune', () => {
       // buy the load with the best margin, then sell it in lots of 8 to whoever pays most (as a player would)
       const s = g.state(me);
       const best = s.sources
-        .filter((x) => x.item !== 'cotton')
-        .map((src) => ({ src, price: Math.max(0, ...s.stalls.flatMap((st) => st.offers.filter((o) => o.item === src.item && o.willBuy).map((o) => o.buyPrice))) }))
+        .filter((x) => x.item !== 'cotton' && x.item !== 'fish' && x.item !== 'salt') // a trip in town: the harbour's goods are a journey away
+        .map((src) => ({ src, price: Math.max(0, ...s.stalls.filter((st) => st.market !== 'harbour').flatMap((st) => st.offers.filter((o) => o.item === src.item && o.willBuy).map((o) => o.buyPrice))) }))
         .sort((a, b) => (b.price - b.src.cost) / b.src.cost - (a.price - a.src.cost) / a.src.cost)[0];
       g.gather(me, best.src.item as Item);
       for (let i = 0; i < 4; i++) {
         const now = g.state(me);
         const carry = now.you.inventory[0];
         if (!carry) break;
-        const stall = now.stalls.flatMap((st) => st.offers.filter((o) => o.item === carry.item && o.willBuy).map((o) => ({ st, o }))).sort((a, b) => b.o.buyPrice - a.o.buyPrice)[0];
+        const stall = now.stalls.filter((st) => st.market !== 'harbour').flatMap((st) => st.offers.filter((o) => o.item === carry.item && o.willBuy).map((o) => ({ st, o }))).sort((a, b) => b.o.buyPrice - a.o.buyPrice)[0];
         if (stall) g.sell(me, stall.st.id, carry.item as Item, Math.min(8, carry.units));
       }
       const gain = g.state(me).you.netWorth - start;

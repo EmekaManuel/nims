@@ -167,7 +167,7 @@ describe('game routes', () => {
     const cookie = login.headers.get('set-cookie')!.split(';')[0];
 
     const state = await (await fetch(base + '/game/state', { headers: { cookie } })).json();
-    expect(state.stalls).toHaveLength(8);
+    expect(state.stalls).toHaveLength(11);
     const got = await (await post('/game/gather', { item: 'iron' }, cookie)).json();
     expect(got.ok).toBe(true);
     expect(got.state.you.carrying).toBeGreaterThan(0);
@@ -243,7 +243,7 @@ describe('public stats', () => {
     const s = JSON.parse(body);
     expect(s.players).toBeGreaterThanOrEqual(1);
     expect(s.last24h.players).toBeGreaterThanOrEqual(1);
-    expect(s.shops.total).toBe(8);
+    expect(s.shops.total).toBe(11);
     expect(s.leaders[0].name).toBe('A.'); // a one-word username may hold a surname: initial only
     expect(body).not.toMatch(/@|example\.com/);
     expect(body).not.toMatch(WALLET_WORDS);
@@ -270,7 +270,7 @@ describe('fast-forward route', () => {
     expect(r.status).toBe(200);
     const body = await r.json();
     expect(body.hours).toBe(72);
-    expect(Object.keys(body.prices)).toHaveLength(8);
+    expect(Object.keys(body.prices)).toHaveLength(10); // the town's goods
 
     const wild = await (await post('/sim/fastforward', { days: 100000, seed: 'x', gatherers: -4 })).json();
     expect(wild.params.days).toBe(14);

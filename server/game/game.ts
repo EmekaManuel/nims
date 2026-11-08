@@ -26,7 +26,7 @@ import type { HaggleFacts } from '../voice/haggle';
 import { planBoard, totalDue, type Job } from './jobs';
 import { gather } from '../../sim/players';
 import { EFFECT, isRegular, LEVELS, MIN_VOTING_HOURS, newCouncils, propose, seatsOf, tally, vote, type Lever } from '../../sim/council';
-import { addPlayer, BASE_PRICE, CAPACITY, createWorld, VEHICLE_VALUE, Item, MARKETS, MarketId, Merchant, Player, Vehicle, World } from '../../sim/world';
+import { addPlayer, BASE_PRICE, CAPACITY, COINS, createWorld, harbourMerchants, harbourSources, marketsIn, REALMS, realmOf, type RealmId, VEHICLE_VALUE, Item, MARKETS, MarketId, Merchant, Player, Vehicle, World } from '../../sim/world';
 
 export const UPGRADE_COST: Record<Exclude<Vehicle, 'wheelbarrow'>, number> = { pickup: VEHICLE_VALUE.pickup, van: VEHICLE_VALUE.van };
 const SOURCE_LABEL: Record<string, string> = {};
@@ -239,7 +239,8 @@ export class Game {
     w.history = snap.world.history;
     w.ledger = snap.world.ledger;
     // Saves from before the council existed have none: the markets start on the usual rules.
-    w.council = (snap.world as { council?: World['council'] }).council ?? newCouncils();
+    // Saves from before the council existed have none: the markets start on the usual rules. Markets added since get theirs.
+    w.council = { ...newCouncils(), ...((snap.world as { council?: Partial<World['council']> }).council ?? {}) };
     g.ledgerBase = (snap.world as { ledgerBase?: number }).ledgerBase ?? 0;
     w.rng = makeRng(0, snap.world.rngState);
     g.humans = new Map(snap.humans.map(([email, id]) => [email, w.players.find((p) => p.id === id)!]).filter(([, p]) => p) as [string, Player][]);
@@ -260,6 +261,7 @@ export class Game {
     g.nextJobId = j.nextJobId ?? 1;
     g.scavenged = new Map(j.scavenged ?? []);
     g.jobDone = new Map(j.jobDone ?? []);
+    g.addMissingPlaces();
     g.activity = Activity.from((snap as { activity?: ActivityJSON }).activity);
     return g;
   }
@@ -302,6 +304,7 @@ export class Game {
     const seenEvents = this.w.events.length;
     tick(this.w, act);
     for (const e of this.w.events.slice(seenEvents)) if (e.type === 'council' && e.decision) this.activity.decision(e.decision.passed);
+    this.arrivals();
     // A live game runs for days: keep only the recent past so memory and save files stay small.
     if (this.w.history.length > HISTORY_KEEP) this.w.history.splice(0, this.w.history.length - HISTORY_KEEP);
     this.trimLedger();
@@ -322,6 +325,8 @@ export class Game {
     const p = this.playerFor(email);
     const m = this.w.merchants.find((x) => x.id === merchantId);
     if (!m || !(item in BASE_PRICE) || !merchantItems(m).includes(item)) return fail('That stall does not trade that.');
+    const away = this.onRoad(p) ?? this.otherRealm(p, m.market);
+    if (away) return away;
     if (m.owner === p.id) return fail('That is your own stall.');
     if (!Number.isInteger(units) || units < 1) return fail('Pick a whole number of units.');
     if (!Number.isFinite(minPrice) || minPrice < 1) return fail('Say the lowest price you will accept per unit.');
@@ -576,6 +581,8 @@ export class Game {
    * When you're BUYING you need the fare in hand, because you'd have nothing to buy with otherwise.
    */
   private travelTo(p: Player, market: MarketId, payOnDelivery: boolean): ActionResult | null {
+    const away = this.onRoad(p) ?? this.otherRealm(p, market);
+    if (away) return away;
     const fare = this.fareTo(p, market);
     if (fare === 0) return null;
     if (p.cash < fare && !payOnDelivery) return fail(`You can't afford the fare to ${MARKETS[market].name} (${fare} coins). Sell what you're carrying nearby first.`);
@@ -594,6 +601,88 @@ export class Game {
     transferCoins(this.w, p, 'town', pay);
     p.fareOwed = owed - pay;
     return pay;
+  }
+
+  // ---- realms and journeys ------------------------------------------------------------------
+
+  /**
+   * A save from before a place existed gets it now: its merchants and sources, with their starting cash and stock booked
+   * in the ledger exactly as a new world books them (so the ledger still explains every balance), and June's new goods.
+   */
+  private addMissingPlaces() {
+    const w = this.w;
+    for (const m of harbourMerchants()) {
+      if (w.merchants.some((x) => x.id === m.id)) continue;
+      w.merchants.push(m);
+      w.ledger.push({ hour: w.hour, kind: 'mint', to: m.id, item: COINS, units: m.cash });
+      for (const [item, units] of Object.entries(m.stock)) if (units) w.ledger.push({ hour: w.hour, kind: 'mint', to: m.id, item: item as Item, units });
+    }
+    for (const s of harbourSources()) if (!w.sources.some((x) => x.item === s.item)) w.sources.push(s);
+    const june = w.merchants.find((m) => m.id === 'june');
+    if (june) for (const [item, t] of [['spice', 15], ['salt', 30]] as const) if (june.target[item] === undefined) { june.target[item] = t; june.stock[item] = june.stock[item] ?? 0; }
+  }
+
+  /** The realm a player is in (the town for a new player). */
+  realmHere(p: Player): RealmId { return realmOf(p.at ?? 'produce'); }
+
+  /** Refuse an action while the player is on the road between realms. */
+  private onRoad(p: Player): ActionResult | null {
+    if (!p.journey) return null;
+    const left = Math.max(1, p.journey.arrive - this.w.hour);
+    return fail(`You're on the road to ${REALMS[realmOf(p.journey.to)].name}. You arrive in ${left} hour${left === 1 ? '' : 's'}.`);
+  }
+
+  /** Refuse an action at a market in another realm: getting there is a journey you set off on deliberately. */
+  private otherRealm(p: Player, market: MarketId): ActionResult | null {
+    if (realmOf(market) === this.realmHere(p)) return null;
+    return fail(`${MARKETS[market].name} is in ${REALMS[realmOf(market)].name}, a journey away. Take the road from the map to travel there.`);
+  }
+
+  /** What it costs to carry your load to another realm: double the usual fare for each unit, on top of the passage. */
+  private journeyFreight(p: Player): number {
+    return Object.entries(p.inventory).reduce((a, [i, n]) => a + (n ?? 0) * unitFare(this.w, i as Item, p.vehicle) * 2, 0);
+  }
+
+  /**
+   * Set off for another realm. It takes REALMS[..].journeyHours game hours (you can't trade on the road) and costs the
+   * passage plus freight on what you carry, paid up front.
+   */
+  travel(email: string, realm: string): ActionResult {
+    const p = this.playerFor(email);
+    const road = this.onRoad(p);
+    if (road) return road;
+    if (!(realm in REALMS)) return fail('There is no road to there.');
+    const r = realm as RealmId;
+    if (r === this.realmHere(p)) return fail(`You are already in ${REALMS[r].name}.`);
+    const passage = REALMS[r].passage;
+    const freight = this.journeyFreight(p);
+    const cost = passage + freight;
+    if (p.cash < cost) return fail(`The journey costs ${cost} coins (${passage} for the passage${freight ? `, ${freight} to carry your load` : ''}). You have ${Math.floor(p.cash)}.`);
+    transferCoins(this.w, p, 'town', cost);
+    p.journey = { to: marketsIn(r)[0], arrive: this.w.hour + REALMS[r].journeyHours };
+    return ok(`You set off for ${REALMS[r].name}: ${REALMS[r].journeyHours} hours on the road (about a minute). It cost ${cost} coins.`);
+  }
+
+  /** Players whose journey has ended arrive, and hear about it. */
+  private arrivals() {
+    for (const p of this.humans.values()) {
+      if (!p.journey || this.w.hour < p.journey.arrive) continue;
+      const to = p.journey.to;
+      p.at = to;
+      delete p.journey;
+      addNote(this.w, p, `You arrived in ${REALMS[realmOf(to)].name}.`);
+      this.track(p, { kind: 'travel', to, realm: realmOf(to) });
+    }
+  }
+
+  private realmsView(p: Player) {
+    const here = this.realmHere(p);
+    return {
+      here,
+      name: REALMS[here].name,
+      journey: p.journey ? { to: realmOf(p.journey.to), name: REALMS[realmOf(p.journey.to)].name, hoursLeft: Math.max(0, p.journey.arrive - this.w.hour) } : null,
+      roads: (Object.keys(REALMS) as RealmId[]).filter((r) => r !== here).map((r) => ({ realm: r, name: REALMS[r].name, blurb: REALMS[r].blurb, hours: REALMS[r].journeyHours, passage: REALMS[r].passage, freight: this.journeyFreight(p) })),
+    };
   }
 
   // ---- odd jobs and scrap searching: the way back from broke ----------------------------------------
@@ -636,6 +725,8 @@ export class Game {
   /** Rummage through the scrap heap for something to sell. Only when nearly broke, and not too often. */
   scavenge(email: string): ActionResult {
     const p = this.playerFor(email);
+    const road = this.onRoad(p);
+    if (road) return road;
     if (!this.needsHelp(email, p)) return fail('You are not that short. Trade, or sell what you carry.');
     const wait = this.scavengeWait(email);
     if (wait > 0) return fail(`You have picked this heap clean for now. Try again in ${wait} hour${wait === 1 ? '' : 's'}.`);
@@ -672,6 +763,12 @@ export class Game {
   /** Take a job from the board: collect the goods from the source (free for you), which are reserved until you deliver them. */
   takeJob(email: string, id: number): ActionResult {
     const p = this.playerFor(email);
+    const road = this.onRoad(p);
+    if (road) return road;
+    const posted = this.board.find((j) => j.id === id);
+    const toM = posted && this.w.merchants.find((m) => m.id === posted.to);
+    const far = toM && this.otherRealm(p, toM.market);
+    if (far) return far;
     if (this.activeJobs.has(email)) return fail('Finish or give back your current job first.');
     if (!this.lowOnCoins(p)) return fail('Odd jobs are for people who are short of coins. You are doing fine: trade instead.');
     const wait = this.jobWait(email);
@@ -693,6 +790,8 @@ export class Game {
   /** Hand the goods to the merchant. They pay what the goods cost at the source (to the town) and your reward, from their own till. */
   deliverJob(email: string): ActionResult {
     const p = this.playerFor(email);
+    const road = this.onRoad(p);
+    if (road) return road;
     const job = this.activeJobs.get(email);
     if (!job) return fail('You have no job to deliver.');
     const to = this.w.merchants.find((m) => m.id === job.to);
@@ -723,8 +822,11 @@ export class Game {
 
   gather(email: string, item: Item): ActionResult {
     const p = this.playerFor(email);
+    const road = this.onRoad(p);
+    if (road) return road;
     const src = this.w.sources.find((s) => s.item === item);
     if (!src) return fail('Nothing to collect there.');
+    if ((src.realm ?? 'town') !== this.realmHere(p)) return fail(`The ${src.label.replace(/ \(.*\)$/, '').toLowerCase()} is in ${REALMS[src.realm ?? 'town'].name}, a journey away. Take the road from the map to travel there.`);
     if (this.carried(p) >= CAPACITY[p.vehicle]) return fail(`Your ${p.vehicle} is full. Sell something first.`);
     if (src.cost > 0 && p.cash < src.cost) return fail(`You need ${src.cost} coins per unit here.`);
     const n = gather(this.w, p, item);
@@ -1050,11 +1152,12 @@ export class Game {
   }
 
   /** The board and the player's own job, shaped for the page. */
-  private jobViews(email: string) {
+  private jobViews(email: string, here: RealmId = 'town') {
     const name = (id: string) => this.w.merchants.find((m) => m.id === id)?.name ?? id;
     const view = (j: Job) => ({ id: j.id, item: j.item, units: j.units, reward: j.reward, from: { id: j.item, name: SOURCE_LABEL[j.item] ?? 'the source' }, to: { id: j.to, name: name(j.to) }, hoursLeft: Math.max(0, j.expires - this.w.hour) });
     const mine = this.activeJobs.get(email);
-    return { board: this.board.map(view), active: mine ? view(mine) : null };
+    const local = (j: Job) => realmOf(this.w.merchants.find((m) => m.id === j.to)?.market ?? 'produce') === here;
+    return { board: this.board.filter(local).map(view), active: mine ? view(mine) : null };
   }
 
   // ---- merchant agents (server/agents/planner.ts) ------------------------------------------
@@ -1209,7 +1312,10 @@ export class Game {
     );
 
     const worth = this.netWorth(p);
-    const deals = this.deals(p, raw);
+    // Deals, the coach and odd jobs look at the realm you are in: anywhere else is a journey away.
+    const here = this.realmHere(p);
+    const local = raw.filter((s) => realmOf(s.market) === here);
+    const deals = this.deals(p, local);
     const pr = this.prog(email);
     const gs = this.goalStatus(email, p);
 
@@ -1244,9 +1350,10 @@ export class Game {
       council: this.councilView(p),
       goal: pr.kind ? { kind: pr.kind, title: GOALS[pr.kind].title, blurb: GOALS[pr.kind].blurb, progress: gs!.progress, label: gs!.label, done: pr.done } : null,
       goals: (Object.keys(GOALS) as GoalKind[]).map((k) => ({ kind: k, ...GOALS[k] })),
-      coach: this.coach(email, p, raw, deals),
+      coach: this.coach(email, p, local, deals),
+      realm: this.realmsView(p),
       help: { needed: this.needsHelp(email, p), scavengeIn: this.scavengeWait(email), canWork: this.lowOnCoins(p), workIn: this.jobWait(email) },
-      jobs: this.jobViews(email),
+      jobs: this.jobViews(email, here),
       deals,
       orders: (this.orders.get(email) ?? []).slice().reverse().slice(0, 8),
       hour: w.hour,

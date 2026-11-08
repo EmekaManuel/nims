@@ -37,7 +37,7 @@ describe('the game counts what people do', () => {
     const s = g.publicStats();
     expect(s.last24h).toEqual({ players: 1, trades: 1, votes: 1 });
     expect(s.players).toBe(1);
-    expect(s.shops.total).toBe(8);
+    expect(s.shops.total).toBe(11);
     for (let h = 0; h < 48; h++) g.tickOnce(); // the vote closes at the end of the game day
     expect(g.publicStats().total).toMatchObject({ decisions: 1, passed: 1 });
   });

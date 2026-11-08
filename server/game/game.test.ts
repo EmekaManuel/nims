@@ -14,7 +14,7 @@ describe('game', () => {
     expect(s.you.cash).toBe(4000);
     expect(s.you.vehicle).toBe('wheelbarrow');
     expect(s.you.capacity).toBe(20);
-    expect(s.stalls).toHaveLength(8);
+    expect(s.stalls).toHaveLength(11); // 8 in town, 3 at Saltmere Harbour
   });
 
   it('gathers a load, then sells it for cash — instantly', () => {

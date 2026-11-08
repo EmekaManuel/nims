@@ -5,7 +5,7 @@
 import { clampPlayerPrice, merchantState, playerQuote, quote, Quote } from '../merchants/pricing';
 import { paramsOf, targetOf } from './plan';
 import { PAYOUT_RATE, RENT_MULT, resolveCouncils } from './council';
-import { BASE_PRICE, CARRY_VALUE, COINS, Item, MARKETS, MAX_PUBLIC_SHARES, Merchant, MarketId, PERISHABLE, Player, SHARES_TOTAL, ShockKind, Vehicle, VEHICLE_VALUE, World } from './world';
+import { BASE_PRICE, CARRY_VALUE, COINS, localBase, Item, MARKETS, MAX_PUBLIC_SHARES, Merchant, MarketId, PERISHABLE, Player, SHARES_TOTAL, ShockKind, Vehicle, VEHICLE_VALUE, World } from './world';
 
 /** Demand memory length in in-game hours. */
 export const WINDOW = 24;
@@ -36,7 +36,7 @@ export function quoteFor(w: World, m: Merchant, item: Item, player?: Player): Qu
   const festive = activeShock(w, 'festive season') && m.market === 'fabric';
   return quote({
     itemName: item,
-    basePrice: BASE_PRICE[item],
+    basePrice: localBase(m.market, item),
     stock: m.stock[item] ?? 0,
     targetStock: targetOf(m, item),
     cash: m.cash,
@@ -209,6 +209,9 @@ export const DEMAND_PER_HOUR: Record<Item, number> = {
   thread: 1.6,
   iron: 2.5,
   'copper wire': 1.3,
+  fish: 3.2,
+  salt: 1.4,
+  spice: 0.5,
 };
 
 /**

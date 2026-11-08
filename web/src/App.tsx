@@ -13,6 +13,7 @@ import { IconSprite } from './art/icons';
 import { Mascot } from './art/Mascot';
 import { Login } from './game/Login';
 import { FastForwardPage } from './sim/Fastforward';
+import { TownBoard } from './town/TownBoard';
 
 function useHash() {
   const [hash, setHash] = useState(() => location.hash);
@@ -29,7 +30,7 @@ export function App() {
   return (
     <>
       <IconSprite />
-      {hash === '#sim' ? <FastForwardPage /> : <Game />}
+      {hash === '#sim' ? <FastForwardPage /> : hash === '#town' ? <TownBoard /> : <Game />}
     </>
   );
 }

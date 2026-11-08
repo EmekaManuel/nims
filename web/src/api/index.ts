@@ -178,6 +178,10 @@ export interface TownStats {
   last24h: { players: number; trades: number; votes: number };
   total: { trades: number; votes: number; decisions: number; passed: number };
   shops: { open: number; total: number; playerStalls: number };
+  /** The ten richest people who have played, by the first name others see in the game. */
+  leaders: { name: string; worth: number; shares: number; stall: boolean; vehicle: 'wheelbarrow' | 'pickup' | 'van' }[];
+  /** The latest town-council decisions, newest first. */
+  decisions: { day: number; market: string; lever: string; to: string; passed: boolean; yes: number; no: number; daoId: number | null }[];
 }
 
 export const api = {

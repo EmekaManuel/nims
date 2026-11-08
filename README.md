@@ -33,11 +33,18 @@ The chain is invisible: sign in with Google or an emailed link, no wallet, no se
 
 <table>
 <tr>
-<td width="50%"><img src="docs/img/stall.jpg" alt="A stall: prices, delivery order, shares" /><br /><sub><b>A stall.</b> Buy, sell, place a delivery order, buy shares.</sub></td>
-<td width="50%"><img src="docs/img/prices.jpg" alt="The price board" /><br /><sub><b>The price board.</b> Every good in every market against its usual price.</sub></td>
+<td colspan="2"><img src="docs/img/town.jpg" alt="The Nims market town at night, in 3D" /><br /><sub><b>The town at night, in 3D.</b> Lamp-lit stalls, shopkeepers, and townsfolk who walk the paths and stop to shop. Every stall and price is real game state.</sub></td>
 </tr>
 <tr>
-<td colspan="2"><img src="docs/img/fastforward.jpg" alt="Fast-forward week: prices and shop cash over seven days" /><br /><sub><b>Fast-forward a week.</b> The same economy, run headless and replayed: price swings, shocks, shops closing.</sub></td>
+<td width="50%"><img src="docs/img/stall.jpg" alt="A stall: the merchant explains a price, delivery order, shares" /><br /><sub><b>A stall.</b> Hover a price and the merchant explains it in their own words (NEAR AI). Buy, sell, haggle, place a delivery order, buy shares.</sub></td>
+<td width="50%"><img src="docs/img/prices.jpg" alt="The price board" /><br /><sub><b>The price board.</b> Every good in every market against its usual price: dear, cheap, or about usual.</sub></td>
+</tr>
+<tr>
+<td width="50%"><img src="docs/img/council.jpg" alt="A town council vote on cutting a market's rent" /><br /><sub><b>The town council.</b> Trade in a market and you get a seat. A vote to cut the rent, with the merchants' stance. It passes at the end of the day, with no dev patch.</sub></td>
+<td width="50%"><img src="docs/img/record.jpg" alt="A council vote recorded on a SputnikDAO by an OutLayer-custodied Town Clerk" /><br /><sub><b>On the record.</b> Every vote is also written to a SputnikDAO on testnet by an OutLayer-custodied Town Clerk. This is a real proposal from the demo's own vote.</sub></td>
+</tr>
+<tr>
+<td colspan="2"><img src="docs/img/fastforward.jpg" alt="Fast-forward week: prices, shop cash and traders over seven days" /><br /><sub><b>Fast-forward a week.</b> The same economy, run headless and replayed: a flooder crashes iron to 30% of its usual price, every shop stays open, shareholders are paid each evening.</sub></td>
 </tr>
 </table>
 

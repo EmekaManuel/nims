@@ -211,7 +211,7 @@ export const LoadingScreen: React.FC<{ t: number; scale?: number }> = ({ t, scal
  * The 3D town on its own, filling the picture (no game screen around it): used behind the title cards.
  * Holds each frame until the canvas has drawn it.
  */
-export const TownCanvas: React.FC<{ shot: Shot; town: Town; night?: boolean }> = ({ shot, town, night = true }) => {
+export const TownCanvas: React.FC<{ shot: Shot; town: Town; night?: boolean; width?: number; height?: number; banners?: boolean }> = ({ shot, town, night = true, width = 1920, height = 1080, banners = true }) => {
   const frame = useCurrentFrame();
   const pending = useRef<number | null>(null);
   const current = useRef(frame);
@@ -219,10 +219,10 @@ export const TownCanvas: React.FC<{ shot: Shot; town: Town; night?: boolean }> =
   useLayoutEffect(() => { pending.current = delayRender(`backdrop ${frame}`); }, [frame]);
   const raw = shot.state as GameState;
   const state = night ? { ...raw, hour: nightHour(raw.hour) } : raw;
-  const drive: VideoDrive = { ...town, walkStops: WALK_STOPS, banners: true, frameKey: frame, onDrawn: (key) => { if (key === current.current && pending.current !== null) { continueRender(pending.current); pending.current = null; } } };
+  const drive: VideoDrive = { ...town, walkStops: WALK_STOPS, banners, frameKey: frame, onDrawn: (key) => { if (key === current.current && pending.current !== null) { continueRender(pending.current); pending.current = null; } } };
   return (
-    <div style={{ position: 'absolute', left: 0, top: 0, width: 1920, height: 1080, overflow: 'hidden' }}>
-      <style>{`.townfill, .townfill > .map3d { width: 1920px; height: 1080px; }`}</style>
+    <div style={{ position: 'absolute', left: 0, top: 0, width, height, overflow: 'hidden' }}>
+      <style>{`.townfill, .townfill > .map3d { width: ${width}px; height: ${height}px; }`}</style>
       <div className="townfill"><DistrictMap3D state={state} selected={null} onSelect={noop} popups={[]} drive={drive} /></div>
     </div>
   );

@@ -1,5 +1,5 @@
 import { AbsoluteFill, interpolate, spring, useCurrentFrame, useVideoConfig } from 'remotion';
-import { BODY, C, HEAD, MONO, Mark, Words, clamp, ease, fmt, useRamp } from './ui';
+import { BODY, C, HEAD, MONO, Mark, clamp, fmt, useRamp } from './ui';
 import { FPS, scene } from './timeline';
 import chain from './data/chain.json';
 import session from './data/session.json';

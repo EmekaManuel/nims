@@ -7,9 +7,6 @@ import type { GameState, Item, MarketId, Stall } from '../api';
 import { PLOTS, STALL_POS, ZONES, crateCount, lightAt, type Popup, type Selection } from './Map';
 import { EDGES, LAMPS, newWalk, NODES, seeded, SOURCE_POS, SOURCE_STOP, stepWalk, stopForStall, TREES, U, walkAt, wx, wz, type Stop, type Walk } from './paths';
 
-const SOURCE_COLOR: Record<string, string> = {
-  tomatoes: '#d93b2b', pepper: '#e24a22', iron: '#8e99a8', 'copper wire': '#c8782e', cotton: '#e6ebf3',
-};
 const CANOPY: Record<MarketId, [string, string]> = {
   produce: ['#2f9e5f', '#f1f8f3'], fabric: ['#2a6fdb', '#f1f6fe'], scrap: ['#c8622e', '#f1ede7'],
 };
@@ -526,8 +523,9 @@ function Scene({ state, selected, onSelect, popups, animate }: { state: GameStat
             <RoundedBox args={[z.w / U, 0.06, z.h / U]} radius={0.03} position={[wx(z.x + z.w / 2), 0.02, wz(z.y + z.h / 2)]} receiveShadow>
               <meshStandardMaterial color={GROUND[id]} />
             </RoundedBox>
-            {/* the market's name hangs high above it, clear of the stalls' own labels */}
-            {(!drive || drive.banners) && <Html zIndexRange={[5, 0]} position={[wx(z.x + z.w / 2), 4, wz(z.y + 40)]} center style={{ pointerEvents: 'none' }}><div style={{ ...label, background: 'rgba(22,38,74,.55)', font: '700 15px system-ui, sans-serif', letterSpacing: 1.5, padding: '4px 14px', border: '1px solid rgba(255,255,255,.35)' }}>{z.label.toUpperCase()}</div></Html>}
+            {/* the market's name hangs high above a back-row market, clear of the stalls' own labels. A front-row market's name would
+                hang over the markets behind it from this camera, so it sits low, on the walkway in front of the market instead. */}
+            {(!drive || drive.banners) && <Html zIndexRange={[5, 0]} position={z.y < 100 ? [wx(z.x + z.w / 2), 4, wz(z.y + 40)] : [wx(z.x + z.w / 2), 0.15, wz(z.y + z.h - 12)]} center style={{ pointerEvents: 'none' }}><div style={{ ...label, background: 'rgba(22,38,74,.55)', font: '700 15px system-ui, sans-serif', letterSpacing: 1.5, padding: '4px 14px', border: '1px solid rgba(255,255,255,.35)' }}>{z.label.toUpperCase()}</div></Html>}
           </group>
         );
       })}

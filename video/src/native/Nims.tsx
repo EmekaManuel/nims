@@ -6,7 +6,7 @@ import { Background } from './Background';
 import { centre, shot as getShot, TARGETS, type Shot } from './model';
 import { Caption, Chips, Cursor, Gain, Pill, RuleChange, Stat, cameraAt, sec, type CameraKey, type CursorKey } from './overlays';
 import { SIM_HOURS, SimDashboard } from './Sim';
-import { OVERVIEW, SPOT, project, townCamAt, type CamKey, type V3 } from './town';
+import { SPOT, project, townCamAt, type CamKey, type V3 } from './town';
 import { LoadingScreen, LoginScreen, Screen } from './Screen';
 
 /** What happens on screen in a scene, in seconds from its start. Positions come from `npm run measure`, so they follow the real layout. */
@@ -66,7 +66,6 @@ function script(s: Scene): Script | null {
       const town: CamKey[] = [{ t: 0, ...LENA }, { t: 13, ...LENA2 }];
       const lena = at3d('collected', town, 1.0, SPOT.lena);
       const price = centre('stall', 'price:lena:cotton');
-      const bubble = centre('hover', 'bubble');
       return {
         shots: [{ t: 0, id: 'collected' }, { t: 1.1, id: 'stall' }, { t: 2.7, id: 'hover', hover: true }],
         town,
@@ -92,7 +91,6 @@ function script(s: Scene): Script | null {
       const town: CamKey[] = [{ t: 0, ...FABRIC }, { t: 11.5, ...FABRIC2 }, { t: 14.9, ...WIDE_A }];
       const business = centre('reaction', 'dock:business');
       const low = centre('council', 'btn:rent:low');
-      const card = centre('council', 'council:fabric');
       const tally = (getShot('council-open').state as { council: { market: string; proposal: { yes: number; no: number } | null }[] }).council.find((c) => c.market === 'fabric')!.proposal!;
       return {
         shots: [{ t: 0, id: 'reaction', haggle: true }, { t: 2.9, id: 'council' }, { t: 6.75, id: 'council-open' }, { t: 9.25, id: 'council-done' }],

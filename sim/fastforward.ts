@@ -5,7 +5,7 @@
  */
 import { act, newPlayer } from './players';
 import { playerWorth, tick } from './engine';
-import { BASE_PRICE, createWorld, Item, MARKETS, MarketId } from './world';
+import { BASE_PRICE, createWorld, MARKETS, MarketId } from './world';
 
 export interface FastForwardParams {
   days: number;

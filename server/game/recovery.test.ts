@@ -57,13 +57,6 @@ function setStock(g: Game, id: string, item: Item, units: number) {
   m.stock[item] = units;
 }
 
-/** Set a player's coins, through the ledger. */
-const setCash = (g: Game, cash: number) => {
-  const p = g.playerFor(me);
-  if (p.cash > cash) transferCoins(g.w, p, 'town', p.cash - cash);
-  else if (p.cash < cash) transferCoins(g.w, 'town', p, cash - p.cash);
-};
-
 /** Mira is badly short of tomatoes, so a job to restock her appears on the board. */
 function withJob(cash = 10) {
   const g = new Game(3);

@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import { Map3DBoundary } from './Map3DBoundary';
-import { chooseView, readView, type ViewEnv } from './view';
+import { chooseView, readView, readViewChoice, SLOW_KEY, type ViewEnv } from './view';
 
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); localStorage.clear(); });
 
@@ -33,6 +33,24 @@ describe('which map a player starts in', () => {
     const canvas = vi.spyOn(document, 'createElement');
     expect(readView()).toBe(false);
     expect(canvas).not.toHaveBeenCalledWith('canvas');
+  });
+
+  it('starts in 2D once an earlier visit found 3D slow here, unless the player has chosen 3D themselves', () => {
+    expect(chooseView({ ...desktop, slow: true })).toBe(false);
+    expect(chooseView({ ...desktop, slow: true, stored: '1' })).toBe(true);
+  });
+
+  it('says whether the game chose the view (so it may check the speed) or the player did (so it never second-guesses)', () => {
+    vi.stubGlobal('matchMedia', (q: string) => ({ matches: !q.includes('reduce'), media: q }));
+    const canvas = { getContext: () => ({ getExtension: () => null }) };
+    const real = document.createElement.bind(document);
+    vi.spyOn(document, 'createElement').mockImplementation((tag: string) => (tag === 'canvas' ? (canvas as unknown as HTMLElement) : real(tag)));
+    expect(readViewChoice()).toEqual({ view3d: true, auto: true });
+    localStorage.setItem('nims-3d', '1');
+    expect(readViewChoice()).toEqual({ view3d: true, auto: false });
+    localStorage.clear();
+    localStorage.setItem(SLOW_KEY, '1');
+    expect(readViewChoice()).toEqual({ view3d: false, auto: true }); // found slow before: 2D, and nothing left to watch
   });
 
   it('reads a remembered choice from this browser', () => {

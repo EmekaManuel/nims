@@ -27,7 +27,7 @@ Go back to the game (**Back to the game**), sign in with any email, and pick **B
 2. Collect iron at the scrap spot, then tap **Anil Metals** and **hover a price**. The merchant answers in their own words: *"I'm holding 62 iron and I only want 50, so I'll pay less…"*
 3. Sell. Then **flood Ruth's Salvage**: collect and sell iron to them a few times. Watch the crates pile up on the map, the price fall, and the iron row on the price board turn blue (▼ cheap). Other markets stay unaffected.
 4. Notice the game feel: coins float up from the stall you sold to, your avatar and vehicle stand in the market you're in, traders walk the roads, and your **rank** (top right) climbs as you earn. Spend profit on a pickup (top bar) to carry three times as much, and haul cheaper: a fare to carry goods to another market is 3% of what they are worth, 70% of that in a pickup, 50% in a van.
-5. The town is in 3D by default on a desktop browser: stalls with real goods in the crates, shopkeepers, townsfolk who walk the paved paths and stop in front of stalls, night and rain. Click a stall to open the same panel. **2D map** (on the map) switches to the flat map and back; phones and browsers without WebGL start on the flat map.
+5. The town is in 3D by default on a desktop browser: stalls with real goods in the crates, shopkeepers, townsfolk who walk the paved paths and stop in front of stalls, night and rain. Click a stall to open the same panel. **2D map** (on the map) switches to the flat map and back; phones and browsers without WebGL start on the flat map. If 3D runs slowly on a machine, it drops to the flat map by itself and says so.
 
 ## 3. Ownership (1 minute)
 

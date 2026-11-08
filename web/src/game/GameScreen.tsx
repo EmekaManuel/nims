@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import type { Actions } from './Panels';
 import type { Focus, GameState } from '../api';
 import { BusinessPanel, StallOffer } from './Business';
@@ -7,7 +7,8 @@ import { DealsDrawer, type Which } from './DealsDrawer';
 import { Hud } from './Hud';
 import { DistrictMap, type Popup, type Selection } from './Map';
 import { Map3DBoundary } from './Map3DBoundary';
-import { readView } from './view';
+import { useSpeedCheck } from './speed';
+import { readViewChoice, SLOW_KEY } from './view';
 import { Mission } from './Mission';
 import { NewsFeed } from './NewsFeed';
 import { SourcePanel, StallPanel } from './Panels';
@@ -54,8 +55,28 @@ export interface GameScreenProps {
 export function GameScreen(p: GameScreenProps) {
   const { state, act } = p;
   // 3D where it will work well (a wide screen, a mouse, WebGL, no reduced motion), 2D otherwise; the button and a remembered choice override that
-  const [view3d, setView3d] = useState(readView);
-  const toggle3d = () => setView3d((v) => { try { localStorage.setItem('nims-3d', v ? '0' : '1'); } catch { /* ignore */ } return !v; });
+  const [choice] = useState(readViewChoice);
+  const [view3d, setView3d] = useState(choice.view3d);
+  // If the game picked 3D (the player did not), watch the first seconds: on a machine that runs it slowly, drop to 2D, say so, and don't try again by itself.
+  const [watching, setWatching] = useState(choice.auto && choice.view3d);
+  const [slowNotice, setSlowNotice] = useState(false);
+  useSpeedCheck(watching && view3d && !p.drive, () => {
+    setView3d(false);
+    setWatching(false);
+    setSlowNotice(true);
+    try { localStorage.setItem(SLOW_KEY, '1'); } catch { /* ignore */ }
+  });
+  useEffect(() => {
+    if (!slowNotice) return;
+    const id = setTimeout(() => setSlowNotice(false), 9000);
+    return () => clearTimeout(id);
+  }, [slowNotice]);
+  // The button is the player's own choice: it is remembered, and never second-guessed
+  const toggle3d = () => {
+    setWatching(false);
+    setSlowNotice(false);
+    setView3d((v) => { try { localStorage.setItem('nims-3d', v ? '0' : '1'); } catch { /* ignore */ } return !v; });
+  };
   const sel = p.selected;
   const stall = sel?.kind === 'stall' ? state.stalls.find((s) => s.id === sel.id) : undefined;
 
@@ -84,6 +105,7 @@ export function GameScreen(p: GameScreenProps) {
               )
               : <DistrictMap state={state} selected={p.selected} onSelect={p.onSelect} popups={p.popups} />}
             {!p.drive && <button type="button" className="view-toggle" onClick={toggle3d} aria-pressed={view3d}>{view3d ? '2D map' : '3D view'}</button>}
+            {slowNotice && <div className="view-notice" role="status">The 3D town runs slowly here, so this is the flat map. <button type="button" onClick={toggle3d}>Try 3D anyway</button></div>}
           </div>
           <Mission state={state} onFocus={p.onFocus} onPickGoal={p.onPickGoal} />
         </div>

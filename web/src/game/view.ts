@@ -12,11 +12,14 @@ export interface ViewEnv {
   reducedMotion: boolean;
   /** The browser can draw WebGL. */
   webgl: boolean;
+  /** An earlier visit found the 3D town running slowly here, so the default is 2D (a choice of their own still wins). */
+  slow?: boolean;
 }
 
 export function chooseView(e: ViewEnv): boolean {
   if (e.stored === '0') return false;
   if (e.stored === '1') return e.webgl; // they asked for 3D, but without WebGL it cannot be shown
+  if (e.slow) return false;
   return e.webgl && e.wide && e.finePointer && !e.reducedMotion;
 }
 
@@ -35,15 +38,22 @@ export function webglAvailable(): boolean {
   return glCache;
 }
 
-/** The view to start in, from this browser. */
-export function readView(): boolean {
+/** Remember that the 3D town ran slowly on this machine, so the next visit starts in 2D without watching again. */
+export const SLOW_KEY = 'nims-3d-slow';
+
+/** The view to start in, and whether the game chose it (true) or the player did with the button (false: it is never second-guessed). */
+export function readViewChoice(): { view3d: boolean; auto: boolean } {
   let stored: string | null = null;
-  try { stored = localStorage.getItem('nims-3d'); } catch { /* storage blocked: no stored choice */ }
+  let slow = false;
+  try { stored = localStorage.getItem('nims-3d'); slow = localStorage.getItem(SLOW_KEY) === '1'; } catch { /* storage blocked: no stored choice */ }
   const media = (q: string) => typeof matchMedia === 'function' && matchMedia(q).matches;
   const wide = media('(min-width: 1000px)');
   const finePointer = media('(pointer: fine)');
   const reducedMotion = media('(prefers-reduced-motion: reduce)');
   // only ask for WebGL when the answer can matter
-  const needsGl = stored === '1' || (stored !== '0' && wide && finePointer && !reducedMotion);
-  return chooseView({ stored, wide, finePointer, reducedMotion, webgl: needsGl ? webglAvailable() : false });
+  const needsGl = stored === '1' || (stored !== '0' && !slow && wide && finePointer && !reducedMotion);
+  return { view3d: chooseView({ stored, wide, finePointer, reducedMotion, slow, webgl: needsGl ? webglAvailable() : false }), auto: stored === null };
 }
+
+/** The view to start in, from this browser. */
+export const readView = () => readViewChoice().view3d;

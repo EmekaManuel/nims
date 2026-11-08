@@ -78,7 +78,7 @@ NEAR **testnet only**. No mainnet or real funds are used.
 6. Run low on coins with nothing to sell, then open **Deals** and its **Odd jobs** tab. See the scrap heap and merchants offering to pay you to fetch what they lack.
 7. Open the **News** tab. See the town gazette and the plain list of events.
 8. Open **Fast-forward** (or add `#sim` to the address, no login). See a simulated week as price and shop-cash charts, driven by the same pricing code as the live game.
-9. Open `/chain/status` on the live address. See the contract, the settlement namespace, and how far settlement has got.
+9. Open `/chain/status` on the live address. See the contract, the settlement namespace, and how far settlement has got. `behind` counts game ledger entries not yet on chain. Settlement works through the game in windows of 6 game hours (one real minute), widening up to 96 when it falls behind ([`chainsync.ts`](server/chain/chainsync.ts)), so `behind` rises and falls with each window instead of sitting at zero; `lastSettledAt` moving shows it is keeping up.
 10. Open `/stats` on the live address, or look under the sign-in form. See how many people have played, trades and players in the last 24 real hours, council votes passed and shops open. Counts only: no names or emails ([`server/game/activity.ts`](server/game/activity.ts)).
 
 **Locally:**

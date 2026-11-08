@@ -232,7 +232,8 @@ describe('ownership', () => {
 
   it('turns an email into a friendly first name and never shows the address', () => {
     expect(displayName('ada.obi@example.com')).toBe('Ada');
-    expect(displayName('CHIDI_99@x.io')).toBe('Chidi');
+    expect(displayName('CHIDI_99@x.io')).toBe('C.'); // one word and a number: initial only
+    expect(displayName('chidi_okafor@x.io')).toBe('Chidi');
     expect(displayName('1234@x.io')).toBe('Trader');
     g.state(me);
     expect(JSON.stringify(g.state(me))).not.toContain('example.com');

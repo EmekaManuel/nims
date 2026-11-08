@@ -1,4 +1,5 @@
 import { MerchantState, Personality } from '../merchants/pricing';
+import type { MerchantPlan } from './plan';
 import { Councils, newCouncils } from './council';
 import { makeRng, Rng } from './rng';
 
@@ -59,6 +60,8 @@ export interface Merchant {
   owner?: string;
   ownerName?: string;
   prices?: Partial<Record<Item, { buy: number; sell: number }>>;
+  /** Today's plan, chosen by the merchant (see plan.ts). Absent: the merchant keeps its usual stock and margin. */
+  plan?: MerchantPlan;
 }
 
 /** Each merchant is split into this many shares; players can hold up to MAX_PUBLIC_SHARES of them in total. */
@@ -105,7 +108,7 @@ export interface Shock {
 
 export interface WorldEvent {
   hour: number;
-  type: 'shock' | 'state' | 'revived' | 'dividend' | 'council' | 'guild';
+  type: 'shock' | 'state' | 'revived' | 'dividend' | 'council' | 'guild' | 'plan';
   text: string;
   /** Merchant this is about (state, revived, dividend). */
   merchant?: string;

@@ -10,6 +10,7 @@
  * Pure planning only: this decides which jobs exist. Moving goods and coins is done by Game, through the same
  * ledger-recording helpers as every other trade, so settlement to the chain needs nothing new.
  */
+import { targetOf } from '../../sim/plan';
 import { BASE_PRICE, type Item, type Merchant, type Source, type World } from '../../sim/world';
 
 export interface Job {
@@ -41,7 +42,7 @@ const CUSHION = 200;
 
 const open = (m: Merchant) => !m.owner && m.state !== 'closed';
 /** How many units short of its target stock a merchant is. */
-const shortfall = (m: Merchant, item: Item) => (m.target[item] ?? 0) * 0.95 - (m.stock[item] ?? 0);
+const shortfall = (m: Merchant, item: Item) => targetOf(m, item) * 0.95 - (m.stock[item] ?? 0);
 const sourceOf = (w: World, item: Item): Source | undefined => w.sources.find((s) => s.item === item && s.cost > 0);
 
 /** Can this job still be carried out right now? */

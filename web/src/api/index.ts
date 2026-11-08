@@ -35,6 +35,8 @@ export interface Stall {
   sign: string[];
   /** Present on a stall run by a player. */
   owner?: { name: string; mine: boolean };
+  /** The merchant's own plan for the day (a town merchant only): what it chose and why, in its own words. */
+  plan?: { day: number; reason: string; stock: Partial<Record<string, 'more' | 'less'>>; margin: 'wider' | 'narrower' | 'same' };
   /** Present on merchants you can invest in. */
   /** price: one share at today's worth. worth: what the merchant is worth, which sets the exact cost of a purchase (see shareCost). */
   shares?: { price: number; left: number; yours: number; worth?: number };

@@ -73,6 +73,19 @@ function script(s: Scene): Script | null {
         camera: [{ t: 0, ...WIDE }, { t: 1.1, x: 1500, y: 450, zoom: 1.25 }, { t: 2.7, x: 1560, y: 520, zoom: 1.45 }],
       };
     }
+    case 'plan': {
+      // Lena's stall stays open; the camera leans into her plan for the day, then back to where the sale scene starts.
+      const plan = centre('stall', 'plan');
+      const price = centre('stall', 'price:lena:cotton');
+      const end = s.frames / FPS;
+      return {
+        shots: [{ t: 0, id: 'stall' }],
+        town: [{ t: 0, ...LENA2 }],
+        cursor: [{ t: 0, ...price }, { t: T(1.1), ...plan }, { t: T(end - 1.6), ...plan }, { t: T(end - 0.4), ...price }],
+        // a camera key starts its move at `t` and arrives 0.9 s later (cameraAt), so the way back starts well before the cut
+        camera: [{ t: 0, x: 1560, y: 520, zoom: 1.45 }, { t: 0.6, x: plan.x, y: plan.y, zoom: 1.7 }, { t: end - 1.5, x: 1500, y: 450, zoom: 1.4 }],
+      };
+    }
     case 'sale': {
       const haggle = centre('stall', 'check:haggle');
       const sell = centre('stall', 'btn:sell:cotton');

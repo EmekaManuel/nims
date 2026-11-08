@@ -31,6 +31,7 @@ export const FINDERS: Record<string, () => HTMLElement | null> = {
   'bubble': () => document.querySelector<HTMLElement>('[role=tooltip]'),
   'hud:cash': () => document.querySelector<HTMLElement>('.pill.coin'),
   'gazette': () => document.querySelector<HTMLElement>('.gazette'),
+  'plan': () => document.querySelector<HTMLElement>('.plannote'),
   'jobs:list': () => document.querySelector<HTMLElement>('.jobs'),
   'hand:card': () => document.querySelector<HTMLElement>('.hand'),
 };

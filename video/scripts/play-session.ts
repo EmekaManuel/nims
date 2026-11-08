@@ -8,7 +8,7 @@
  *
  * Needs NEAR_AI_API_KEY and ELEVENLABS_API_KEY in ../.env. Writes src/data/session.json and public/live/*.mp3.
  */
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { Game } from '../../server/game/game';
@@ -20,6 +20,7 @@ import { createGazette } from '../../server/voice/gazette';
 import { createSpeaker } from '../../server/voice/speaker';
 import { clerkDao, CouncilRecorder, nearDaoViews, type DaoPort } from '../../server/chain/dao';
 import { outlayer } from '../../server/chain/outlayer';
+import { createPlanner } from '../../server/agents/planner';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const out = join(here, '..', 'src', 'data', 'session.json');
@@ -42,6 +43,14 @@ const g = new Game(seed);
 for (let i = 0; i < 70; i++) g.tickOnce(); // let the town settle first, as in any live game
 g.state(me);
 g.chooseGoal(me, 'fortune');
+// Each merchant plans its day through NEAR AI, as on the live server (server/agents/planner.ts).
+const planner = createPlanner({ chat, game: g, log: (m) => console.log(m) });
+for (let i = 0; i < 24 && g.merchantsToPlan().length; i++) await planner.step();
+console.log(`plans: ${g.w.merchants.filter((m) => m.plan).length} of 8 merchants`);
+const lenaPlan = g.w.merchants.find((m) => m.id === 'lena')?.plan;
+console.log('lena plan  :', lenaPlan ? `${JSON.stringify(lenaPlan.stock)} ${lenaPlan.margin} | ${lenaPlan.reason}` : 'none');
+// The council vote is only recorded on the DAO when the DAO is configured; otherwise keep the record the video already shows.
+const previousDao = existsSync(out) ? (JSON.parse(readFileSync(out, 'utf8')) as { dao?: unknown }).dao ?? null : null;
 
 type Sel = { kind: 'stall'; id: string } | { kind: 'source'; item: string } | null;
 interface Shot { id: string; state: unknown; selected: Sel; tab: string | null; toast?: { ok: boolean; text: string; line?: string }; hover?: string; voiceText?: string; audio?: string; gazette?: string[] }
@@ -149,7 +158,7 @@ const heads = await gazette.headlines(g.gazetteFacts());
 if (!heads) throw new Error('NEAR AI gave no usable gazette headlines');
 shot('news', null, 'news', { gazette: heads });
 
-writeFileSync(out, JSON.stringify({ seed, me, shots, dao }, null, 1));
+writeFileSync(out, JSON.stringify({ seed, me, shots, dao: dao ?? previousDao }, null, 1));
 const s = (id: string) => shots.find((x) => x.id === id)!.state as { you: { cash: number; carrying: number; netWorth: number } };
 console.log(`wrote ${shots.length} shots, ${(JSON.stringify(shots).length / 1024).toFixed(0)} KB`);
 console.log(`cash: start ${s('town').you.cash} -> collected ${s('collected').you.cash} -> sold ${s('sold').you.cash} -> broke ${s('broke').you.cash} -> job done ${s('job-done').you.cash}`);

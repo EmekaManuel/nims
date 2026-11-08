@@ -62,21 +62,16 @@ interface Progress {
   awayFrom?: number;
 }
 
-/** A friendly name from the part of the email before the @, e.g. ada.obi@x.com -> "Ada". Never the full address. */
 /**
- * The name the public town board shows. When the email splits into parts (ada.lovelace@, ada_l@, ada92@) the first part
- * is very likely a first name, so it is shown as in the game. A username in one piece (adalovelace@) may well hold a
- * surname too, so the board shows only its initial ("A.").
+ * The name other players see: in the town, on stall signs, in the news and on the public town board. Never the address.
+ * When the email's username splits into parts (ada.obi@, ada_l@, ada92@) the first part is very likely a first name, so
+ * it is used ("Ada"). A username in one piece (adaobi@) may well hold a surname too, so only its initial is shown ("A.").
  */
-export function boardName(email: string): string {
-  const local = email.split('@')[0];
-  return /[._\-+0-9]/.test(local) ? displayName(email) : `${displayName(email).charAt(0)}.`;
-}
-
 export function displayName(email: string): string {
-  const first = email.split('@')[0].split(/[._\-+0-9]+/).find((x) => x.length > 0) ?? 'Trader';
-  const name = first.slice(0, 12);
-  return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+  const local = email.split('@')[0];
+  const first = local.split(/[._\-+0-9]+/).find((x) => x.length > 0) ?? 'Trader';
+  const name = first.charAt(0).toUpperCase() + first.slice(1, 12).toLowerCase();
+  return first === local ? `${name.charAt(0)}.` : name;
 }
 
 /**
@@ -214,6 +209,7 @@ export class Game {
     g.humans = new Map(snap.humans.map(([email, id]) => [email, w.players.find((p) => p.id === id)!]).filter(([, p]) => p) as [string, Player][]);
     g.progress = new Map((snap.progress as [string, Progress & { marketsSold: MarketId[] }][]).map(([email, pr]) => [email, { ...pr, marketsSold: new Set(pr.marketsSold) }]));
     g.names = new Map(snap.names);
+    g.renameFromEmails();
     g.haggled = new Map(snap.haggled);
     const o = snap as { orders?: [string, Order[]][]; nextOrderId?: number };
     g.orders = new Map(o.orders ?? []);
@@ -384,6 +380,27 @@ export class Game {
 
   private marketsWithStake(p: Player): Set<MarketId> {
     return new Set(this.w.merchants.filter((m) => !m.owner && (m.shares[p.id] ?? 0) > 0).map((m) => m.market));
+  }
+
+  /**
+   * Bring every saved name up to the current rule (displayName), wherever other players can see it: the name itself, a
+   * player stall's name and owner, an open council proposal, and the public news. Saves made before the rule changed
+   * could show a whole one-word username, which may hold a surname.
+   */
+  private renameFromEmails() {
+    for (const [email, p] of this.humans) {
+      const old = this.names.get(p.id);
+      const now = displayName(email);
+      this.names.set(p.id, now);
+      if (!old || old === now) continue;
+      for (const m of this.w.merchants) {
+        if (m.owner !== p.id) continue;
+        m.ownerName = now;
+        if (m.name === `${old}'s stall`) m.name = `${now}'s stall`;
+      }
+      for (const c of Object.values(this.w.council)) if (c.proposal?.by === p.id) c.proposal.byName = now;
+      for (const e of this.w.events) if (e.text.includes(old)) e.text = e.text.split(old).join(now);
+    }
   }
 
   /** The player for this login. Created on first visit; the id is opaque. */
@@ -937,12 +954,12 @@ export class Game {
   publicStats() {
     const open = this.w.merchants.filter((m) => !m.owner && m.state !== 'closed').length;
     // Only people who have done something: a trade, a share, a stall. Shown by the same first name other players already see.
-    const leaders = [...this.humans.entries()]
-      .map(([email, p]) => {
+    const leaders = [...this.humans.values()]
+      .map((p) => {
         const shares = this.w.merchants.reduce((n, m) => n + (m.shares[p.id] ?? 0), 0);
         const stall = this.w.merchants.some((m) => m.owner === p.id);
         const traded = Object.values(p.reputation).some((r) => (r ?? 0) > 0);
-        return { name: boardName(email), worth: this.netWorth(p), shares, stall, vehicle: p.vehicle, active: traded || shares > 0 || stall };
+        return { name: this.names.get(p.id) ?? 'A trader', worth: this.netWorth(p), shares, stall, vehicle: p.vehicle, active: traded || shares > 0 || stall };
       })
       .filter((x) => x.active)
       .sort((a, b) => b.worth - a.worth)

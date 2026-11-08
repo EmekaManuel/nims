@@ -210,6 +210,8 @@ export function createMerchants(): Merchant[] {
 export const WHOLESALE_RATE = 0.5;
 /** Goods you carry count towards net worth at this share of their usual price (a stall pays less than "usual"). */
 export const CARRY_VALUE = 0.8;
+/** What a vehicle is worth to its owner: what it cost. Buying one turns coins into a vehicle, so it never sets you back on your net worth. */
+export const VEHICLE_VALUE: Record<Vehicle, number> = { wheelbarrow: 0, pickup: 5_000, van: 18_000 };
 const wholesale = (item: Item) => Math.round(BASE_PRICE[item] * WHOLESALE_RATE);
 
 export function createSources(): Source[] {

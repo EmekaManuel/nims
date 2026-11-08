@@ -202,7 +202,7 @@ npm run test:web       # the UI against real game state, 3D walkways, the 3D spe
 npm run contract:test  # the NEP-245 contract  (18 tests, needs Rust)
 ```
 
-`sim/economy.test.ts` guards the balance: sources charge for goods, a buy-and-sell trip changes net worth by a modest amount, every good averages near its usual price over a quiet week, and a flooder still crashes iron. `npm run balance` plays a scripted trader and prints how long it takes to reach each rank and the 12,000-coin goal.
+`sim/economy.test.ts` guards the balance: sources charge for goods, a buy-and-sell trip changes net worth by a modest amount, every good averages near its usual price over a quiet week, and a flooder still crashes iron. `npm run balance` plays a scripted trader and prints how long it takes, in real minutes, to reach each rank and the 10,000-coin goal (14 of 16 seeded runs reach it, from under a minute to about 14 minutes).
 
 To verify the chain side, copy `.env.example` to `.env` with a testnet account, then:
 

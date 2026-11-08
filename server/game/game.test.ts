@@ -165,8 +165,8 @@ describe('goals, coach and deals', () => {
     g.chooseGoal(me, 'fortune');
     const s = g.state(me);
     expect(s.goal!.title).toBe('Build a fortune');
-    expect(s.goal!.progress).toBeCloseTo(4000 / 12000, 2);
-    expect(s.goal!.label).toContain('12,000');
+    expect(s.goal!.progress).toBeCloseTo(4000 / 10000, 2);
+    expect(s.goal!.label).toContain('10,000');
     g.w.players.find((p) => p.strategy === 'human')!.cash = 30_000;
     g.tickOnce();
     expect(g.state(me).goal!.done).toBe(true);

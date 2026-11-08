@@ -4,7 +4,7 @@
  */
 import { clampPlayerPrice, merchantState, PERSONALITY_PARAMS, playerQuote, quote, Quote } from '../merchants/pricing';
 import { PAYOUT_RATE, RENT_MULT, resolveCouncils } from './council';
-import { BASE_PRICE, CARRY_VALUE, COINS, Item, MARKETS, MAX_PUBLIC_SHARES, Merchant, MarketId, PERISHABLE, Player, SHARES_TOTAL, ShockKind, Vehicle, World } from './world';
+import { BASE_PRICE, CARRY_VALUE, COINS, Item, MARKETS, MAX_PUBLIC_SHARES, Merchant, MarketId, PERISHABLE, Player, SHARES_TOTAL, ShockKind, Vehicle, VEHICLE_VALUE, World } from './world';
 
 /** Demand memory length in in-game hours. */
 export const WINDOW = 24;
@@ -276,10 +276,19 @@ export function merchantWorth(m: Merchant): number {
   return m.cash + stock;
 }
 
-/** A player's net worth: cash, goods carried (at base price) and shares (at today's price). */
+/**
+ * What a unit you carry counts for in your net worth: what it costs to buy again at its source, or 80% of its usual price for a good
+ * no source sells. Valued any higher, simply collecting goods would raise your net worth before you had sold anything.
+ */
+export function carriedValue(w: World, item: Item): number {
+  const src = w.sources.find((s) => s.item === item);
+  return src ? src.cost : BASE_PRICE[item] * CARRY_VALUE;
+}
+
+/** A player's net worth: cash, goods carried, their vehicle, and shares (at today's price). */
 export function playerWorth(w: World, p: Player): number {
-  let worth = p.cash;
-  for (const [item, n] of Object.entries(p.inventory)) worth += (n ?? 0) * BASE_PRICE[item as Item] * CARRY_VALUE;
+  let worth = p.cash + VEHICLE_VALUE[p.vehicle];
+  for (const [item, n] of Object.entries(p.inventory)) worth += (n ?? 0) * carriedValue(w, item as Item);
   for (const m of w.merchants) if (m.shares[p.id]) worth += m.shares[p.id] * sharePrice(m);
   return Math.round(worth);
 }

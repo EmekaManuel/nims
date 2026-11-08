@@ -195,3 +195,17 @@ Each market has a council that votes on two rules, so the economy can change wit
 
 - **Fares** are in the balance table (section 8). Using your own stall puts you at its market, so selling there afterwards costs no second fare.
 - **The 3D view** (`web/src/game/Map3D.tsx`, React Three Fiber) draws the same state as the 2D map. Townsfolk move along a walkway graph (`web/src/game/paths.ts`) and stop in front of open stalls and the sources; `paths.test.ts` samples every walkway and simulates walkers to check they never touch a stall, plot, source, tree or lamp.
+
+## 12. Merchant agents: each merchant plans its day
+
+Each in-game day every town merchant plans its own business through NEAR AI Cloud (`server/agents/planner.ts`). It is told its real books and the town around it (cash and cash floor; for each good its stock, usual stock, what traders bought and sold in the last day, the price now and the usual price; shocks; its market's council rules) and nothing about any player. It answers in words:
+
+| Choice | Effect (`sim/plan.ts`) |
+|---|---|
+| Stock a good: more / less / same | Target stock x1.3 / x0.75 / x1. Prices of that good, restocking and odd jobs follow the new target. |
+| Margin: wider / narrower / same | Personality margin plus 3 / minus 3 / 0 points, kept within 5% to 25%. |
+| Reason | One first-person sentence, shown in the stall and the news. Used only if every number in it is from the facts and it avoids the forbidden words; otherwise a plain sentence built from the choices. |
+
+Words, not numbers, so the model cannot set a price: `pricing.ts` is unchanged and simply given the chosen target and margin. A reply that does not parse, names an unknown choice or misses the margin is ignored, and the merchant keeps its plan. The fast-forward sim never calls the model, so it stays deterministic; a server without NEAR AI (or with `MERCHANT_AGENTS=0`) behaves exactly as before. One merchant plans every 15 real seconds, so all eight plan within a game day.
+
+Checked: with all eight merchants on wider margins (the worst case for players), `npm run balance`'s trader still reaches the 10,000 goal in every seeded run. In a live run against NEAR AI Cloud all eight replies parsed; most reasons passed the number check in the merchant's own words and the rest fell back to the plain sentence.

@@ -8,7 +8,7 @@
 
 [Play it live](https://nims-app.up.railway.app) · [Demo video (132 s)](docs/nims-demo.mp4) · [Judge walk-through](docs/DEMO.md) · Contract: `oja-items.testnet`
 
-![NEAR testnet](https://img.shields.io/badge/NEAR-testnet-00ec97) ![NEP-245](https://img.shields.io/badge/items-NEP--245-blue) ![tests](https://img.shields.io/badge/tests-481%20passing-brightgreen) ![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)
+![NEAR testnet](https://img.shields.io/badge/NEAR-testnet-00ec97) ![NEP-245](https://img.shields.io/badge/items-NEP--245-blue) ![tests](https://img.shields.io/badge/tests-498%20passing-brightgreen) ![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)
 
 </div>
 
@@ -18,7 +18,7 @@ Track: **Games With Real Economies** (NEAR HACKATHON). The economy is the gamepl
 
 Game economies are usually scripts: prices follow a table, NPCs trade nothing, and a player cannot move a market. Nims replaces the script with agents.
 
-- **Eight merchant agents** each hold their own goods and coins, and set their own prices from their stock, their cash and what was traded recently.
+- **Eight merchant agents** each hold their own goods and coins, and set their own prices from their stock, their cash and what was traded recently. **Each morning every merchant plans its own day through NEAR AI Cloud:** told its real books and the town around it, it decides which goods to stock up on or run down and whether to price keener or wider, and says why (from a live run: *"I am stocking up on 49 pepper while the price is low at 147 coins to prepare for the festive season crowds."*). The game turns those choices into small, bounded adjustments, so a merchant steers its business but can never break the economy.
 - **Prices explain themselves, out loud.** Hover a price and the merchant says why, in their own voice: *"It is the festive season and everyone wants fabric right now."* The words come from **NEAR AI Cloud**, checked against the game's real numbers, and are spoken with ElevenLabs.
 - **Merchants talk back.** Haggle once an hour and the merchant answers in character (cautious, greedy or loyal), and the town gazette prints what really happened: dividends, a merchant that stopped buying, a week of rain.
 - **Players move markets.** Flooding one good crashes its price for everyone. A merchant that runs out of cash and stock closes; a community fund can reopen it. Carrying goods to another market costs a fare that is a small share of what they are worth (3% of the usual price), cheaper in a pickup or a van.
@@ -57,6 +57,7 @@ The chain is invisible: sign in with Google or an emailed link, no wallet, no se
 | Gas | A relayer pays through **NEP-366** delegate actions | [`server/chain/relayer.ts`](server/chain/relayer.ts) |
 | Merchant agents | Each has its own account and signs its own transfers | [`merchants/agents/`](merchants/agents/), [`server/chain/rounds.ts`](server/chain/rounds.ts) |
 | Settlement | Trades apply instantly in the game, then settle to the chain in merged batches with per-signer sequence numbers, so a retry can never apply twice | [`server/chain/chainsync.ts`](server/chain/chainsync.ts) |
+| Merchant agents (optional) | **NEAR AI Cloud** plans each merchant's day: which goods to stock up on or run down, and keener or wider prices, with a reason. The game bounds every choice and ignores a reply that fails its checks; without NEAR AI the merchants keep their usual settings. `MERCHANT_AGENTS=0` turns it off | [`server/agents/planner.ts`](server/agents/planner.ts), [`sim/plan.ts`](sim/plan.ts) |
 | Haggling reactions (optional) | **NEAR AI Cloud** writes the merchant's reaction when a player wins a haggle (grudging if cautious, grumbling if greedy, warm if loyal). The game has already decided the deal; the line is checked against its numbers | [`server/voice/haggle.ts`](server/voice/haggle.ts) |
 | Town gazette (optional) | **NEAR AI Cloud** turns the town's latest events into a few newspaper headlines in the News tab. Same rules as the merchant voice: facts only from the game, every number checked, plain event list as the fallback | [`server/voice/gazette.ts`](server/voice/gazette.ts) |
 | Merchant voice (optional) | **NEAR AI Cloud** (OpenAI-compatible API) rewrites a merchant's price reasoning in their own words when a player hovers a price. Prices never depend on it: the reply is used only if every number matches `pricing.ts`, and the plain explanation shows otherwise. Set `NEAR_AI_API_KEY` to turn it on. The line is also spoken aloud: with **ElevenLabs** natural voices (one stock voice per merchant) when `ELEVENLABS_API_KEY` is set, otherwise with the browser's built-in speech. It follows the sound switch | [`server/voice/voice.ts`](server/voice/voice.ts), [`llm.ts`](server/voice/llm.ts) |
@@ -99,7 +100,7 @@ npm run dev       # starts both; open the address Vite prints (usually http://lo
 
 | Variable | What it turns on |
 |---|---|
-| `NEAR_AI_API_KEY` | NEAR AI Cloud writes the merchant voice, the town gazette and haggling reactions. Key from [cloud.near.ai](https://cloud.near.ai). Optional `NEAR_AI_MODEL`. |
+| `NEAR_AI_API_KEY` | NEAR AI Cloud plans each merchant's day (`MERCHANT_AGENTS=0` turns that off) and writes the merchant voice, the town gazette and haggling reactions. Key from [cloud.near.ai](https://cloud.near.ai). Optional `NEAR_AI_MODEL`. |
 | `SPUTNIK_DAO_ID` | Records each council vote on this SputnikDAO (a `*.testnet` account). Make one with `npm run chain:dao -- create nims-council`. |
 | `OUTLAYER_API_KEY` | Makes the OutLayer-custodied Town Clerk the one who calls the DAO. Run `npm run chain:outlayer -- register`, then `fund`, and set the wallet's policy in the OutLayer dashboard (call only, the DAO account only, spending caps). |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Adds **Continue with Google** to the sign-in screen. Same account as the emailed link, matched by the verified email. Register `PUBLIC_URL/auth/google/callback` as the redirect in Google Cloud. |
@@ -131,7 +132,7 @@ buyPrice  = mid * (1 - margin)     # what the merchant pays the player
 sellPrice = mid * (1 + margin)     # what the merchant charges the player
 ```
 
-Below its cash floor a merchant stops buying; at zero cash with nothing to sell it closes. Personality (cautious, greedy, loyal) changes only the parameters, never the formula.
+Below its cash floor a merchant stops buying; at zero cash with nothing to sell it closes. Personality (cautious, greedy, loyal) changes only the parameters, never the formula, and so does a merchant's daily plan: it adjusts the target stock and the margin within fixed bounds ([`sim/plan.ts`](sim/plan.ts)).
 
 **Design rules**
 
@@ -174,7 +175,7 @@ Games With Real Economies asks for *"NPCs with wallets, player-owned markets and
 | The track asks for | In Nims | Code | Checked by | Try it |
 |---|---|---|---|---|
 | **NPCs with wallets** | 8 merchant agents, each with its own NEAR account, cash and stock. Each signs only its own transfers, and reviews a batch against what it holds before signing | [`server/chain/rounds.ts`](server/chain/rounds.ts), [`merchants/agents/agent.ts`](merchants/agents/agent.ts), [`sim/world.ts`](sim/world.ts) | [`rounds.test.ts`](server/chain/rounds.test.ts): a whole simulated week settles with every signer paying its own transfers. [`agent.test.ts`](merchants/agents/agent.test.ts): a merchant refuses transfers it cannot cover | Open `/chain/status`: the settlement namespace and how far it has got |
-| **AGENT NPCS** | Merchants set their own prices from stock, cash and recent trades, with a personality (cautious, greedy, loyal). They haggle, and explain a price in their own words through NEAR AI Cloud; a line is used only if every number in it is the game's | [`merchants/pricing.ts`](merchants/pricing.ts), [`server/voice/voice.ts`](server/voice/voice.ts) | [`pricing.test.ts`](merchants/pricing.test.ts); [`voice.test.ts`](server/voice/voice.test.ts): a line with an invented number is rejected | Hover a price at **Lena's Textiles**, sound on |
+| **AGENT NPCS** | Each morning every merchant **decides its own plan** through NEAR AI Cloud from its real books (cash, stock against its usual stock, what traders bought and sold, prices, shocks, its market's council rules): stock up on or run down each good, and price keener or wider, with a reason in its own words. The game maps each choice to a small fixed step (stock target x1.3 or x0.75, margin plus or minus 3 points, kept within 5 to 25%), so a merchant steers but cannot break the economy; a reply that fails the checks is ignored. Prices then follow from `pricing.ts`, with a personality (cautious, greedy, loyal). Merchants also haggle, and explain a price in their own words; a line is used only if every number in it is the game's | [`server/agents/planner.ts`](server/agents/planner.ts), [`sim/plan.ts`](sim/plan.ts), [`merchants/pricing.ts`](merchants/pricing.ts), [`server/voice/voice.ts`](server/voice/voice.ts) | [`planner.test.ts`](server/agents/planner.test.ts): bad, hostile or invented replies are ignored, one plan per merchant per day; [`plan.test.ts`](sim/plan.test.ts): every choice stays in bounds; [`voice.test.ts`](server/voice/voice.test.ts) | Open any stall: **Today's plan**, in the merchant's words. Plan changes also appear in **News** |
 | **Player-owned markets** | Buy up to 49% of a merchant and share its profit each evening; open your own stall and set its prices; pay into a community fund to reopen a closed shop and own part of it | [`sim/engine.ts`](sim/engine.ts), [`server/game/game.ts`](server/game/game.ts) | [`ownership.test.ts`](sim/ownership.test.ts): shares, dividends, funds and player stalls; a round trip on shares makes no coins | In a stall panel's shares section, **Buy**; or open **My business** |
 | **Economies that evolve without a dev patch** | Prices come from supply and demand; shocks (rain, fuel queue, festive season) arrive at random; shareholders vote on each market's rent and profit payout, and a passing vote changes how the economy runs from the next day | [`sim/council.ts`](sim/council.ts), [`sim/engine.ts`](sim/engine.ts) | [`council.test.ts`](sim/council.test.ts), [`server/game/council.test.ts`](server/game/council.test.ts); [`guild.test.ts`](sim/guild.test.ts): 120 simulated days with stores staying open; [`fastforward.test.ts`](sim/fastforward.test.ts): a flooder crashes iron | **My business → Town council**; **Fast-forward** for a simulated week |
 | **Judged on the game loop** | Collect at a farm, scrap spot or wholesaler; haul to the market that pays most after the fare; sell, haggle or post a delivery order; invest; vote. Ranks and a 10,000-coin goal, odd jobs when you are broke | [`server/game/game.ts`](server/game/game.ts), [`web/src/game/`](web/src/game/) | [`game.test.ts`](server/game/game.test.ts), [`economy.test.ts`](sim/economy.test.ts), [`recovery.test.ts`](server/game/recovery.test.ts); `npm run balance` times the goal | The **Try it** steps above |
@@ -204,8 +205,8 @@ Games With Real Economies asks for *"NPCs with wallets, player-owned markets and
 ## Tests and chain verification
 
 ```bash
-npm test               # economy, pricing, server, API, chain  (294 tests)
-npm run test:web       # the UI against real game state, 3D walkways, the 3D speed check, the town board  (187 tests)
+npm test               # economy, pricing, server, API, chain, merchant agents  (309 tests)
+npm run test:web       # the UI against real game state, 3D walkways, the 3D speed check, the town board, merchants' plans  (189 tests)
 npm run contract:test  # the NEP-245 contract  (18 tests, needs Rust)
 ```
 

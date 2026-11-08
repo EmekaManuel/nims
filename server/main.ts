@@ -17,6 +17,7 @@ import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { resendMailer } from './http/mailer';
 import { createChat } from './voice/llm';
+import { createPlanner } from './agents/planner';
 import { createGazette } from './voice/gazette';
 import { createHaggler } from './voice/haggle';
 import { createVoice } from './voice/voice';
@@ -106,6 +107,10 @@ if (chain !== offlineChain && daoId) {
 }
 // One connection to NEAR AI Cloud for every feature that writes words, so they share one rate budget.
 const ai = process.env.NEAR_AI_API_KEY ? createChat({ apiKey: process.env.NEAR_AI_API_KEY, model: process.env.NEAR_AI_MODEL || undefined, baseUrl: process.env.NEAR_AI_BASE_URL || undefined }) : undefined;
+// Merchant agents: each merchant plans its own day through NEAR AI (server/agents/planner.ts). One merchant every 15 s,
+// so all eight plan within a game day (4 real minutes). MERCHANT_AGENTS=0 turns it off; the merchants then keep their usual settings.
+const planner = ai && process.env.MERCHANT_AGENTS !== '0' ? createPlanner({ chat: ai, game, log: (m) => console.log(m) }) : undefined;
+const planTimer = planner ? setInterval(() => void planner.step(), 15_000) : undefined;
 const publicUrl = (process.env.PUBLIC_URL ?? `http://localhost:${port}`).replace(/\/+$/, '');
 const google = process.env.GOOGLE_CLIENT_ID?.trim() && process.env.GOOGLE_CLIENT_SECRET?.trim()
   ? createGoogle({ clientId: process.env.GOOGLE_CLIENT_ID.trim(), clientSecret: process.env.GOOGLE_CLIENT_SECRET.trim(), redirectUri: `${publicUrl}/auth/google/callback` })
@@ -143,6 +148,7 @@ async function shutdown(sig: string) {
   console.log(`${sig}: finishing the current settlement, saving the game, then stopping.`);
   clearInterval(ticker);
   if (daoTimer) clearInterval(daoTimer);
+  if (planTimer) clearInterval(planTimer);
   server.close();
   sync?.stop();
   await Promise.race([syncDone, new Promise((r) => setTimeout(r, 8_000))]);
@@ -152,6 +158,7 @@ async function shutdown(sig: string) {
 }
 for (const sig of ['SIGINT', 'SIGTERM'] as const) process.on(sig, () => void shutdown(sig));
 if (process.env.NEAR_AI_API_KEY) console.log('Merchant voice: on (NEAR AI Cloud).');
+if (planner) console.log('Merchant agents: on (each merchant plans its day through NEAR AI Cloud).');
 if (process.env.ELEVENLABS_API_KEY?.trim()) console.log('Spoken merchants: on (ElevenLabs).'); else console.log('Spoken merchants: using the browser voice (set ELEVENLABS_API_KEY for natural speech).');
 if (google) console.log('Sign-in: Continue with Google is on.');
 if (process.env.RESEND_API_KEY) console.log('Login links are emailed.'); else console.log('No RESEND_API_KEY: login links are printed here instead of emailed.');

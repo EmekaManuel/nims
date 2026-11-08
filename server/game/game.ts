@@ -7,13 +7,15 @@
  *
  * Nothing here knows about wallets, keys or gas, and nothing returned to a player mentions them.
  */
+import { samePlan, targetOf } from '../../sim/plan';
+import type { ChosenPlan, PlanFacts } from '../agents/planner';
 import { Activity, type ActivityJSON } from './activity';
 import { createHash } from 'node:crypto';
 import { makeRng } from '../../sim/rng';
 import { act, newPlayer } from '../../sim/players';
 import {
   activeShock, addNote, buyFromMerchant, buyShares, contributeToFund, gatherRate, merchantItems, openOwnerStall, ownerStallOf,
-  loadFare, playerWorth, merchantWorth, publicSharesLeft, quoteFor, sellShares, sellToMerchant, sharePrice, STALL_COST, STALL_MARKETS, tick, transferCoins, unitFare,
+  loadFare, playerWorth, merchantWorth, publicSharesLeft, quoteFor, recent, sellShares, sellToMerchant, sharePrice, STALL_COST, STALL_MARKETS, tick, transferCoins, unitFare,
 } from '../../sim/engine';
 import { clampPlayerPrice, MAX_MULT, MIN_MULT, type Personality } from '../../merchants/pricing';
 import type { VoiceFacts } from '../voice/voice';
@@ -904,6 +906,49 @@ export class Game {
     return { board: this.board.map(view), active: mine ? view(mine) : null };
   }
 
+  // ---- merchant agents (server/agents/planner.ts) ------------------------------------------
+
+  private today() { return Math.floor(this.w.hour / 24) + 1; }
+
+  /** Open town merchants whose plan was made before today, so the planner asks them next. Player stalls plan for themselves. */
+  merchantsToPlan(): string[] {
+    const day = this.today();
+    return this.w.merchants.filter((m) => !m.owner && m.state !== 'closed' && (m.plan?.day ?? 0) < day).map((m) => m.id);
+  }
+
+  /** What a merchant knows when it plans its day: its own books and the town around it. Nothing about any player. */
+  planFacts(merchantId: string): PlanFacts | null {
+    const m = this.w.merchants.find((x) => x.id === merchantId);
+    if (!m || m.owner) return null;
+    const c = this.w.council[m.market];
+    return {
+      id: m.id,
+      merchant: m.name,
+      personality: m.personality,
+      market: MARKETS[m.market].name,
+      day: this.today(),
+      cash: Math.round(m.cash),
+      cashFloor: m.cashFloor,
+      items: merchantItems(m).map((item) => {
+        const r = recent(m, item, this.w.hour);
+        return { item, stock: m.stock[item] ?? 0, usualStock: m.target[item] ?? 0, boughtByPlayers: r.bought, soldByPlayers: r.sold, price: Math.round(quoteFor(this.w, m, item).mid), usualPrice: BASE_PRICE[item] };
+      }),
+      shocks: this.w.shocks.filter((s) => s.startHour <= this.w.hour && this.w.hour < s.endHour).map((s) => (s.kind === 'festive season' ? 'festive season: everyone wants fabric' : s.kind === 'fuel queue' ? 'a fuel queue makes carrying goods dearer' : 'rain keeps people at home')),
+      rent: c.rent,
+      payout: c.payout,
+    };
+  }
+
+  /** A merchant's plan for today. The news hears about it when it changes how the merchant runs its business. */
+  applyPlan(merchantId: string, plan: ChosenPlan) {
+    const m = this.w.merchants.find((x) => x.id === merchantId);
+    if (!m || m.owner) return;
+    const next = { day: this.today(), stock: plan.stock, margin: plan.margin, reason: plan.reason };
+    const changed = !samePlan(m.plan, next) && !(m.plan === undefined && plan.margin === 'same' && Object.keys(plan.stock).length === 0);
+    m.plan = next;
+    if (changed) this.w.events.push({ hour: this.w.hour, type: 'plan', merchant: m.id, text: `${m.name}: "${plan.reason}"` });
+  }
+
   /** The facts a merchant's voice is written from: the same quote the tooltip uses. Player stalls speak for themselves, so they return null. */
   voiceFacts(email: string, merchantId: string, item: string): VoiceFacts | null {
     const m = this.w.merchants.find((x) => x.id === merchantId);
@@ -937,7 +982,7 @@ export class Game {
           willSell: q.willSell && m.state !== 'closed',
           stock: m.stock[item] ?? 0,
           /** How much they like to hold. The map draws crates from stock / target. */
-          target: m.target[item] ?? 0,
+          target: targetOf(m, item),
           why: q.tooltip,
         };
       }),
@@ -945,6 +990,7 @@ export class Game {
       /** Fund contributors who reopened this shop. Shown on its sign. */
       sign: m.sign.map((id) => this.names.get(id) ?? 'A trader'),
       owner: m.owner ? { name: m.ownerName ?? 'A trader', mine: m.owner === p.id } : undefined,
+      plan: !m.owner && m.plan ? { day: m.plan.day, reason: m.plan.reason, stock: m.plan.stock, margin: m.plan.margin } : undefined,
       shares: m.owner ? undefined : { price: sharePrice(m), left: publicSharesLeft(m), yours: m.shares[p.id] ?? 0, worth: Math.round(merchantWorth(m)) },
     }));
   }

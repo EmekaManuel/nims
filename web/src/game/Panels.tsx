@@ -120,6 +120,21 @@ function OrderSection({ stall, state, act }: { stall: Stall; state: GameState; a
   );
 }
 
+/** The merchant's plan for today: it decided this itself, each morning. */
+function PlanNote({ plan }: { plan: NonNullable<Stall['plan']> }) {
+  const chips = [
+    ...Object.entries(plan.stock).map(([item, c]) => `${c === 'more' ? 'Stocking up on' : 'Running down'} ${item}`),
+    ...(plan.margin === 'same' ? [] : [plan.margin === 'wider' ? 'Wider margins' : 'Keener prices']),
+  ];
+  return (
+    <div className="plannote" role="note" aria-label="Today's plan">
+      <span className="plannote-h">Today's plan</span>
+      <p>“{plan.reason}”</p>
+      {chips.length > 0 && <ul>{chips.map((c) => <li key={c}>{c}</li>)}</ul>}
+    </div>
+  );
+}
+
 export function StallPanel({ stall, state, act }: { stall: Stall; state: GameState; act: Actions }) {
   const services = useServices();
   const [qty, setQty] = useState(5);
@@ -135,6 +150,7 @@ export function StallPanel({ stall, state, act }: { stall: Stall; state: GameSta
         {mine ? 'This is your stall. Set prices and stock it from My business below.' : stall.owner ? `Run by ${stall.owner.name}. They set their own prices.` : BLURB[stall.personality]}
       </p>
       {stall.sign.length > 0 && <p className="signline">★ Reopened by the community fund: <b>{stall.sign.join(', ')}</b></p>}
+      {stall.plan && stall.state !== 'closed' && <PlanNote plan={stall.plan} />}
 
       {stall.state === 'closed' ? (
         <FundSection stall={stall} cash={state.you.cash} act={act} />

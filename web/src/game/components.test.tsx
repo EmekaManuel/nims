@@ -45,6 +45,20 @@ describe('map', () => {
 describe('stall panel', () => {
   const stall = state.stalls.find((s) => s.id === 'anil')!;
 
+  it("shows the merchant's own plan for the day, in its words, with what it changed", () => {
+    const planned = { ...stall, plan: { day: 3, reason: 'Iron is flooding in, so I am holding less of it.', stock: { iron: 'less' as const }, margin: 'wider' as const } };
+    render(<StallPanel stall={planned} state={withInv} act={act()} />);
+    const note = screen.getByRole('note', { name: /Today's plan/ });
+    expect(note.textContent).toMatch(/Iron is flooding in, so I am holding less of it\./);
+    expect(note.textContent).toMatch(/Running down iron/);
+    expect(note.textContent).toMatch(/Wider margins/);
+  });
+
+  it('shows no plan box when the merchant has not planned', () => {
+    render(<StallPanel stall={{ ...stall, plan: undefined }} state={withInv} act={act()} />);
+    expect(screen.queryByRole('note', { name: /Today's plan/ })).toBeNull();
+  });
+
   it("reveals the merchant's reasoning when a price is hovered or focused", () => {
     render(<StallPanel stall={stall} state={withInv} act={act()} />);
     const pays = document.querySelector('.offers .price:not(.off)')!;

@@ -2,7 +2,8 @@
  * Headless economy engine. Every price comes from merchants/pricing.ts —
  * there is deliberately no price logic in this file.
  */
-import { clampPlayerPrice, merchantState, PERSONALITY_PARAMS, playerQuote, quote, Quote } from '../merchants/pricing';
+import { clampPlayerPrice, merchantState, playerQuote, quote, Quote } from '../merchants/pricing';
+import { paramsOf, targetOf } from './plan';
 import { PAYOUT_RATE, RENT_MULT, resolveCouncils } from './council';
 import { BASE_PRICE, CARRY_VALUE, COINS, Item, MARKETS, MAX_PUBLIC_SHARES, Merchant, MarketId, PERISHABLE, Player, SHARES_TOTAL, ShockKind, Vehicle, VEHICLE_VALUE, World } from './world';
 
@@ -14,7 +15,7 @@ export const activeShock = (w: World, kind: ShockKind) =>
   w.shocks.find((s) => s.kind === kind && w.hour >= s.startHour && w.hour < s.endHour);
 
 /** Units bought/sold in the last WINDOW hours for one item. */
-function recent(m: Merchant, item: Item, hour: number) {
+export function recent(m: Merchant, item: Item, hour: number) {
   let bought = 0;
   let sold = 0;
   for (const e of m.memory) {
@@ -37,13 +38,13 @@ export function quoteFor(w: World, m: Merchant, item: Item, player?: Player): Qu
     itemName: item,
     basePrice: BASE_PRICE[item],
     stock: m.stock[item] ?? 0,
-    targetStock: m.target[item] ?? 0,
+    targetStock: targetOf(m, item),
     cash: m.cash,
     cashFloor: m.cashFloor,
     recentBuys: r.bought,
     recentSells: r.sold,
     window: WINDOW,
-    params: PERSONALITY_PARAMS[m.personality],
+    params: paramsOf(m),
     reputation: player?.reputation[m.id] ?? 0,
     shockMult: festive ? 1.5 : 1,
     shockNote: festive ? 'Festive season: everyone wants fabric right now.' : undefined,
@@ -253,7 +254,7 @@ function ambientTrade(w: World) {
         if (n) w.ledger.push({ hour: w.hour, kind: 'transfer', from: m.id, to: 'town', item, units: n });
       }
       // Restock from farms/wholesalers at a discount to base when running low.
-      if (!m.owner && (m.stock[item] ?? 0) < (m.target[item] ?? 0) * 0.85) {
+      if (!m.owner && (m.stock[item] ?? 0) < targetOf(m, item) * 0.85) {
         const unit = wholesaleUnit(item, quoteFor(w, m, item).mid);
         const n = Math.min(3, Math.floor(m.cash / unit));
         m.stock[item] = (m.stock[item] ?? 0) + n;
@@ -483,7 +484,7 @@ function agentTrade(w: World) {
         const qo = quoteFor(w, o, item);
         // The merchant buys from the stall when the stall undercuts what the merchant would charge,
         // and the merchant has room on its shelf and cash to spare.
-        if (qo.willSell && qo.sellPrice < q.mid * 0.95 && (m.stock[item] ?? 0) < (m.target[item] ?? 0) * 1.2) {
+        if (qo.willSell && qo.sellPrice < q.mid * 0.95 && (m.stock[item] ?? 0) < targetOf(m, item) * 1.2) {
           const n = Math.min(2, o.stock[item] ?? 0, Math.floor(Math.max(0, m.cash - m.cashFloor) / qo.sellPrice));
           if (n > 0) {
             o.stock[item] = (o.stock[item] ?? 0) - n;
@@ -496,8 +497,8 @@ function agentTrade(w: World) {
           }
         }
         // The merchant sells its surplus to the stall when the stall pays at least what the merchant would.
-        if (qo.willBuy && qo.buyPrice >= q.buyPrice && (m.stock[item] ?? 0) > (m.target[item] ?? 0)) {
-          const n = Math.min(2, (m.stock[item] ?? 0) - (m.target[item] ?? 0), Math.floor(o.cash / qo.buyPrice));
+        if (qo.willBuy && qo.buyPrice >= q.buyPrice && (m.stock[item] ?? 0) > targetOf(m, item)) {
+          const n = Math.min(2, (m.stock[item] ?? 0) - targetOf(m, item), Math.floor(o.cash / qo.buyPrice));
           if (n > 0) {
             m.stock[item] = (m.stock[item] ?? 0) - n;
             o.stock[item] = (o.stock[item] ?? 0) + n;

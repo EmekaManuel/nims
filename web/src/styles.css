@@ -563,3 +563,10 @@ th { font-size: .7rem; letter-spacing: .06em; text-transform: uppercase; color: 
 .town-foot { margin-top: 1.2rem; max-width: 60rem; }
 @media (max-width: 900px) { .town-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } .town-tiles .tile:last-child { grid-column: 1 / -1; } .town-cols { grid-template-columns: 1fr; } }
 @media (max-width: 480px) { .town h1 { font-size: 1.8rem; } .leaders li { grid-template-columns: 2rem minmax(0, 1fr) auto; } .leaders .holds { display: none; } }
+
+/* A merchant's own plan for the day, in its stall panel */
+.plannote { margin: .5rem 0 .2rem; padding: .55rem .75rem; border-left: 3px solid var(--accent); background: var(--accent-soft); border-radius: 0 10px 10px 0; }
+.plannote-h { font-size: .72rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--accent-deep); }
+.plannote p { margin: .15rem 0 0; font-style: italic; color: var(--ink); }
+.plannote ul { list-style: none; display: flex; flex-wrap: wrap; gap: .3rem; margin: .4rem 0 0; padding: 0; }
+.plannote li { font-size: .75rem; font-weight: 700; padding: .1rem .5rem; border-radius: 999px; background: var(--surface); color: var(--accent-deep); border: 1px solid #c9dcfb; }

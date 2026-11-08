@@ -8,7 +8,7 @@
 
 [Play it live](https://nims-app.up.railway.app) · [Demo video (132 s)](docs/nims-demo.mp4) · [Judge walk-through](docs/DEMO.md) · Contract: `oja-items.testnet`
 
-![NEAR testnet](https://img.shields.io/badge/NEAR-testnet-00ec97) ![NEP-245](https://img.shields.io/badge/items-NEP--245-blue) ![tests](https://img.shields.io/badge/tests-467%20passing-brightgreen) ![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)
+![NEAR testnet](https://img.shields.io/badge/NEAR-testnet-00ec97) ![NEP-245](https://img.shields.io/badge/items-NEP--245-blue) ![tests](https://img.shields.io/badge/tests-477%20passing-brightgreen) ![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)
 
 </div>
 
@@ -78,7 +78,8 @@ NEAR **testnet only**. No mainnet or real funds are used.
 6. Run low on coins with nothing to sell, then open **Deals** and its **Odd jobs** tab. See the scrap heap and merchants offering to pay you to fetch what they lack.
 7. Open the **News** tab. See the town gazette and the plain list of events.
 8. Open **Fast-forward** (or add `#sim` to the address, no login). See a simulated week as price and shop-cash charts, driven by the same pricing code as the live game.
-9. Open `/chain/status` on the live address. See the contract, the settlement namespace, and how far settlement has got.
+9. Open `/chain/status` on the live address. See the contract, the settlement namespace, and how far settlement has got. `behind` counts game ledger entries not yet on chain. Settlement works through the game in windows of 6 game hours (one real minute), widening up to 96 when it falls behind ([`chainsync.ts`](server/chain/chainsync.ts)), so `behind` rises and falls with each window instead of sitting at zero; `lastSettledAt` moving shows it is keeping up.
+10. Open `/stats` on the live address, or look under the sign-in form. See how many people have played, trades and players in the last 24 real hours, council votes passed and shops open. Counts only: no names or emails ([`server/game/activity.ts`](server/game/activity.ts)).
 
 **Locally:**
 
@@ -168,13 +169,19 @@ The [privacy policy](web/public/privacy.html) is served at `/privacy.html`. The 
 
 ## Fit to the track
 
-| Track asks for | Nims |
-|---|---|
-| NPCs with wallets | Eight merchant agents, each with its own NEAR account and its own signing |
-| Economy that evolves without a dev patch | Prices come from stock, cash and trades; shocks (rain, fuel queue, festive season) are random; shareholders vote to change the rules themselves |
-| Player-owned markets | Own a stall, hold shares in merchants, fund a closed shop back open, and vote on each market's rent and payout in the town council |
-| Players never notice the chain | Google or email login, no wallet, relayer pays gas; tests assert no API response mentions wallets, keys or gas |
-| NEP-245 | One multi-token contract holds every item and the coin token |
+Games With Real Economies asks for *"NPCs with wallets, player-owned markets and economies that evolve without a dev patch. Judged on the game loop, not the token; bonus if players never notice the chain"*, with the hints AGENT NPCS, SOCIAL LOGIN, NEAR INTENTS and NEP-245. Each line below names the code that does it, the test that checks it, and what to try on the live game.
+
+| The track asks for | In Nims | Code | Checked by | Try it |
+|---|---|---|---|---|
+| **NPCs with wallets** | 8 merchant agents, each with its own NEAR account, cash and stock. Each signs only its own transfers, and reviews a batch against what it holds before signing | [`server/chain/rounds.ts`](server/chain/rounds.ts), [`merchants/agents/agent.ts`](merchants/agents/agent.ts), [`sim/world.ts`](sim/world.ts) | [`rounds.test.ts`](server/chain/rounds.test.ts): a whole simulated week settles with every signer paying its own transfers. [`agent.test.ts`](merchants/agents/agent.test.ts): a merchant refuses transfers it cannot cover | Open `/chain/status`: the settlement namespace and how far it has got |
+| **AGENT NPCS** | Merchants set their own prices from stock, cash and recent trades, with a personality (cautious, greedy, loyal). They haggle, and explain a price in their own words through NEAR AI Cloud; a line is used only if every number in it is the game's | [`merchants/pricing.ts`](merchants/pricing.ts), [`server/voice/voice.ts`](server/voice/voice.ts) | [`pricing.test.ts`](merchants/pricing.test.ts); [`voice.test.ts`](server/voice/voice.test.ts): a line with an invented number is rejected | Hover a price at **Lena's Textiles**, sound on |
+| **Player-owned markets** | Buy up to 49% of a merchant and share its profit each evening; open your own stall and set its prices; pay into a community fund to reopen a closed shop and own part of it | [`sim/engine.ts`](sim/engine.ts), [`server/game/game.ts`](server/game/game.ts) | [`ownership.test.ts`](sim/ownership.test.ts): shares, dividends, funds and player stalls; a round trip on shares makes no coins | In a stall panel's shares section, **Buy**; or open **My business** |
+| **Economies that evolve without a dev patch** | Prices come from supply and demand; shocks (rain, fuel queue, festive season) arrive at random; shareholders vote on each market's rent and profit payout, and a passing vote changes how the economy runs from the next day | [`sim/council.ts`](sim/council.ts), [`sim/engine.ts`](sim/engine.ts) | [`council.test.ts`](sim/council.test.ts), [`server/game/council.test.ts`](server/game/council.test.ts); [`guild.test.ts`](sim/guild.test.ts): 120 simulated days with stores staying open; [`fastforward.test.ts`](sim/fastforward.test.ts): a flooder crashes iron | **My business → Town council**; **Fast-forward** for a simulated week |
+| **Judged on the game loop** | Collect at a farm, scrap spot or wholesaler; haul to the market that pays most after the fare; sell, haggle or post a delivery order; invest; vote. Ranks and a 10,000-coin goal, odd jobs when you are broke | [`server/game/game.ts`](server/game/game.ts), [`web/src/game/`](web/src/game/) | [`game.test.ts`](server/game/game.test.ts), [`economy.test.ts`](sim/economy.test.ts), [`recovery.test.ts`](server/game/recovery.test.ts); `npm run balance` times the goal | The **Try it** steps above |
+| **Players never notice the chain** | Sign in with Google or an emailed link. No wallet, seed phrase or gas prompt: a relayer pays through NEP-366 delegate actions, and trades apply at once and settle in the background | [`server/http/google.ts`](server/http/google.ts), [`server/chain/relayer.ts`](server/chain/relayer.ts), [`server/chain/chainsync.ts`](server/chain/chainsync.ts) | [`api.test.ts`](server/http/api.test.ts) and [`game.test.ts`](server/game/game.test.ts): no API response or game state mentions wallets, keys, gas or signatures | Sign in on the live game: no popup at any point |
+| **SOCIAL LOGIN** | Continue with Google, matched to the same account as the emailed link by the verified email | [`server/http/google.ts`](server/http/google.ts) | [`Login.test.tsx`](web/src/game/Login.test.tsx) | **Continue with Google** on the sign-in screen |
+| **NEP-245** | One multi-token contract holds every good and the `coins` token: `mt_transfer`, `mt_batch_transfer`, balances and supply, `nep245` events, plus idempotent `batch_mint` and `send_many` | [`contracts/items/src/lib.rs`](contracts/items/src/lib.rs), deployed as `oja-items.testnet` | 18 contract tests (`npm run contract:test`) | `oja-items.testnet` on a testnet explorer |
+| **NEAR INTENTS** | Partly. Delivery orders take Intents' shape (state the goods and the lowest price you will take; a solver fills it when the price allows), but the solver runs inside the game, not on the Intents network, which has no testnet | [`server/game/game.ts`](server/game/game.ts) (`placeOrder`, `fillOrders`) | [`game.test.ts`](server/game/game.test.ts): *delivery orders (intents)* | **Place order** in a stall panel |
 
 ## What is real, and what is not
 
@@ -197,8 +204,8 @@ The [privacy policy](web/public/privacy.html) is served at `/privacy.html`. The 
 ## Tests and chain verification
 
 ```bash
-npm test               # economy, pricing, server, API, chain  (284 tests)
-npm run test:web       # the UI against real game state, 3D walkways, the 3D speed check  (183 tests)
+npm test               # economy, pricing, server, API, chain  (290 tests)
+npm run test:web       # the UI against real game state, 3D walkways, the 3D speed check  (187 tests)
 npm run contract:test  # the NEP-245 contract  (18 tests, needs Rust)
 ```
 

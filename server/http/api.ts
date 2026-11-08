@@ -204,6 +204,13 @@ export function createApp(d: AppDeps) {
       return send(res, 200, d.chainStatus ? d.chainStatus() : { enabled: false });
     }
 
+    // Public and read-only: how busy the town is. Counts only, never a name or an email.
+    if (req.method === 'GET' && url.pathname === '/stats') {
+      if (!d.game) return send(res, 200, { enabled: false });
+      const c = (d.chainStatus?.() ?? null) as { epoch?: number; behind?: number; lastSettledAt?: string | null; contract?: string } | null;
+      return send(res, 200, { ...d.game.publicStats(), chain: c ? { contract: c.contract, epoch: c.epoch, behind: c.behind, lastSettledAt: c.lastSettledAt } : null });
+    }
+
     // Open to everyone, no login: it touches no player data and starts its own fresh world.
     if (req.method === 'POST' && url.pathname === '/sim/fastforward') {
       const params = sanitize(await readJson(req));

@@ -219,6 +219,36 @@ describe('ownership routes', () => {
 });
 
 
+describe('public stats', () => {
+  it('needs no login, counts what people did, and names nobody', async () => {
+    const { Game } = await import('../game/game');
+    server.close();
+    const a2 = createApp({
+      auth: new Auth(randomHex(32)),
+      store: new AccountStore(join(mkdtempSync(join(tmpdir(), 'oja-stats-')), 'a.json'), 'oja.testnet', randomHex(32)),
+      chain: { createPlayerAccount: async () => {}, transferItem: async () => {}, itemBalance: async () => 0 },
+      mailer: { sendLoginLink: async (_e, link) => void links.push(link) },
+      baseUrl: 'http://localhost:0',
+      merchantParent: 'run.oja.testnet',
+      game: new Game(3),
+    });
+    server = await a2.listen(0);
+    base = `http://localhost:${(server.address() as { port: number }).port}`;
+    const cookie = await login();
+    await post('/game/gather', { item: 'tomatoes' }, cookie);
+    await post('/game/sell', { merchant: 'mira', item: 'tomatoes', units: 1 }, cookie);
+    const r = await fetch(`${base}/stats`);
+    expect(r.status).toBe(200);
+    const body = await r.text();
+    const s = JSON.parse(body);
+    expect(s.players).toBeGreaterThanOrEqual(1);
+    expect(s.last24h.players).toBeGreaterThanOrEqual(1);
+    expect(s.shops.total).toBe(8);
+    expect(body).not.toMatch(/@|example\.com/);
+    expect(body).not.toMatch(WALLET_WORDS);
+  });
+});
+
 describe('fast-forward route', () => {
   it('needs no login, clamps hostile input, and caches identical runs', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'oja-api4-'));

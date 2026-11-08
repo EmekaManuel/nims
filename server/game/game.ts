@@ -7,6 +7,7 @@
  *
  * Nothing here knows about wallets, keys or gas, and nothing returned to a player mentions them.
  */
+import { Activity, type ActivityJSON } from './activity';
 import { createHash } from 'node:crypto';
 import { makeRng } from '../../sim/rng';
 import { act, newPlayer } from '../../sim/players';
@@ -129,6 +130,8 @@ export class Game {
   private scavenged = new Map<string, number>();
   /** email -> hour of the last delivered job. */
   private jobDone = new Map<string, number>();
+  /** What real people have been doing, in real time, for /stats. Counts and opaque ids only. */
+  activity = new Activity();
   /** player id -> the name shown on signs and stalls. */
   private names = new Map<string, string>([['npc-investor', 'The Community Fund']]);
 
@@ -177,6 +180,7 @@ export class Game {
       nextJobId: this.nextJobId,
       scavenged: [...this.scavenged],
       jobDone: [...this.jobDone],
+      activity: this.activity.toJSON(),
     };
   }
 
@@ -210,6 +214,7 @@ export class Game {
     g.nextJobId = j.nextJobId ?? 1;
     g.scavenged = new Map(j.scavenged ?? []);
     g.jobDone = new Map(j.jobDone ?? []);
+    g.activity = Activity.from((snap as { activity?: ActivityJSON }).activity);
     return g;
   }
 
@@ -248,7 +253,9 @@ export class Game {
 
   /** Advance one in-game hour (server/main.ts calls this on a timer). */
   tickOnce() {
+    const seenEvents = this.w.events.length;
     tick(this.w, act);
+    for (const e of this.w.events.slice(seenEvents)) if (e.type === 'council' && e.decision) this.activity.decision(e.decision.passed);
     // A live game runs for days: keep only the recent past so memory and save files stay small.
     if (this.w.history.length > HISTORY_KEEP) this.w.history.splice(0, this.w.history.length - HISTORY_KEEP);
     this.trimLedger();
@@ -573,6 +580,7 @@ export class Game {
     this.prog(email).marketsSold.add(m.market);
     this.checkDone(email);
     this.tellOwner(m, p, `bought ${sold} ${item} from`, `sold you`, sold, item, 'sell');
+    this.activity.trade(p.id);
     return this.withHaggle(ok(`Sold ${sold} ${item} to ${m.name}.${haggle ? ` You haggled a ${Math.round((mult - 1) * 100)}% better price.` : ''}${fareTaken > 0 ? ` The fare for the trip (${fareTaken} coins) came out of the sale.` : ''}${(p.fareOwed ?? 0) > 0 ? ` You still owe ${p.fareOwed} coins for the trip.` : ''}`), haggle, m);
   }
 
@@ -594,6 +602,7 @@ export class Game {
     if (bought === 0) return fail(`You could not buy any ${item} (out of stock, or not enough cash).`);
     if (haggle) this.lastHaggle.set(email, { id: m.id, merchant: m.name, personality: m.personality, item, side: 'bought', units: bought, usual: q.sellPrice, deal: Math.round(q.sellPrice / mult), pct: Math.round((mult - 1) * 100) });
     this.tellOwner(m, p, '', '', bought, item, 'buy');
+    this.activity.trade(p.id);
     return this.withHaggle(ok(`Bought ${bought} ${item} from ${m.name}.`), haggle, m);
   }
 
@@ -633,6 +642,7 @@ export class Game {
     const r = buyShares(this.w, p, m, n);
     if ('error' in r) return fail(r.error);
     this.checkDone(email);
+    this.activity.trade(p.id);
     return ok(`You bought ${n} shares in ${m.name} for ${r.cost} coins. You'll share in their profit each evening.`);
   }
 
@@ -642,6 +652,7 @@ export class Game {
     if (!m) return fail('No such stall.');
     const r = sellShares(this.w, p, m, n);
     if ('error' in r) return fail(r.error);
+    this.activity.trade(p.id);
     return ok(`You sold ${n} shares in ${m.name} for ${r.proceeds} coins.`);
   }
 
@@ -652,6 +663,7 @@ export class Game {
     const p = this.playerFor(email);
     const r = propose(this.w, p, this.names.get(p.id) ?? 'A shareholder', market as MarketId, lever as Lever, to);
     if ('error' in r) return fail(r.error);
+    this.activity.vote(p.id);
     return ok(`You put it to the ${MARKETS[market as MarketId].name} council. The vote closes this evening at the latest after ${MIN_VOTING_HOURS} hours.`);
   }
 
@@ -659,6 +671,7 @@ export class Game {
     const p = this.playerFor(email);
     const r = vote(this.w, p, market as MarketId, yes);
     if ('error' in r) return fail(r.error);
+    this.activity.vote(p.id);
     return ok(`You voted ${yes ? 'for' : 'against'}. It counts for the shares you hold in that market.`);
   }
 
@@ -907,10 +920,25 @@ export class Game {
     }));
   }
 
+  /**
+   * Public numbers for the sign-in screen and /stats: no names, no emails, nothing about any one player.
+   * Activity is in real time; the town's own day count is game time.
+   */
+  publicStats() {
+    const open = this.w.merchants.filter((m) => !m.owner && m.state !== 'closed').length;
+    return {
+      ...this.activity.summary(),
+      players: this.humans.size,
+      day: Math.floor(this.w.hour / 24) + 1,
+      shops: { open, total: this.w.merchants.filter((m) => !m.owner).length, playerStalls: this.w.merchants.filter((m) => m.owner).length },
+    };
+  }
+
   /** Everything the UI needs, including each merchant's own reasoning for every price. */
   state(email: string) {
     const w = this.w;
     const p = this.playerFor(email);
+    this.activity.seen(p.id);
     const raw = this.stallViews(p);
     // Flag, per item, which stall pays the most and which charges the least.
     const bestPay: Partial<Record<Item, number>> = {};

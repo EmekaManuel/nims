@@ -497,6 +497,35 @@ describe('ChainSync under every kind of play', () => {
   });
 });
 
+describe('ChainSync: reproducing the gatherer "Not enough balance" reset (retries with real time passing)', () => {
+  it.each([1, 2, 3, 4, 5, 6, 7, 8])('a slow settlement phase, with real gameplay advancing between retries, never leaves a gatherer short (seed %i)', async (seed) => {
+    const { game, chain, sync, logs } = setup({ game: new Game(seed) }); // NPCs only: gatherers, arbitrageur, investor
+    for (let h = 0; h < 400; h++) game.tickOnce(); // gather/sell cycles before anything settles
+    await sync.step(); // epoch 1
+    for (let h = 0; h < 400; h++) game.tickOnce(); // a backlog, so the chunk window is wide too
+    game.w.hour += 100; // close the window
+
+    // Transient faults scattered through the chunk, including late ones (production failed as late as
+    // call 16 of 18); each retry is preceded by a bounded burst of real gameplay, unlike an instant retry -
+    // matching what "slow or busy, will retry" actually looks like: tens of seconds of backoff, during
+    // which the game ticks on regardless.
+    for (const nth of [2, 8, 15, 25, 40, 60]) chain.faults.push({ op: 'send', nth, error: new Error('429 Rate limits exceeded') });
+
+    for (let i = 0; i < 400; i++) {
+      const r = await sync.step();
+      if (r === 'paused') throw new Error('paused');
+      if (r === 'retry') for (let h = 0; h < 6; h++) game.tickOnce();
+      if (r === 'idle') break;
+    }
+    await drain(game, sync);
+
+    const rejected = logs.filter((l) => /rejected/.test(l));
+    if (rejected.length) console.log(`seed ${seed}:\n` + logs.filter((l) => /^Chain:/.test(l)).join('\n'));
+    expect(rejected).toEqual([]);
+    expect((await sync.verify()).mismatches).toEqual([]);
+  });
+});
+
 describe('ChainSync: long-running soak (hunting the production "Not enough balance" reset cascade)', () => {
   it('runs thousands of hours with heavy trade and a settlement backlog, and the chain never rejects a planned send', async () => {
     const { game, chain, sync, logs } = setup({ game: new Game(7) });

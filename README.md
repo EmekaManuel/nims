@@ -6,7 +6,7 @@
 
 **A market town where every trader is an AI agent with its own money, its own stock and its own pricing.**
 
-[Play it live](https://nims-app.up.railway.app) · [Demo video (143 s)](docs/nims-demo.mp4) · [Judge walk-through](docs/DEMO.md) · Contract: `oja-items.testnet`
+[Play it live](https://nims-app.up.railway.app) · [Demo video (143 s)](docs/nims-demo.mp4) · [New places (47 s)](docs/nims-new-places.mp4) · [Judge walk-through](docs/DEMO.md) · Contract: `oja-items.testnet`
 
 ![NEAR testnet](https://img.shields.io/badge/NEAR-testnet-00ec97) ![NEP-245](https://img.shields.io/badge/items-NEP--245-blue) ![tests](https://img.shields.io/badge/tests-559%20passing-brightgreen) ![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)
 
@@ -53,6 +53,19 @@ The chain is invisible: continue with Google or play as a guest in one press, no
 </tr>
 <tr>
 <td colspan="2"><img src="docs/img/fastforward.jpg" alt="Fast-forward week: prices, shop cash and traders over seven days" /><br /><sub><b>Fast-forward a week.</b> The same economy, run headless and replayed: a flooder crashes iron to 30% of its usual price, every shop stays open, shareholders are paid each evening.</sub></td>
+</tr>
+</table>
+
+**Beyond the town.** Saltmere Harbour and the three frontiers, drawn from the real game ([47-second video](docs/nims-new-places.mp4)):
+
+<table>
+<tr>
+<td width="50%"><img src="docs/img/places/saltmere-harbour.png" alt="Saltmere Harbour in 3D: three merchants, fish and salt, boats on the water" /></td>
+<td width="50%"><img src="docs/img/places/timberfell-woods.png" alt="Timberfell Woods: player shops on bought land, plots for sale" /></td>
+</tr>
+<tr>
+<td width="50%"><img src="docs/img/places/gem-hollow.png" alt="Gem Hollow: a gem seam and a player's pick shop" /></td>
+<td width="50%"><img src="docs/img/places/sunvale.png" alt="Sunvale: a vineyard and a player's wine shop" /></td>
 </tr>
 </table>
 

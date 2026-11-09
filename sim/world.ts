@@ -75,6 +75,8 @@ export interface MemoryEntry {
   /** 'bought' = a player bought from the merchant; 'sold' = a player sold to the merchant. */
   kind: 'bought' | 'sold';
   units: number;
+  /** Who did it, when it was a real player (not another merchant trading on its own account). */
+  by?: string;
 }
 
 export interface Merchant {

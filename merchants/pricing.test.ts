@@ -63,6 +63,20 @@ describe('pricing', () => {
     expect(regular.buyPrice).toBeGreaterThan(stranger.buyPrice);
   });
 
+  it('merchants who feel played off each other hold firmer prices both ways', () => {
+    const trusted = quote({ ...base, wary: 0 });
+    const wary = quote({ ...base, wary: 1 });
+    expect(wary.buyPrice).toBeLessThan(trusted.buyPrice); // pays you less for what you sell
+    expect(wary.sellPrice).toBeGreaterThan(trusted.sellPrice); // charges you more for what you buy
+    expect(wary.tooltip).toContain('playing us off each other');
+  });
+
+  it('wariness and loyalty both apply, but loyalty still helps a wary regular', () => {
+    const wary = quote({ ...base, wary: 1, reputation: 0 });
+    const waryRegular = quote({ ...base, wary: 1, reputation: 1 });
+    expect(waryRegular.buyPrice).toBeGreaterThan(wary.buyPrice);
+  });
+
   it('explains itself in plain English', () => {
     const q = quote({ ...base, stock: 140, targetStock: 50 });
     expect(q.tooltip).toContain('holding 140 iron');

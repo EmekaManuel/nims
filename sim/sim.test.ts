@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { act, newPlayer } from './players';
-import { contributeToFund, quoteFor, refreshState, tick } from './engine';
+import { contributeToFund, quoteFor, refreshState, sellToMerchant, tick, WARY_WINDOW } from './engine';
 import { runWeek } from './run';
 import { createWorld } from './world';
 
@@ -44,5 +44,64 @@ describe('Milestone 1 exit test', () => {
     expect(Date.now() - t).toBeLessThan(30_000);
     expect(a.history.length).toBe(168);
     expect(a.history[167].prices).toEqual(b.history[167].prices);
+  });
+});
+
+describe('merchants notice being played off each other', () => {
+  // anil, ruth and diego (Scrap & Hardware) all carry iron, so a shopper can play any two off against the third.
+  const scrapTrio = (w: ReturnType<typeof createWorld>) => w.merchants.filter((m) => m.market === 'scrap' && !m.owner);
+
+  it('selling the same good to two of them shows up as a worse price at a third', () => {
+    const p = newPlayer('shopper', 'human', 10_000);
+    const w = createWorld(4, [p]);
+    const [a, b, c] = scrapTrio(w);
+    p.inventory.iron = 10;
+    const before = quoteFor(w, c, 'iron', p).buyPrice;
+    sellToMerchant(w, p, a, 'iron', 1);
+    sellToMerchant(w, p, b, 'iron', 1);
+    const after = quoteFor(w, c, 'iron', p).buyPrice;
+    expect(after).toBeLessThan(before);
+  });
+
+  it('selling to only one other merchant is half as wary as selling to two', () => {
+    const p = newPlayer('shopper', 'human', 10_000);
+    const w = createWorld(4, [p]);
+    const [a, b, c] = scrapTrio(w);
+    p.inventory.iron = 10;
+    const none = quoteFor(w, c, 'iron', p).buyPrice;
+    sellToMerchant(w, p, a, 'iron', 1);
+    const one = quoteFor(w, c, 'iron', p).buyPrice;
+    sellToMerchant(w, p, b, 'iron', 1);
+    const two = quoteFor(w, c, 'iron', p).buyPrice;
+    expect(one).toBeLessThan(none);
+    expect(two).toBeLessThan(one);
+  });
+
+  it('never touches a different player or a different good', () => {
+    const p = newPlayer('shopper', 'human', 10_000);
+    const innocent = newPlayer('bystander', 'human', 10_000);
+    const w = createWorld(4, [p, innocent]);
+    const [a, b, c] = scrapTrio(w);
+    p.inventory.iron = 10;
+    p.inventory.timber = 10;
+    const baseline = quoteFor(w, c, 'iron', innocent).buyPrice;
+    const otherGood = quoteFor(w, c, 'timber', p).buyPrice;
+    sellToMerchant(w, p, a, 'iron', 1);
+    sellToMerchant(w, p, b, 'iron', 1);
+    expect(quoteFor(w, c, 'iron', innocent).buyPrice).toBe(baseline); // the bystander isn't tarred by it
+    expect(quoteFor(w, c, 'timber', p).buyPrice).toBe(otherGood); // nor is a good the shopper never moved around
+  });
+
+  it('fades once the shopping-around is outside the window', () => {
+    const p = newPlayer('shopper', 'human', 10_000);
+    const w = createWorld(4, [p]);
+    const [a, b, c] = scrapTrio(w);
+    p.inventory.iron = 10;
+    const before = quoteFor(w, c, 'iron', p).buyPrice;
+    sellToMerchant(w, p, a, 'iron', 1);
+    sellToMerchant(w, p, b, 'iron', 1);
+    expect(quoteFor(w, c, 'iron', p).buyPrice).toBeLessThan(before);
+    w.hour += WARY_WINDOW;
+    expect(quoteFor(w, c, 'iron', p).buyPrice).toBe(before);
   });
 });

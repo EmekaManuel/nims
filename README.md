@@ -8,7 +8,7 @@
 
 [Play it live](https://nims-app.up.railway.app) · [Demo video (143 s)](docs/nims-demo.mp4) · [New places (47 s)](docs/nims-new-places.mp4) · [Judge walk-through](docs/DEMO.md) · Contract: `oja-items.testnet`
 
-![NEAR testnet](https://img.shields.io/badge/NEAR-testnet-00ec97) ![NEP-245](https://img.shields.io/badge/items-NEP--245-blue) ![tests](https://img.shields.io/badge/tests-567%20passing-brightgreen) ![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)
+![NEAR testnet](https://img.shields.io/badge/NEAR-testnet-00ec97) ![NEP-245](https://img.shields.io/badge/items-NEP--245-blue) ![tests](https://img.shields.io/badge/tests-581%20passing-brightgreen) ![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)
 
 </div>
 
@@ -21,6 +21,7 @@ Game economies are usually scripts: prices follow a table, NPCs trade nothing, a
 - **Eight merchant agents** each hold their own goods and coins, and set their own prices from their stock, their cash and what was traded recently. **Each morning every merchant plans its own day through NEAR AI Cloud:** told its real books and the town around it, it decides which goods to stock up on or run down and whether to price keener or wider, and says why (from a live run: *"I am stocking up on 49 pepper while the price is low at 147 coins to prepare for the festive season crowds."*). The game turns those choices into small, bounded adjustments, so a merchant steers its business but can never break the economy.
 - **Prices explain themselves, out loud.** Hover a price and the merchant says why, in their own voice: *"It is the festive season and everyone wants fabric right now."* The words come from **NEAR AI Cloud**, checked against the game's real numbers, and are spoken with ElevenLabs.
 - **Merchants talk back.** Haggle once an hour and the merchant answers in character (cautious, greedy or loyal), and the town gazette prints what really happened: dividends, a merchant that stopped buying, a week of rain.
+- **Merchants notice being played off each other.** Sell the same good to two different merchants in a market within a few hours, and a third one there holds firmer prices with you specifically — both paying you less and charging you more — and says so: *"Word's got round that you're playing us off each other on iron, so we're holding firmer prices for now."* It fades once you stop; it never touches another player, a different good, or a merchant you haven't shopped around on. Code: `shoppedAroundWith` in [`sim/engine.ts`](sim/engine.ts), the `wary` term in [`merchants/pricing.ts`](merchants/pricing.ts).
 - **Players move markets.** Flooding one good crashes its price for everyone. A merchant that runs out of cash and stock closes; a community fund can reopen it. Carrying goods to another market costs a fare that is a small share of what they are worth (3% of the usual price), cheaper in a pickup or a van.
 - **Players own parts of the economy.** Buy up to 49% of a merchant for a share of its nightly profit, or open a stall and set your own prices. A purchase is priced on the merchant after your money is in its till, so buying and selling straight back is a wash and nobody can make coins by moving the price. Dividends go only to shares held since the day began.
 - **Stores stay in business.** Wholesalers charge relative to the going price (they used to charge a fixed amount, which bankrupted every merchant whose goods gatherers kept cheap). Merchants spend surplus cash on upkeep each evening, so a share stays at a price a new player can reach however long the town has been running, and that upkeep is shared out to merchants that are running low (the merchants' guild). A test runs the town for 120 simulated days and checks that no store is closed more than 2% of the time or low on cash more than 5% of it ([`sim/guild.test.ts`](sim/guild.test.ts)).
@@ -257,6 +258,7 @@ Games With Real Economies asks for *"NPCs with wallets, player-owned markets and
 **Built and tested** (unit tests, and the council record and Town Clerk also run once against testnet):
 
 - The merchant agents: pricing from stock, cash and recent trades, and each merchant's daily plan through NEAR AI Cloud, kept within fixed bounds.
+- Merchants going wary of a player who shops the same good around the market, scoped to that player and that good, and fading after a few hours.
 - Prices that explain themselves (NEAR AI Cloud and ElevenLabs, with the plain line when either is off), haggling, and the town gazette.
 - Markets players can move: flooding, closures, community funds that reopen a merchant, fares and freight.
 - Ownership: shares (up to 49%) with nightly dividends, player stalls, and the fare, share-price, dividend and store-cash fixes, and the merchants' guild.
@@ -285,7 +287,7 @@ Games With Real Economies asks for *"NPCs with wallets, player-owned markets and
 ## Tests and chain verification
 
 ```bash
-npm test               # economy, pricing, server, API, chain, merchant agents, names  (350 tests)
+npm test               # economy, pricing, server, API, chain, merchant agents, names  (364 tests)
 npm run test:web       # the UI against real game state, 3D walkways, the 3D speed check, the town board, merchants' plans  (217 tests)
 npm run contract:test  # the NEP-245 contract  (18 tests, needs Rust)
 ```

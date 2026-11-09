@@ -26,6 +26,23 @@ export function recent(m: Merchant, item: Item, hour: number) {
   return { bought, sold };
 }
 
+/** How recently a round of shopping the same item around counts against a player (DESIGN.md §3). */
+export const WARY_WINDOW = 8;
+
+/**
+ * How many OTHER merchants in `m`'s market this player has sold `item` to in the last WARY_WINDOW
+ * hours. Two or more means the merchants here have genuinely been played off each other, not just
+ * sold to twice by chance - that's what the formula calls fully wary (see quoteFor).
+ */
+function shoppedAroundWith(w: World, m: Merchant, item: Item, playerId: string, hour: number): number {
+  const others = new Set<string>();
+  for (const o of w.merchants) {
+    if (o.id === m.id || o.market !== m.market || o.owner) continue;
+    if (o.memory.some((e) => e.kind === 'sold' && e.item === item && e.by === playerId && hour - e.hour < WARY_WINDOW)) others.add(o.id);
+  }
+  return others.size;
+}
+
 /** The merchant's current quote for an item. This is the single call site of pricing.quote. */
 export function quoteFor(w: World, m: Merchant, item: Item, player?: Player): Quote {
   if (m.owner) {
@@ -46,6 +63,7 @@ export function quoteFor(w: World, m: Merchant, item: Item, player?: Player): Qu
     window: WINDOW,
     params: paramsOf(m),
     reputation: player?.reputation[m.id] ?? 0,
+    wary: player ? Math.min(1, shoppedAroundWith(w, m, item, player.id, w.hour) / 2) : 0,
     shockMult: festive ? 1.5 : 1,
     shockNote: festive ? 'Festive season: everyone wants fabric right now.' : undefined,
   });
@@ -81,7 +99,7 @@ export function sellToMerchant(w: World, p: Player, m: Merchant, item: Item, uni
     transferCoins(w, m, p, price);
     m.stock[item] = (m.stock[item] ?? 0) + 1;
     p.inventory[item] = (p.inventory[item] ?? 0) - 1;
-    m.memory.push({ hour: w.hour, item, kind: 'sold', units: 1 });
+    m.memory.push({ hour: w.hour, item, kind: 'sold', units: 1, by: p.id });
     w.ledger.push({ hour: w.hour, kind: 'transfer', from: p.id, to: m.id, item, units: 1 });
     done++;
   }
@@ -100,7 +118,7 @@ export function buyFromMerchant(w: World, p: Player, m: Merchant, item: Item, un
     transferCoins(w, p, m, price);
     m.stock[item] = (m.stock[item] ?? 0) - 1;
     p.inventory[item] = (p.inventory[item] ?? 0) + 1;
-    m.memory.push({ hour: w.hour, item, kind: 'bought', units: 1 });
+    m.memory.push({ hour: w.hour, item, kind: 'bought', units: 1, by: p.id });
     w.ledger.push({ hour: w.hour, kind: 'transfer', from: m.id, to: p.id, item, units: 1 });
     done++;
   }

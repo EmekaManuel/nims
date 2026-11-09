@@ -45,6 +45,8 @@ export const PERSONALITY_PARAMS: Record<Personality, PricingParams> = {
 /** Price band: mid never leaves [basePrice*minMult, basePrice*maxMult]. */
 export const MIN_MULT = 0.3;
 export const MAX_MULT = 3;
+/** How much wider a margin gets at full wariness (both sides: a worse buyPrice and a worse sellPrice). */
+export const WARY_MAX = 0.6;
 
 export interface QuoteInput {
   itemName: string;
@@ -65,6 +67,8 @@ export interface QuoteInput {
   params: PricingParams;
   /** 0..1 player reputation with this merchant (only matters for loyal). */
   reputation?: number;
+  /** 0..1 — how much this market's merchants have noticed this player shopping the same item around between them recently. */
+  wary?: number;
   /** Shock multiplier on demand for this item at this merchant (1 = no shock). */
   shockMult?: number;
   /** Shock label for the tooltip, if any. */
@@ -124,10 +128,12 @@ export function quote(i: QuoteInput): Quote {
   if (rawMid < lo) reasons.push(`I won't go below ${coins(lo)} no matter what.`);
   if (rawMid > hi) reasons.push(`I won't go above ${coins(hi)} no matter what.`);
 
-  // 4. Margin (reputation shaves it for loyal merchants).
+  // 4. Margin (reputation shaves it for loyal merchants; being shopped around between merchants widens it).
   const rep = clamp(i.reputation ?? 0, 0, 1);
-  const margin = p.margin * (1 - p.loyalty * rep);
+  const wary = clamp(i.wary ?? 0, 0, 1);
+  const margin = p.margin * (1 - p.loyalty * rep) * (1 + WARY_MAX * wary);
   if (p.loyalty > 0 && rep > 0) reasons.push(`You're a regular, so I'm trimming my margin.`);
+  if (wary > 0.3) reasons.push(`Word's got round that you're playing us off each other on ${i.itemName}, so we're holding firmer prices for now.`);
 
   const buyPrice = Math.max(1, Math.round(mid * (1 - margin)));
   const sellPrice = Math.max(buyPrice + 1, Math.round(mid * (1 + margin)));

@@ -12,7 +12,7 @@
  * Daily rewards are in real days (UTC), not game days: come back on consecutive days and the reward grows, up to a
  * cap. Missing a day starts the streak again.
  */
-import type { Item, MarketId } from '../../sim/world';
+import { REALMS, type Item, type MarketId, type RealmId } from '../../sim/world';
 
 export type QuestEvent =
   | { kind: 'collect'; item: Item; units: number }
@@ -23,7 +23,9 @@ export type QuestEvent =
   | { kind: 'upgrade' }
   | { kind: 'job' }
   | { kind: 'order' }
-  | { kind: 'travel'; to: MarketId; realm: string };
+  | { kind: 'travel'; to: MarketId; realm: string }
+  | { kind: 'land' }
+  | { kind: 'build' };
 
 export interface Objective {
   /** What counts. */
@@ -36,11 +38,13 @@ export interface Objective {
   realm?: string;
   haggled?: boolean;
   distinct?: 'market';
+  /** travel: any of the unexplored frontiers. */
+  frontier?: boolean;
 }
 
 export interface QuestDef {
   id: string;
-  chain: 'starter' | 'realm';
+  chain: 'starter' | 'realm' | 'frontier';
   title: string;
   /** One or two sentences: why the town is asking. */
   story: string;
@@ -73,6 +77,14 @@ export const QUESTS: QuestDef[] = [
     objectives: [{ on: 'sell', target: 10, market: 'harbour', label: 'Sell 10 units at Saltmere Harbour' }], reward: 400, after: 'beyond-the-hills' },
   { id: 'spice-road', chain: 'realm', title: 'The spice road', story: 'The town has no spice of its own. Buy it at the harbour, carry it home, and sell it in the Produce Market.',
     objectives: [{ on: 'sell', target: 5, item: 'spice', market: 'produce', label: 'Sell 5 spice in the Produce Market' }], reward: 500, after: 'ships-need-thread' },
+
+  // The frontiers: places nobody has built in yet. Go, buy land, and open the first business there.
+  { id: 'into-the-unknown', chain: 'frontier', title: 'Into the unknown', story: 'Past the harbour road lie three places with no shops at all: Timberfell Woods, Gem Hollow and Sunvale. Reach one of them.',
+    objectives: [{ on: 'travel', target: 1, frontier: true, label: 'Reach a frontier' }], reward: 300, after: 'beyond-the-hills' },
+  { id: 'stake-a-claim', chain: 'frontier', title: 'Stake a claim', story: 'Land is cheap while nobody lives there. Buy a plot; the ones by the source cost more.',
+    objectives: [{ on: 'land', target: 1, label: 'Buy a plot of land' }], reward: 400, after: 'into-the-unknown' },
+  { id: 'open-for-business', chain: 'frontier', title: 'Open for business', story: 'The people out here want what their place lacks. Build a business on your land and stock it.',
+    objectives: [{ on: 'build', target: 1, label: 'Build a business on your land' }], reward: 600, after: 'stake-a-claim' },
 ];
 
 /** Daily reward by streak day (1-based); day 7 and after pay the last amount. */
@@ -109,6 +121,7 @@ const matches = (o: Objective, e: QuestEvent): boolean => {
   if (o.market && 'market' in e && e.market !== o.market) return false;
   if (o.market && e.kind === 'travel' && e.to !== o.market) return false;
   if (o.realm && e.kind === 'travel' && e.realm !== o.realm) return false;
+  if (o.frontier && e.kind === 'travel' && !REALMS[e.realm as RealmId]?.frontier) return false;
   if (o.haggled && !(e.kind === 'sell' && e.haggled)) return false;
   return true;
 };

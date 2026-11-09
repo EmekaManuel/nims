@@ -26,7 +26,7 @@ import type { HaggleFacts } from '../voice/haggle';
 import { planBoard, totalDue, type Job } from './jobs';
 import { gather } from '../../sim/players';
 import { EFFECT, isRegular, LEVELS, MIN_VOTING_HOURS, newCouncils, propose, seatsOf, tally, vote, type Lever } from '../../sim/council';
-import { addPlayer, BASE_PRICE, CAPACITY, COINS, createWorld, harbourMerchants, harbourSources, marketsIn, REALMS, realmOf, type RealmId, VEHICLE_VALUE, Item, MARKETS, MarketId, Merchant, Player, Vehicle, World } from '../../sim/world';
+import { addPlayer, BASE_PRICE, CAPACITY, COINS, createWorld, createPlots, frontierSources, harbourMerchants, harbourSources, BUILD_COST, type Plot, marketsIn, REALMS, realmOf, type RealmId, VEHICLE_VALUE, Item, MARKETS, MarketId, Merchant, Player, Vehicle, World } from '../../sim/world';
 
 export const UPGRADE_COST: Record<Exclude<Vehicle, 'wheelbarrow'>, number> = { pickup: VEHICLE_VALUE.pickup, van: VEHICLE_VALUE.van };
 const SOURCE_LABEL: Record<string, string> = {};
@@ -204,6 +204,8 @@ export class Game {
         ledger: w.ledger,
         ledgerBase: this.ledgerBase,
         council: w.council,
+        plots: w.plots,
+        discovered: w.discovered,
         rngState: w.rng.state(),
       },
       humans: [...this.humans].map(([email, p]) => [email, p.id] as [string, string]),
@@ -242,6 +244,8 @@ export class Game {
     // Saves from before the council existed have none: the markets start on the usual rules. Markets added since get theirs.
     w.council = { ...newCouncils(), ...((snap.world as { council?: Partial<World['council']> }).council ?? {}) };
     g.ledgerBase = (snap.world as { ledgerBase?: number }).ledgerBase ?? 0;
+    w.plots = (snap.world as { plots?: World['plots'] }).plots ?? createPlots();
+    w.discovered = (snap.world as { discovered?: World['discovered'] }).discovered ?? {};
     w.rng = makeRng(0, snap.world.rngState);
     g.humans = new Map(snap.humans.map(([email, id]) => [email, w.players.find((p) => p.id === id)!]).filter(([, p]) => p) as [string, Player][]);
     g.progress = new Map((snap.progress as [string, Progress & { marketsSold: MarketId[] }][]).map(([email, pr]) => [email, { ...pr, marketsSold: new Set(pr.marketsSold) }]));
@@ -617,9 +621,13 @@ export class Game {
       w.ledger.push({ hour: w.hour, kind: 'mint', to: m.id, item: COINS, units: m.cash });
       for (const [item, units] of Object.entries(m.stock)) if (units) w.ledger.push({ hour: w.hour, kind: 'mint', to: m.id, item: item as Item, units });
     }
-    for (const s of harbourSources()) if (!w.sources.some((x) => x.item === s.item)) w.sources.push(s);
-    const june = w.merchants.find((m) => m.id === 'june');
-    if (june) for (const [item, t] of [['spice', 15], ['salt', 30]] as const) if (june.target[item] === undefined) { june.target[item] = t; june.stock[item] = june.stock[item] ?? 0; }
+    for (const s of [...harbourSources(), ...frontierSources()]) if (!w.sources.some((x) => x.item === s.item)) w.sources.push(s);
+    // goods merchants took on since: June's spice, salt and wine; the frontiers' timber and gems
+    const adds: [string, Item, number][] = [['june', 'spice', 15], ['june', 'salt', 30], ['june', 'wine', 20], ['anil', 'gems', 10], ['diego', 'timber', 40], ['marlow', 'timber', 40]];
+    for (const [id, item, t] of adds) {
+      const m = w.merchants.find((x) => x.id === id);
+      if (m && m.target[item] === undefined) { m.target[item] = t; m.stock[item] = m.stock[item] ?? 0; }
+    }
   }
 
   /** The realm a player is in (the town for a new player). */
@@ -671,6 +679,13 @@ export class Game {
       p.at = to;
       delete p.journey;
       addNote(this.w, p, `You arrived in ${REALMS[realmOf(to)].name}.`);
+      const r = realmOf(to);
+      if (REALMS[r].frontier && !this.w.discovered[r]) {
+        const who = this.names.get(p.id) ?? 'A trader';
+        this.w.discovered[r] = { by: who, hour: this.w.hour };
+        this.w.events.push({ hour: this.w.hour, type: 'discovery', text: `${who} was the first to reach ${REALMS[r].name}.` });
+        addNote(this.w, p, `You are the first to reach ${REALMS[r].name}. The best land is yours to pick.`);
+      }
       this.track(p, { kind: 'travel', to, realm: realmOf(to) });
     }
   }
@@ -680,8 +695,8 @@ export class Game {
     return {
       here,
       name: REALMS[here].name,
-      journey: p.journey ? { to: realmOf(p.journey.to), name: REALMS[realmOf(p.journey.to)].name, hoursLeft: Math.max(0, p.journey.arrive - this.w.hour) } : null,
-      roads: (Object.keys(REALMS) as RealmId[]).filter((r) => r !== here).map((r) => ({ realm: r, name: REALMS[r].name, blurb: REALMS[r].blurb, hours: REALMS[r].journeyHours, passage: REALMS[r].passage, freight: this.journeyFreight(p) })),
+      journey: p.journey ? { to: realmOf(p.journey.to), name: REALMS[realmOf(p.journey.to)].name, hoursLeft: Math.max(0, p.journey.arrive - this.w.hour), hours: REALMS[realmOf(p.journey.to)].journeyHours, travel: REALMS[realmOf(p.journey.to)].travel } : null,
+      roads: (Object.keys(REALMS) as RealmId[]).filter((r) => r !== here).map((r) => ({ realm: r, name: REALMS[r].name, blurb: REALMS[r].blurb, hours: REALMS[r].journeyHours, passage: REALMS[r].passage, freight: this.journeyFreight(p), travel: REALMS[r].travel, frontier: REALMS[r].frontier, discovered: !!this.w.discovered[r] })),
     };
   }
 
@@ -976,8 +991,10 @@ export class Game {
 
   // ---- your own stall ----------------------------------------------------------------------
 
-  private myStall(email: string): Merchant | undefined {
-    return ownerStallOf(this.w, this.playerFor(email));
+  /** One of your shops: a business by id, or (with no id) your stall in town. */
+  private myStall(email: string, id?: string): Merchant | undefined {
+    const p = this.playerFor(email);
+    return id ? this.w.merchants.find((m) => m.owner === p.id && m.id === id) : ownerStallOf(this.w, p);
   }
 
   openStall(email: string, market: string): ActionResult {
@@ -991,38 +1008,40 @@ export class Game {
     return ok(`Your stall is open in the ${MARKETS[market as MarketId].name}. Stock the shelves and set your prices.`);
   }
 
-  stallStock(email: string, item: Item, units: number): ActionResult {
+  stallStock(email: string, item: Item, units: number, id?: string): ActionResult {
     const p = this.playerFor(email);
-    const st = this.myStall(email);
+    const st = this.myStall(email, id);
     if (!st) return fail('You do not have a stall yet.');
     if (!(item in st.target)) return fail(`Your stall in the ${MARKETS[st.market].name} does not trade ${item}.`);
     if (!Number.isInteger(units) || units < 1) return fail('Pick a whole number of units.');
     const have = this.available(email, item);
     if (have < units) return fail(`You are only carrying ${have} ${item} that is free to use${this.reservedFor(email, item) > 0 ? ' (the rest is reserved for your job)' : ''}.`);
-    this.travelTo(p, st.market, true); // you walk your load to your stall: the fare is for that walk, owed from your next sale if you are short
+    const trip = this.travelTo(p, st.market, true); // you walk your load to your stall: the fare is for that walk, owed from your next sale if you are short
+    if (trip) return trip; // a business in another realm is stocked by going there
     p.inventory[item] = (p.inventory[item] ?? 0) - units;
     st.stock[item] = (st.stock[item] ?? 0) + units;
     this.w.ledger.push({ hour: this.w.hour, kind: 'transfer', from: p.id, to: st.id, item, units });
     return ok(`Put ${units} ${item} on your shelves.`);
   }
 
-  stallTake(email: string, item: Item, units: number): ActionResult {
+  stallTake(email: string, item: Item, units: number, id?: string): ActionResult {
     const p = this.playerFor(email);
-    const st = this.myStall(email);
+    const st = this.myStall(email, id);
     if (!st) return fail('You do not have a stall yet.');
     if (!Number.isInteger(units) || units < 1) return fail('Pick a whole number of units.');
     const have = st.stock[item] ?? 0;
     if (have < units) return fail(`Your shelves only hold ${have} ${item}.`);
     if (this.carried(p) + units > CAPACITY[p.vehicle]) return fail(`Your ${p.vehicle} can't carry that many.`);
-    this.travelTo(p, st.market, true); // you go to your stall, so selling in its market afterwards costs no second fare
+    const trip = this.travelTo(p, st.market, true); // you go to your stall, so selling in its market afterwards costs no second fare
+    if (trip) return trip;
     st.stock[item] = have - units;
     p.inventory[item] = (p.inventory[item] ?? 0) + units;
     this.w.ledger.push({ hour: this.w.hour, kind: 'transfer', from: st.id, to: p.id, item, units });
     return ok(`Took ${units} ${item} off your shelves.`);
   }
 
-  stallPrice(email: string, item: Item, buy: number, sell: number): ActionResult {
-    const st = this.myStall(email);
+  stallPrice(email: string, item: Item, buy: number, sell: number, id?: string): ActionResult {
+    const st = this.myStall(email, id);
     if (!st) return fail('You do not have a stall yet.');
     if (!(item in st.target)) return fail(`Your stall does not trade ${item}.`);
     if (![buy, sell].every((n) => Number.isInteger(n))) return fail('Prices are whole coins.');
@@ -1035,9 +1054,9 @@ export class Game {
   }
 
   /** Move cash between you and your till. The till is what your stall uses to buy. */
-  stallCash(email: string, direction: 'deposit' | 'withdraw', amount: number): ActionResult {
+  stallCash(email: string, direction: 'deposit' | 'withdraw', amount: number, id?: string): ActionResult {
     const p = this.playerFor(email);
-    const st = this.myStall(email);
+    const st = this.myStall(email, id);
     if (!st) return fail('You do not have a stall yet.');
     if (!Number.isInteger(amount) || amount < 1) return fail('Pick a whole number of coins.');
     if (direction === 'deposit') {
@@ -1048,6 +1067,86 @@ export class Game {
     if (st.cash < amount) return fail(`Your till only holds ${Math.round(st.cash)} coins.`);
     transferCoins(this.w, st, p, amount);
     return ok(`Took ${amount} coins out of your till.`);
+  }
+
+  // ---- land and businesses in the frontiers --------------------------------------------------
+
+  /**
+   * Buy a plot. From the town while nobody owns it (at its price), or from another player who has put it up for sale (at
+   * their asking price, paid to them). You must be there, and you can own one plot in each place.
+   */
+  buyLand(email: string, plotId: string): ActionResult {
+    const p = this.playerFor(email);
+    const road = this.onRoad(p);
+    if (road) return road;
+    const plot = this.w.plots.find((x) => x.id === plotId);
+    if (!plot) return fail('There is no such plot.');
+    if (this.realmHere(p) !== plot.realm) return fail(`That land is in ${REALMS[plot.realm].name}. Go there to buy it.`);
+    if (plot.owner === p.id) return fail('You already own that plot.');
+    if (this.w.plots.some((x) => x.owner === p.id && x.realm === plot.realm)) return fail(`You already own land in ${REALMS[plot.realm].name}: one plot per place.`);
+    const seller = plot.owner ? this.w.players.find((x) => x.id === plot.owner) : undefined;
+    if (plot.owner && plot.forSale === undefined) return fail(`${plot.ownerName ?? 'Someone'} owns that plot and is not selling.`);
+    const price = seller ? plot.forSale! : plot.price;
+    if (p.cash < price) return fail(`That plot costs ${price.toLocaleString('en-US')} coins.`);
+    transferCoins(this.w, p, seller ?? 'town', price);
+    if (seller) addNote(this.w, seller, `${this.names.get(p.id) ?? 'A trader'} bought your plot in ${REALMS[plot.realm].name} for ${price.toLocaleString('en-US')} coins.`);
+    plot.owner = p.id;
+    plot.ownerName = this.names.get(p.id) ?? 'A trader';
+    delete plot.forSale;
+    this.w.events.push({ hour: this.w.hour, type: 'land', text: `${plot.ownerName} bought land in ${REALMS[plot.realm].name}.` });
+    this.track(p, { kind: 'land' });
+    return ok(`The plot is yours, for ${price.toLocaleString('en-US')} coins. Build a business on it when you're ready (${BUILD_COST.toLocaleString('en-US')} coins).`);
+  }
+
+  /** Put your empty land up for sale at your price, or take it off the market (price 0). Land with a business on it stays yours. */
+  listLand(email: string, plotId: string, price: number): ActionResult {
+    const p = this.playerFor(email);
+    const plot = this.w.plots.find((x) => x.id === plotId);
+    if (!plot || plot.owner !== p.id) return fail('That is not your land.');
+    if (plot.business) return fail('There is a business on that land, so it stays yours.');
+    if (price === 0) { delete plot.forSale; return ok('Your land is off the market.'); }
+    if (!Number.isInteger(price) || price < 100 || price > 1_000_000) return fail('Ask a whole number of coins, from 100 to 1,000,000.');
+    plot.forSale = price;
+    return ok(`Your plot in ${REALMS[plot.realm].name} is for sale at ${price.toLocaleString('en-US')} coins.`);
+  }
+
+  /** Build a business on land you own: a shop with your prices, stocked from what you carry, selling to the people there. */
+  build(email: string, plotId: string, rawName?: string): ActionResult {
+    const p = this.playerFor(email);
+    const road = this.onRoad(p);
+    if (road) return road;
+    const plot = this.w.plots.find((x) => x.id === plotId);
+    if (!plot || plot.owner !== p.id) return fail('Build on land you own.');
+    if (plot.business) return fail('You already have a business there.');
+    if (this.realmHere(p) !== plot.realm) return fail(`Go to ${REALMS[plot.realm].name} to build there.`);
+    if (p.cash < BUILD_COST) return fail(`Building costs ${BUILD_COST.toLocaleString('en-US')} coins.`);
+    const owner = this.names.get(p.id) ?? 'A trader';
+    const typed = (rawName ?? '').replace(/\s+/g, ' ').trim();
+    // a name of your own (2 to 24 letters, spaces, hyphens, apostrophes; the same word filter as player names), or a plain one
+    if (typed && (!/^\p{L}[\p{L} '\-]{1,23}$/u.test(typed) || nameProblem(typed.replace(/[^\p{L}]/gu, '').slice(0, 16) || 'xx') !== null)) return fail('Name your business with 2 to 24 letters, spaces, hyphens or apostrophes.');
+    const name = typed || `${owner}'s Trading Post`;
+    transferCoins(this.w, p, 'town', BUILD_COST);
+    const shop = openOwnerStall(this.w, p, plot.market, owner, { id: `biz-${plot.id}`, name });
+    plot.business = shop.id;
+    this.w.events.push({ hour: this.w.hour, type: 'land', text: `${name} opened in ${REALMS[plot.realm].name}.` });
+    this.track(p, { kind: 'build' });
+    return ok(`${name} is built. Stock it and set your prices: the people of ${REALMS[plot.realm].name} buy from you.`);
+  }
+
+  private landView(p: Player) {
+    const here = this.realmHere(p);
+    const name = (id: string) => this.w.merchants.find((m) => m.id === id)?.name;
+    const view = (x: Plot) => ({
+      id: x.id, realm: x.realm, n: x.n, price: x.price, forSale: x.forSale ?? null,
+      owner: x.owner ? { name: x.ownerName ?? 'A trader', mine: x.owner === p.id } : null,
+      business: x.business ? { id: x.business, name: name(x.business) ?? 'A business' } : null,
+    });
+    return {
+      buildCost: BUILD_COST,
+      here: this.w.plots.filter((x) => x.realm === here).map(view),
+      mine: this.w.plots.filter((x) => x.owner === p.id).map(view),
+      discovered: this.w.discovered[here] ?? null,
+    };
   }
 
   /** Dismiss the "while you were away" summary. */
@@ -1350,6 +1449,17 @@ export class Game {
             return { item, base: BASE_PRICE[item], min: Math.round(BASE_PRICE[item] * MIN_MULT), max: Math.round(BASE_PRICE[item] * MAX_MULT), buy: pr2.buy, sell: pr2.sell, stock: mine.stock[item] ?? 0, carrying: p.inventory[item] ?? 0 };
           }),
         } : null,
+        businesses: w.merchants.filter((m) => m.owner === p.id && m.id !== mine?.id).map((b) => ({
+          id: b.id,
+          name: b.name,
+          market: b.market,
+          realm: realmOf(b.market),
+          till: Math.round(b.cash),
+          items: merchantItems(b).map((item) => {
+            const pr2 = b.prices?.[item] ?? { buy: Math.round(BASE_PRICE[item] * 0.8), sell: Math.round(BASE_PRICE[item] * 1.2) };
+            return { item, base: BASE_PRICE[item], min: Math.round(BASE_PRICE[item] * MIN_MULT), max: Math.round(BASE_PRICE[item] * MAX_MULT), buy: pr2.buy, sell: pr2.sell, stock: b.stock[item] ?? 0, carrying: p.inventory[item] ?? 0 };
+          }),
+        })),
         stallOffer: mine ? null : { cost: STALL_COST, markets: (Object.keys(MARKETS) as MarketId[]).map((id) => ({ id, name: MARKETS[id].name, free: STALL_MARKETS.includes(id) })) },
         notes: p.notes.slice(-12).reverse(),
       },
@@ -1358,6 +1468,7 @@ export class Game {
       goals: (Object.keys(GOALS) as GoalKind[]).map((k) => ({ kind: k, ...GOALS[k] })),
       coach: this.coach(email, p, local, deals),
       realm: this.realmsView(p),
+      land: this.landView(p),
       help: { needed: this.needsHelp(email, p), scavengeIn: this.scavengeWait(email), canWork: this.lowOnCoins(p), workIn: this.jobWait(email) },
       jobs: this.jobViews(email, here),
       deals,

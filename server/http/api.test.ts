@@ -270,7 +270,7 @@ describe('fast-forward route', () => {
     expect(r.status).toBe(200);
     const body = await r.json();
     expect(body.hours).toBe(72);
-    expect(Object.keys(body.prices)).toHaveLength(10); // the town's goods
+    expect(Object.keys(body.prices)).toHaveLength(13); // the town's goods
 
     const wild = await (await post('/sim/fastforward', { days: 100000, seed: 'x', gatherers: -4 })).json();
     expect(wild.params.days).toBe(14);

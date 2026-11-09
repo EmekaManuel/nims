@@ -63,6 +63,9 @@ export const newCouncils = (): Councils => ({
   fabric: { rent: 'normal', payout: 'normal', levy: 0 },
   scrap: { rent: 'normal', payout: 'normal', levy: 0 },
   harbour: { rent: 'normal', payout: 'normal', levy: 0 },
+  woods: { rent: 'normal', payout: 'normal', levy: 0 },
+  mine: { rent: 'normal', payout: 'normal', levy: 0 },
+  vale: { rent: 'normal', payout: 'normal', levy: 0 },
 });
 
 const levelIndex = (lever: Lever, v: string) => (LEVELS[lever] as readonly string[]).indexOf(v);

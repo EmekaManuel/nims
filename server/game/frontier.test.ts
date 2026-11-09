@@ -118,6 +118,18 @@ describe('a business on your land', () => {
     expect(g.listLand(ada, 'timberfell-1', 9_000)).toMatchObject({ ok: false, message: expect.stringMatching(/business on that land/) });
   });
 
+  it('in a frontier the coach points at land, then building, then stocking your business', () => {
+    const g = new Game(5);
+    goTo(g, ada, 'timberfell');
+    g.chooseGoal(ada, 'reach');
+    expect(g.state(ada).coach.text).toMatch(/Buy a plot: from 1,800 coins/);
+    g.buyLand(ada, 'timberfell-3');
+    expect(g.state(ada).coach.text).toMatch(/Build a business on your land/);
+    g.build(ada, 'timberfell-3');
+    g.gather(ada, 'timber');
+    expect(g.state(ada).coach).toMatchObject({ text: expect.stringMatching(/Stock your \d+ timber in Ada's Trading Post/), focus: { kind: 'stall', id: 'biz-timberfell-3' } });
+  });
+
   it('the explorer quests: reach a frontier, buy land, build', () => {
     const g = new Game(5);
     human(g, ada);

@@ -17,8 +17,8 @@ describe('the road to Saltmere', () => {
   it('says how long, what it costs, and sets off', () => {
     const act = { travel: vi.fn() } as unknown as Actions;
     render(<JourneyPanel state={{ ...inTown, you: { ...inTown.you, cash: 1_000 } }} to="saltmere" act={act} />);
-    expect(screen.getByRole('heading', { name: 'The road to Saltmere Harbour' })).toBeTruthy();
-    expect(screen.getByText(/6 hours/)).toBeTruthy();
+    expect(screen.getByRole('article', { name: 'Saltmere Harbour' })).toBeTruthy();
+    expect(screen.getByText(/A drive of 6 hours/)).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Set off · 168 coins' }));
     expect(act.travel).toHaveBeenCalledWith('saltmere');
   });

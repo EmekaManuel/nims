@@ -8,7 +8,7 @@
 
 [Play it live](https://nims-app.up.railway.app) · [Demo video (143 s)](docs/nims-demo.mp4) · [Judge walk-through](docs/DEMO.md) · Contract: `oja-items.testnet`
 
-![NEAR testnet](https://img.shields.io/badge/NEAR-testnet-00ec97) ![NEP-245](https://img.shields.io/badge/items-NEP--245-blue) ![tests](https://img.shields.io/badge/tests-541%20passing-brightgreen) ![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)
+![NEAR testnet](https://img.shields.io/badge/NEAR-testnet-00ec97) ![NEP-245](https://img.shields.io/badge/items-NEP--245-blue) ![tests](https://img.shields.io/badge/tests-557%20passing-brightgreen) ![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)
 
 </div>
 
@@ -27,6 +27,7 @@ Game economies are usually scripts: prices follow a table, NPCs trade nothing, a
 - **Shareholders run the markets.** Each market has a town council. Players vote on its stall rent and on how much profit merchants share out. Trading in a market gives you a seat there, and each share you hold adds another, so a new player can vote without buying a share. The merchants vote too (they oppose anything that costs them). A passing vote changes how the economy runs from the next day, with no dev patch. Extra rent is paid to shareholders each evening; every coin stays on the ledger. Code: [`sim/council.ts`](sim/council.ts).
 - **A 3D town.** The game opens in a 3D town (React Three Fiber): stalls with real goods in their crates, shopkeepers and townsfolk, day and night, rain. The townsfolk walk only on paved walkways and stop in front of stalls and sources, and a test simulates them to check they never touch a building. Phones and tablets, small windows, reduced-motion settings and browsers without WebGL start on the 2D map instead, a button on the map switches either way, and the game remembers your choice. If the 3D town ever fails to start, the 2D map takes over. If it opens in 3D on its own and runs slowly (under about 22 frames a second over the first few seconds), the game drops to the 2D map, says so, offers **Try 3D anyway**, and does not try again by itself on that browser. A view you chose yourself is never overridden.
 - **A world beyond the town.** Take the road out of Nims to **Saltmere Harbour**: a journey of 6 game hours (about a minute) that costs a passage plus freight on what you carry, and you can't trade on the road. The harbour has its own merchants (fish and salt, a chandlery, a spice house), a fishing pier and salt pans, drawn in 2D and 3D with the sea and boats. Distance makes goods dear: the harbour pays 1.5x for thread and iron from town, the town pays 1.6x for spice and 1.3x for salt from the harbour, so goods are worth carrying both ways. Code: [`sim/world.ts`](sim/world.ts) (realms and prices), `Game.travel` in [`server/game/game.ts`](server/game/game.ts).
+- **Three unexplored frontiers to settle.** Timberfell Woods (by car), Gem Hollow and Sunvale (by plane) have no shops at all, just 8 plots of land each and a source of their own (timber, gems, wine). Buy a plot where you are (one per place; the plots by the source cost more), build a business on it, stock it and set its prices, and the people there buy from you; they pay more for what their place lacks. Put empty land up for sale and another player can buy it from you. The first to reach each frontier is named in the news. Code: `buyLand`, `listLand` and `build` in [`server/game/game.ts`](server/game/game.ts), plots in [`sim/world.ts`](sim/world.ts).
 - **Quests, daily rewards and invites for new players.** A starter quest chain teaches the first ten minutes (first haul, first sale, a haggle, two markets, a share, a council vote) and a realm chain sends you to the harbour and back with spice; each pays a small reward when claimed. A daily reward grows for 7 days in a row. Invite a friend with your link, and when they make their first sale you each get 300 coins (up to 10 friends). Every reward is paid through the ledger. Code: [`server/game/quests.ts`](server/game/quests.ts).
 - **Create your trader.** A new player picks a look (skin, hair, hairstyle, shirt, cap) and a name before trading; it shows in the 2D and 3D towns and on the town board. Code: [`web/src/game/AvatarCreator.tsx`](web/src/game/AvatarCreator.tsx).
 - **A way back from broke.** Nearly out of coins with nothing to sell? Search the scrap heap, or take an odd job: a merchant who is short of a good pays you to fetch it, and pays the cost and your reward from their own till. Jobs are open only while you are short of coins, with a cooldown, so they are a way back up and not a way to farm.
@@ -212,8 +213,8 @@ Games With Real Economies asks for *"NPCs with wallets, player-owned markets and
 ## Tests and chain verification
 
 ```bash
-npm test               # economy, pricing, server, API, chain, merchant agents, names  (338 tests)
-npm run test:web       # the UI against real game state, 3D walkways, the 3D speed check, the town board, merchants' plans  (203 tests)
+npm test               # economy, pricing, server, API, chain, merchant agents, names  (347 tests)
+npm run test:web       # the UI against real game state, 3D walkways, the 3D speed check, the town board, merchants' plans  (210 tests)
 npm run contract:test  # the NEP-245 contract  (18 tests, needs Rust)
 ```
 

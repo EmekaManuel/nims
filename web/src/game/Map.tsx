@@ -1,9 +1,9 @@
 import { SHIRTS } from '../art/avatar';
-import { HARBOUR, REALM_OF, ROAD_SIGN } from './realms';
-import type { Focus, GameState, Item, MarketId, Offer, RealmId, Stall } from '../api';
+import { FRONTIER, FRONTIER_LAYOUT, HARBOUR, isFrontier, REALM_OF, ROAD_SIGN, type FrontierId } from './realms';
+import type { Focus, GameState, Item, MarketId, Offer, Plot, RealmId, Stall } from '../api';
 import { itemId } from '../art/icons';
 
-export type Selection = { kind: 'stall'; id: string } | { kind: 'source'; item: Item } | { kind: 'plot'; market: MarketId } | { kind: 'road'; realm: RealmId } | null;
+export type Selection = { kind: 'stall'; id: string } | { kind: 'source'; item: Item } | { kind: 'plot'; market: MarketId } | { kind: 'road'; realm: RealmId } | { kind: 'land'; id: string } | null;
 
 /**
  * The district, drawn. Layout is hand-placed on a 1000 x 680 canvas and exported so a test can prove
@@ -22,6 +22,9 @@ export const ZONES: Record<MarketId, { x: number; y: number; w: number; h: numbe
   fabric: { x: 590, y: 30, w: 400, h: 300, label: 'Fabric Market', plate: 158 },
   scrap: { x: 200, y: 380, w: 600, h: 270, label: 'Scrap & Hardware', plate: 196 },
   harbour: HARBOUR.zone,
+  woods: { x: FRONTIER_LAYOUT.zone.x, y: FRONTIER_LAYOUT.zone.y, w: FRONTIER_LAYOUT.zone.w, h: FRONTIER_LAYOUT.zone.h, plate: FRONTIER_LAYOUT.zone.plate, label: FRONTIER.timberfell.label },
+  mine: { x: FRONTIER_LAYOUT.zone.x, y: FRONTIER_LAYOUT.zone.y, w: FRONTIER_LAYOUT.zone.w, h: FRONTIER_LAYOUT.zone.h, plate: FRONTIER_LAYOUT.zone.plate, label: FRONTIER.gemhollow.label },
+  vale: { x: FRONTIER_LAYOUT.zone.x, y: FRONTIER_LAYOUT.zone.y, w: FRONTIER_LAYOUT.zone.w, h: FRONTIER_LAYOUT.zone.h, plate: FRONTIER_LAYOUT.zone.plate, label: FRONTIER.sunvale.label },
 };
 
 export const STALL_POS: Record<string, [number, number]> = {
@@ -48,6 +51,9 @@ const CANOPY: Record<MarketId, [string, string]> = {
   fabric: ['#2a6fdb', '#f1f6fe'],
   scrap: ['#c8622e', '#f1ede7'],
   harbour: ['#0b8f8f', '#eef8f8'],
+  woods: FRONTIER.timberfell.canopy,
+  mine: FRONTIER.gemhollow.canopy,
+  vale: FRONTIER.sunvale.canopy,
 };
 
 const STATE_LABEL = { open: 'Open', struggling: 'Low on cash', closed: 'Closed' } as const;
@@ -150,6 +156,34 @@ function StallArt({ s }: { s: Stall }) {
 
 function SourceArt({ item }: { item: Item }) {
   const crop = item === 'pepper' ? '#e24a22' : '#d93b2b';
+  if (item === 'timber') {
+    // the lumber camp: a stack of logs
+    return (
+      <g>
+        <rect x="-46" y="-30" width="92" height="52" rx="8" fill="#b9946b" stroke="#26364a" strokeWidth="1.6" />
+        {[[-26, 8], [0, 8], [26, 8], [-13, -12], [13, -12]].map(([x, y], i) => <g key={i}><circle cx={x} cy={y} r="12" fill="#a87b4f" stroke="#26364a" strokeWidth="1.4" /><circle cx={x} cy={y} r="6" fill="none" stroke="#7a5534" strokeWidth="1.2" /></g>)}
+      </g>
+    );
+  }
+  if (item === 'gems') {
+    // the gem seam: a rock face with crystals showing
+    return (
+      <g>
+        <path d="M-46 22L-34 -14 -10 -30 18 -24 40 -6 46 22z" fill="#8e8a96" stroke="#26364a" strokeWidth="1.6" strokeLinejoin="round" />
+        {[[-20, -2, '#6250d6'], [4, -14, '#d6336c'], [22, 2, '#0b8f8f']].map(([x, y, c], i) => <path key={i} d={`M${x} ${(y as number) - 10}l7 9-7 9-7-9z`} fill={c as string} stroke="#26364a" strokeWidth="1.2" />)}
+      </g>
+    );
+  }
+  if (item === 'wine') {
+    // the vineyard: rows of vines and a barrel
+    return (
+      <g>
+        <rect x="-46" y="-30" width="92" height="52" rx="8" fill="#9ab86a" stroke="#26364a" strokeWidth="1.6" />
+        {[-18, -2, 14].map((y) => <g key={y}><path d={`M-38 ${y}H20`} stroke="#5a7a3a" strokeWidth="4" strokeLinecap="round" />{[-30, -14, 2, 16].map((x) => <circle key={x} cx={x} cy={y - 3} r="3.6" fill="#7a2846" />)}</g>)}
+        <rect x="26" y="-14" width="16" height="22" rx="5" fill="#8a5a32" stroke="#26364a" strokeWidth="1.2" />
+      </g>
+    );
+  }
   if (item === 'fish') {
     // the fishing pier: planks out over the water, crates of the catch
     return (
@@ -224,6 +258,40 @@ function HarbourScenery() {
   );
 }
 
+/** A frontier: open ground, and the trees, rocks or vines of the place. Decorative only. */
+function FrontierScenery({ realm }: { realm: FrontierId }) {
+  const f = FRONTIER[realm];
+  const spots: [number, number, number][] = [[40, 120, 1], [60, 520, 0.9], [970, 60, 0.8], [130, 640, 0.8], [700, 650, 0.7], [400, 640, 0.9]];
+  return (
+    <g aria-hidden="true">
+      <rect width="1000" height="680" fill={f.ground} opacity=".85" />
+      {spots.map(([x, y, s], i) => (
+        f.decor === 'trees' ? <g key={i}><Tree x={x} y={y} s={s} /><Tree x={x + 30} y={y + 14} s={s * 0.8} /></g>
+          : f.decor === 'rocks' ? <path key={i} d={`M${x - 30 * s} ${y + 14}l${14 * s} ${-30 * s} ${20 * s} ${-8 * s} ${26 * s} ${38 * s}z`} fill="#8e8a96" stroke="#26364a" strokeWidth="1.4" />
+          : <g key={i}>{[0, 12, 24].map((d) => <path key={d} d={`M${x - 30} ${y + d}h60`} stroke="#5a7a3a" strokeWidth="4" strokeLinecap="round" />)}</g>
+      ))}
+    </g>
+  );
+}
+
+/** A plot of frontier land: its price while it is the town's, the owner's name once bought, and an asking price when for sale. */
+function LandPlot({ plot, x, y, on, ...props }: { plot: Plot; x: number; y: number; on: boolean } & React.SVGProps<SVGGElement>) {
+  const forSale = !plot.owner || plot.forSale !== null;
+  const price = plot.owner ? plot.forSale : plot.price;
+  const top = plot.owner ? (plot.owner.mine ? 'Your land' : `${plot.owner.name}'s land`) : 'Land for sale';
+  return (
+    <g transform={`translate(${x - STALL_W / 2} ${y - STALL_H / 2})`} className={`land ${forSale ? 'for-sale' : 'owned'} ${plot.owner?.mine ? 'mine' : ''} ${on ? 'on' : ''}`}
+      aria-label={`${top}${price ? `, ${price.toLocaleString('en-US')} coins` : ''}. Plot ${plot.n + 1}.`} {...props}>
+      <rect className="chosen" x={-6} y={-6} width={STALL_W + 12} height={STALL_H + 12} rx={14} />
+      <rect className="land-box" width={STALL_W} height={STALL_H} rx={12} />
+      <path d={`M${STALL_W / 2 - 18} ${STALL_H / 2 - 4}v-26`} stroke="#5a4632" strokeWidth="3" />
+      <rect x={STALL_W / 2 - 30} y={STALL_H / 2 - 40} width="44" height="18" rx="3" className="land-sign" />
+      <text x={STALL_W / 2} y={STALL_H / 2 + 22} textAnchor="middle" className="land-top">{top}</text>
+      {price !== null && <text x={STALL_W / 2} y={STALL_H / 2 + 40} textAnchor="middle" className="land-price">{price.toLocaleString('en-US')} coins</text>}
+    </g>
+  );
+}
+
 /** The road out of the realm: a signpost. Tap it to see the journey and set off. */
 function RoadSign({ at, label, on, ...props }: { at: [number, number]; label: string; on: boolean } & React.SVGProps<SVGGElement>) {
   return (
@@ -255,13 +323,15 @@ export interface Popup { id: number; x: number; y: number; text: string; tone: '
 export const realmShown = (state: GameState): RealmId => state.realm?.here ?? 'town';
 
 /** Where a stall sits in the realm being shown (undefined if it is in another realm). */
-export function stallPos(realm: RealmId, st: { id: string; market: MarketId }): [number, number] | undefined {
+export function stallPos(realm: RealmId, st: { id: string; market: MarketId }, plots: Plot[] = []): [number, number] | undefined {
   if (REALM_OF[st.market] !== realm) return undefined;
+  if (isFrontier(realm)) { const plot = plots.find((x) => x.business?.id === st.id); return plot ? FRONTIER_LAYOUT.plots[plot.n] : undefined; }
   return realm === 'saltmere' ? HARBOUR.stalls[st.id] : STALL_POS[st.id] ?? PLOTS[st.market];
 }
 
 /** Where a source sits in the realm being shown. */
-export const sourcePos = (realm: RealmId, item: Item): [number, number] | undefined => (realm === 'saltmere' ? HARBOUR.sources[item] : SOURCE_POS[item]);
+export const sourcePos = (realm: RealmId, item: Item): [number, number] | undefined =>
+  isFrontier(realm) ? (FRONTIER[realm].source === item ? FRONTIER_LAYOUT.source : undefined) : realm === 'saltmere' ? HARBOUR.sources[item] : SOURCE_POS[item];
 
 export function spotOf(state: GameState, target: { kind: 'stall' | 'source'; id: string }): [number, number] | null {
   const realm = realmShown(state);
@@ -270,7 +340,7 @@ export function spotOf(state: GameState, target: { kind: 'stall' | 'source'; id:
     return p ? [p[0], p[1] - 40] : null;
   }
   const st = state.stalls.find((x) => x.id === target.id);
-  const p = st && stallPos(realm, st);
+  const p = st && stallPos(realm, st, state.land?.here);
   return p ? [p[0], p[1] - STALL_H / 2 + 4] : null;
 }
 
@@ -279,7 +349,7 @@ const AVATARS = ['#2f9e5f', '#e2557b', '#7b4de0', '#eb6834', '#18a999', '#2a6fdb
 const avatarColor = (id: string) => AVATARS[[...id].reduce((a, c) => a + c.charCodeAt(0), 0) % AVATARS.length];
 
 /** Where your avatar stands in each market (the open plaza between the rows of stalls). */
-const AVATAR_AT: Record<MarketId, [number, number]> = { produce: [340, 368], fabric: [760, 368], scrap: [560, 372], harbour: HARBOUR.you };
+const AVATAR_AT: Record<MarketId, [number, number]> = { produce: [340, 368], fabric: [760, 368], scrap: [560, 372], harbour: HARBOUR.you, woods: FRONTIER_LAYOUT.you, mine: FRONTIER_LAYOUT.you, vale: FRONTIER_LAYOUT.you };
 
 /** Little town folk and a delivery truck moving along the roads. Purely decorative, and still when motion is reduced. */
 const WALKERS: { path: string; dur: number; begin: number; color: string }[] = [
@@ -421,7 +491,7 @@ export function DistrictMap({ state, selected, onSelect, popups = [], moving }: 
           </g>
           <Tree x={44} y={372} /> <Tree x={958} y={392} s={0.9} /> <Tree x={900} y={640} s={0.8} /> <Tree x={30} y={660} s={0.7} />
         </>
-      ) : <HarbourScenery />}
+      ) : isFrontier(realm) ? <FrontierScenery realm={realm} /> : <HarbourScenery />}
 
       {(Object.keys(ZONES) as MarketId[]).filter((id) => REALM_OF[id] === realm).map((id) => {
         const z = ZONES[id];
@@ -450,7 +520,7 @@ export function DistrictMap({ state, selected, onSelect, popups = [], moving }: 
       })}
 
       {state.stalls.map((s) => {
-        const pos = stallPos(realm, s);
+        const pos = stallPos(realm, s, state.land?.here);
         if (!pos) return null;
         const [x, y] = pos;
         const on = selected?.kind === 'stall' && selected.id === s.id;
@@ -487,6 +557,10 @@ export function DistrictMap({ state, selected, onSelect, popups = [], moving }: 
         );
       })}
 
+      {isFrontier(realm) && (state.land?.here ?? []).filter((x) => !x.business).map((plot) => {
+        const [x, y] = FRONTIER_LAYOUT.plots[plot.n];
+        return <LandPlot key={plot.id} plot={plot} x={x} y={y} on={selected?.kind === 'land' && selected.id === plot.id} {...press(() => onSelect({ kind: 'land', id: plot.id }))} />;
+      })}
       {town && <Life moving={animate} />}
       <RoadSign at={sign.at} label={sign.label} on={selected?.kind === 'road'} {...press(() => onSelect({ kind: 'road', realm: sign.to }))} />
       <You at={state.you.at ?? 'produce'} vehicle={state.you.vehicle} shirt={state.you.avatar ? SHIRTS[state.you.avatar.shirt] : undefined} />
@@ -494,7 +568,7 @@ export function DistrictMap({ state, selected, onSelect, popups = [], moving }: 
       {focus && (() => {
         // The "NEXT" pill is drawn last so no stall or awning can cover it.
         const at = focus.kind === 'stall'
-          ? (() => { const st = state.stalls.find((x) => x.id === focus.id); const p = st && stallPos(realm, st); return p ? [p[0] + STALL_W / 2 - 40, p[1] - STALL_H / 2 + 16] : null; })()
+          ? (() => { const st = state.stalls.find((x) => x.id === focus.id); const p = st && stallPos(realm, st, state.land?.here); return p ? [p[0] + STALL_W / 2 - 40, p[1] - STALL_H / 2 + 16] : null; })()
           : (() => { const p = sourcePos(realm, focus.id as Item); return p ? [p[0], p[1] - 52] : null; })();
         return at ? (
           <g transform={`translate(${at[0]} ${at[1]})`} className="next-pill" aria-hidden="true">
@@ -512,7 +586,7 @@ export function DistrictMap({ state, selected, onSelect, popups = [], moving }: 
       {light.opacity >= 0.28 && (
         <g aria-hidden="true" style={{ pointerEvents: 'none', mixBlendMode: 'screen' }} className="lamps">
           {state.stalls.map((st) => {
-            const p = stallPos(realm, st);
+            const p = stallPos(realm, st, state.land?.here);
             return p && st.state !== 'closed' ? <circle key={st.id} cx={p[0]} cy={p[1]} r="92" fill="url(#glow)" /> : null;
           })}
         </g>

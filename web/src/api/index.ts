@@ -1,9 +1,18 @@
 import type { Avatar } from '../art/avatar';
 /** Typed client for the Nims game server. Nothing here knows about wallets — the player never sees the chain. */
-export type Item = 'tomatoes' | 'pepper' | 'flour' | 'cotton' | 'lace' | 'thread' | 'iron' | 'copper wire' | 'fish' | 'salt' | 'spice';
-export type MarketId = 'produce' | 'fabric' | 'scrap' | 'harbour';
-/** A place reached by a journey: the town, or Saltmere Harbour beyond the hills. */
-export type RealmId = 'town' | 'saltmere';
+export type Item = 'tomatoes' | 'pepper' | 'flour' | 'cotton' | 'lace' | 'thread' | 'iron' | 'copper wire' | 'fish' | 'salt' | 'spice' | 'timber' | 'gems' | 'wine';
+export type MarketId = 'produce' | 'fabric' | 'scrap' | 'harbour' | 'woods' | 'mine' | 'vale';
+/** A place reached by a journey: the town, Saltmere Harbour, and the three unexplored frontiers. */
+export type RealmId = 'town' | 'saltmere' | 'timberfell' | 'gemhollow' | 'sunvale';
+
+/** A shop you run: your town stall or a frontier business. */
+export interface Shop { id: string; name: string; market: MarketId; till: number; items: StallItem[] }
+/** A plot of land in a frontier. */
+export interface Plot {
+  id: string; realm: RealmId; n: number; price: number; forSale: number | null;
+  owner: { name: string; mine: boolean } | null;
+  business: { id: string; name: string } | null;
+}
 
 export interface Offer {
   item: Item;
@@ -69,7 +78,9 @@ export interface StallItem {
 
 export interface Business {
   shares: { id: string; name: string; market: MarketId; shares: number; price: number; value: number; state: 'open' | 'struggling' | 'closed' }[];
-  stall: { id: string; name: string; market: MarketId; till: number; items: StallItem[] } | null;
+  stall: Shop | null;
+  /** Your businesses in the frontiers, each on land you own. */
+  businesses?: (Shop & { realm: RealmId })[];
   stallOffer: { cost: number; markets: { id: MarketId; name: string; free: boolean }[] } | null;
   notes: { hour: number; text: string }[];
 }
@@ -137,9 +148,11 @@ export interface GameState {
   realm?: {
     here: RealmId;
     name: string;
-    journey: { to: RealmId; name: string; hoursLeft: number } | null;
-    roads: { realm: RealmId; name: string; blurb: string; hours: number; passage: number; freight: number }[];
+    journey: { to: RealmId; name: string; hoursLeft: number; hours?: number; travel?: 'car' | 'plane' } | null;
+    roads: { realm: RealmId; name: string; blurb: string; hours: number; passage: number; freight: number; travel?: 'car' | 'plane'; frontier?: boolean; discovered?: boolean }[];
   };
+  /** Land in the place you're in (a frontier has plots), the land you own anywhere, and who first reached this place. */
+  land?: { buildCost: number; here: Plot[]; mine: Plot[]; discovered: { by: string; hour: number } | null };
   /** Quests you're on and today's daily reward (server/game/quests.ts). */
   quests?: {
     active: { id: string; chain: 'starter' | 'realm'; title: string; story: string; reward: number; complete: boolean; objectives: { label: string; done: number; target: number }[] }[];
@@ -294,11 +307,14 @@ export const api = {
   councilVote: (market: MarketId, yes: boolean) => post('/game/council/vote', { market, yes }).then((r) => r.body),
   contribute: (merchant: string, amount: number) => post('/game/fund', { merchant, amount }).then((r) => r.body),
   openStall: (market: MarketId) => post('/game/stall/open', { market }).then((r) => r.body),
-  stallStock: (item: Item, units: number) => post('/game/stall/stock', { item, units }).then((r) => r.body),
-  stallTake: (item: Item, units: number) => post('/game/stall/take', { item, units }).then((r) => r.body),
-  stallPrice: (item: Item, buy: number, sell: number) => post('/game/stall/price', { item, buy, sell }).then((r) => r.body),
-  stallDeposit: (amount: number) => post('/game/stall/deposit', { amount }).then((r) => r.body),
-  stallWithdraw: (amount: number) => post('/game/stall/withdraw', { amount }).then((r) => r.body),
+  stallStock: (item: Item, units: number, shop?: string) => post('/game/stall/stock', { item, units, shop }).then((r) => r.body),
+  stallTake: (item: Item, units: number, shop?: string) => post('/game/stall/take', { item, units, shop }).then((r) => r.body),
+  stallPrice: (item: Item, buy: number, sell: number, shop?: string) => post('/game/stall/price', { item, buy, sell, shop }).then((r) => r.body),
+  stallDeposit: (amount: number, shop?: string) => post('/game/stall/deposit', { amount, shop }).then((r) => r.body),
+  stallWithdraw: (amount: number, shop?: string) => post('/game/stall/withdraw', { amount, shop }).then((r) => r.body),
+  buyLand: (plot: string) => post('/game/land/buy', { plot }).then((r) => r.body),
+  listLand: (plot: string, price: number) => post('/game/land/list', { plot, price }).then((r) => r.body),
+  build: (plot: string, name?: string) => post('/game/land/build', { plot, name }).then((r) => r.body),
   ack: () => post('/game/ack', {}).then((r) => r.body),
   scavenge: () => post('/game/scavenge', {}).then((r) => r.body),
   takeJob: (id: number) => post('/game/job/take', { id }).then((r) => r.body),

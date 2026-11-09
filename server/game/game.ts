@@ -1228,6 +1228,25 @@ export class Game {
         ? 'You are nearly out of coins. Open Deals: search the scrap heap for something to sell, or take an odd job.'
         : 'You are nearly out of coins. Open Deals and take an odd job while the scrap heap refills.');
     }
+    // In a frontier there are no merchants: the next step is land, a business, and stocking it, or carrying its good to where it sells.
+    const realmNow = this.realmHere(p);
+    if (REALMS[realmNow].frontier) {
+      const place = REALMS[realmNow].name;
+      const plot = this.w.plots.find((x) => x.owner === p.id && x.realm === realmNow);
+      const shop = plot?.business ? this.w.merchants.find((m) => m.id === plot.business) : undefined;
+      const stockable = shop && (Object.entries(p.inventory) as [Item, number][]).find(([i, n]) => (n ?? 0) > 0 && i in shop.target);
+      if (shop && stockable) return say(`Stock your ${stockable[1]} ${stockable[0]} in ${shop.name} (My business): the people of ${place} buy from it.`, { kind: 'stall', id: shop.id });
+      if (!plot) {
+        const asks = this.w.plots.filter((x) => x.realm === realmNow && (!x.owner || x.forSale !== undefined)).map((x) => (x.owner ? x.forSale! : x.price));
+        return asks.length
+          ? say(`Nobody runs a shop in ${place} yet that's yours. Buy a plot: from ${Math.min(...asks).toLocaleString('en-US')} coins, dearer by the source. Tap one on the map.`)
+          : say(`Every plot in ${place} is taken. Watch for land put up for sale, or try another frontier.`);
+      }
+      if (!plot.business) return say(`Build a business on your land (${BUILD_COST.toLocaleString('en-US')} coins): tap your plot on the map.`);
+      const good = this.w.sources.find((x) => x.realm === realmNow)?.item;
+      if (good && (p.inventory[good] ?? 0) > 0) return say(`${good.charAt(0).toUpperCase() + good.slice(1)} is dear in Nims and at Saltmere Harbour. Take the road and sell it there.`);
+      return say(`Your business sells ${Object.keys(shop!.target).join(', ')}. Bring them from elsewhere: the people of ${place} pay more for what they lack.`, { kind: 'stall', id: shop!.id });
+    }
     const carried = this.carried(p);
     if (carried > 0) {
       const [item, units] = Object.entries(p.inventory).filter(([, n]) => (n ?? 0) > 0).sort((a, b) => (b[1] ?? 0) - (a[1] ?? 0))[0] as [Item, number];
@@ -1460,7 +1479,7 @@ export class Game {
             return { item, base: BASE_PRICE[item], min: Math.round(BASE_PRICE[item] * MIN_MULT), max: Math.round(BASE_PRICE[item] * MAX_MULT), buy: pr2.buy, sell: pr2.sell, stock: b.stock[item] ?? 0, carrying: p.inventory[item] ?? 0 };
           }),
         })),
-        stallOffer: mine ? null : { cost: STALL_COST, markets: (Object.keys(MARKETS) as MarketId[]).map((id) => ({ id, name: MARKETS[id].name, free: STALL_MARKETS.includes(id) })) },
+        stallOffer: mine ? null : { cost: STALL_COST, markets: marketsIn('town').map((id) => ({ id, name: MARKETS[id].name, free: STALL_MARKETS.includes(id) })) },
         notes: p.notes.slice(-12).reverse(),
       },
       council: this.councilView(p),

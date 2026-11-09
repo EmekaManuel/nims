@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import type { GameState, Item, MarketId } from '../api';
+import type { GameState, Item, MarketId, RealmId, Shop } from '../api';
+
+const REALM_NAME: Record<RealmId, string> = { town: 'Nims', saltmere: 'Saltmere Harbour', timberfell: 'Timberfell Woods', gemhollow: 'Gem Hollow', sunvale: 'Sunvale' };
 import { coins } from '../api';
 import { ItemIcon } from '../art/icons';
 import { Field, NumberField, TextField } from '../ui';
@@ -30,8 +32,9 @@ export function StallOffer({ state, act, focus }: { state: GameState; act: Actio
   );
 }
 
-function Manager({ state, act }: { state: GameState; act: Actions }) {
-  const stall = state.business.stall!;
+/** Run one of your shops: your town stall (no `shopId`) or a frontier business. */
+function Manager({ state, act, shop, shopId }: { state: GameState; act: Actions; shop: Shop; shopId?: string }) {
+  const stall = shop;
   const [draft, setDraft] = useState<Record<string, { buy: number; sell: number }>>(() => Object.fromEntries(stall.items.map((i) => [i.item, { buy: i.buy, sell: i.sell }])));
   const [qty, setQty] = useState(5);
   const [cash, setCash] = useState(1000);
@@ -41,8 +44,8 @@ function Manager({ state, act }: { state: GameState; act: Actions }) {
       <div className="till">
         <span><span className="k">Till</span><b>{coins(stall.till)}</b></span>
         <Field label="Coins" htmlFor="till-amount"><NumberField id="till-amount" aria-label="Amount for the till" min={1} max={1_000_000} step={100} value={cash} onValueChange={setCash} /></Field>
-        <button disabled={state.you.cash < cash} onClick={() => act.stallDeposit(cash)}>Put in</button>
-        <button disabled={stall.till < cash} onClick={() => act.stallWithdraw(cash)}>Take out</button>
+        <button disabled={state.you.cash < cash} onClick={() => act.stallDeposit(cash, shopId)}>Put in</button>
+        <button disabled={stall.till < cash} onClick={() => act.stallWithdraw(cash, shopId)}>Take out</button>
       </div>
       <p className="small muted">Your till is what your stall uses to buy. Without cash it can’t buy from anyone.</p>
       <Field label="Shelf moves" htmlFor="shelf-qty" className="shelfqty"><NumberField id="shelf-qty" aria-label="Units to move" min={1} max={500} value={qty} onValueChange={setQty} /></Field>
@@ -59,12 +62,12 @@ function Manager({ state, act }: { state: GameState; act: Actions }) {
                   <td><NumberField aria-label={`Price I pay for ${i.item}`} min={i.min} max={i.max} step={5} steppers={false} value={d.buy} onValueChange={(n) => edit(i.item, 'buy', n)} /></td>
                   <td>
                     <NumberField aria-label={`Price I charge for ${i.item}`} min={i.min} max={i.max} step={5} steppers={false} value={d.sell} onValueChange={(n) => edit(i.item, 'sell', n)} />
-                    <button disabled={!changed} onClick={() => act.stallPrice(i.item, d.buy, d.sell)}>Set</button>
+                    <button disabled={!changed} onClick={() => act.stallPrice(i.item, d.buy, d.sell, shopId)}>Set</button>
                   </td>
                   <td className="btns">
                     <b>{i.stock}</b>
-                    <button disabled={i.carrying < 1} onClick={() => act.stallStock(i.item, Math.min(qty, i.carrying))} title={`You carry ${i.carrying}`}>+ Stock</button>
-                    <button disabled={i.stock < 1} onClick={() => act.stallTake(i.item, Math.min(qty, i.stock))}>Take</button>
+                    <button disabled={i.carrying < 1} onClick={() => act.stallStock(i.item, Math.min(qty, i.carrying), shopId)} title={`You carry ${i.carrying}`}>+ Stock</button>
+                    <button disabled={i.stock < 1} onClick={() => act.stallTake(i.item, Math.min(qty, i.stock), shopId)}>Take</button>
                   </td>
                 </tr>
               );
@@ -121,7 +124,15 @@ export function BusinessPanel({ state, act, onFocus }: { state: GameState; act: 
       <LookEditor avatar={state.you.avatar} name={state.you.name} act={act} />
 
       <h3>My stall</h3>
-      {b.stall ? <Manager key={b.stall.id} state={state} act={act} /> : <StallOffer state={state} act={act} />}
+      {b.stall ? <Manager key={b.stall.id} state={state} act={act} shop={b.stall} /> : <StallOffer state={state} act={act} />}
+
+      {(b.businesses?.length ?? 0) > 0 && <h3>My businesses</h3>}
+      {b.businesses?.map((biz) => (
+        <div key={biz.id} className="biz">
+          <h4>{biz.name} <span className="muted small">· {REALM_NAME[biz.realm]}</span></h4>
+          <Manager state={state} act={act} shop={biz} shopId={biz.id} />
+        </div>
+      ))}
 
       <h3>My shares</h3>
       {b.shares.length === 0 ? (

@@ -641,3 +641,29 @@ th { font-size: .7rem; letter-spacing: .06em; text-transform: uppercase; color: 
 @media (prefers-reduced-motion: reduce) { .road-track .car svg { animation: none; } .road-track .car, .road-track i { transition: none; } }
 .road-btn { position: absolute; z-index: 5; right: 12px; top: 56px; padding: .45rem .9rem; border-radius: 999px; background: #f2b01e; border: 1px solid #c98a00; color: #3d2a00; font-weight: 800; box-shadow: var(--shadow); }
 .road-btn:hover { filter: brightness(1.05); }
+
+/* Frontier land */
+.land { cursor: pointer; }
+.land .chosen { fill: none; stroke: transparent; stroke-width: 3; }
+.land.on .chosen, .land:focus-visible .chosen { stroke: var(--accent); }
+.land-box { fill: rgba(255, 255, 255, .45); stroke: #8a7a66; stroke-width: 2; stroke-dasharray: 8 6; }
+.land.owned .land-box { fill: rgba(255, 248, 230, .7); stroke: #c98a00; stroke-dasharray: none; }
+.land.mine .land-box { stroke: var(--accent); stroke-width: 3; }
+.land-sign { fill: #f2b01e; stroke: #26364a; stroke-width: 1.2; }
+.land-top { font: 700 13px var(--font); fill: var(--ink); }
+.land-price { font: 800 13px var(--font); fill: #8a5a00; }
+
+/* Travel: one card per road */
+.road-card-item { border: 1px solid var(--line); border-radius: 14px; padding: .7rem .85rem; margin-top: .7rem; display: grid; gap: .25rem; }
+.road-card-item header { display: flex; align-items: center; gap: .6rem; }
+.road-card-item h3 { margin: 0; flex: 1; }
+.road-card-item p { margin: 0; }
+.road-card-item button { justify-self: start; margin-top: .3rem; }
+.badge-tag { font-size: .7rem; font-weight: 800; padding: .1rem .5rem; border-radius: 999px; background: var(--surface-2); color: var(--ink-2); }
+.badge-tag.new { background: var(--gold-soft); color: var(--warn); }
+.road-track.sky { background: linear-gradient(90deg, #e5f0ff, #f3f6fc); }
+.land-panel .row { display: flex; gap: .5rem; align-items: center; }
+
+/* Frontier markets (2D) */
+.map .zone-woods .zone-ground { fill: #e2ead5; } .map .zone-mine .zone-ground { fill: #e6e1ea; } .map .zone-vale .zone-ground { fill: #f4ecd0; }
+.map .zone-woods .zone-plate { fill: #6b4a2f; } .map .zone-mine .zone-plate { fill: #6250d6; } .map .zone-vale .zone-plate { fill: #8a2846; }

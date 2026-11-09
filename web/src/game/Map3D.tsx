@@ -1,20 +1,20 @@
-import { HARBOUR, REALM_OF, ROAD_SIGN } from './realms';
+import { FRONTIER, FRONTIER_LAYOUT, HARBOUR, isFrontier, REALM_OF, ROAD_SIGN, type FrontierId } from './realms';
 import { DEFAULT_AVATAR, HAIR, SHIRTS, SKIN, type Avatar } from '../art/avatar';
 import { createContext, useContext, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Html, OrbitControls, RoundedBox } from '@react-three/drei';
 import { Color, DoubleSide } from 'three';
 import type * as THREE from 'three';
-import type { GameState, Item, MarketId, Stall } from '../api';
+import type { GameState, Item, MarketId, Plot, Stall } from '../api';
 import { PLOTS, STALL_POS, ZONES, crateCount, lightAt, type Popup, type Selection } from './Map';
 import { EDGES, LAMPS, newWalk, NODES, seeded, SOURCE_POS, SOURCE_STOP, stepWalk, stopForStall, TREES, U, walkAt, wx, wz, type Stop, type Walk } from './paths';
 
 const CANOPY: Record<MarketId, [string, string]> = {
-  produce: ['#2f9e5f', '#f1f8f3'], fabric: ['#2a6fdb', '#f1f6fe'], scrap: ['#c8622e', '#f1ede7'], harbour: ['#0b8f8f', '#eef8f8'],
+  produce: ['#2f9e5f', '#f1f8f3'], fabric: ['#2a6fdb', '#f1f6fe'], scrap: ['#c8622e', '#f1ede7'], harbour: ['#0b8f8f', '#eef8f8'], woods: FRONTIER.timberfell.canopy, mine: FRONTIER.gemhollow.canopy, vale: FRONTIER.sunvale.canopy,
 };
-const GROUND: Record<MarketId, string> = { produce: '#cfe8d3', fabric: '#cddcf3', scrap: '#ecd9c8', harbour: '#d8e7e4' };
+const GROUND: Record<MarketId, string> = { produce: '#cfe8d3', fabric: '#cddcf3', scrap: '#ecd9c8', harbour: '#d8e7e4', woods: FRONTIER.timberfell.zone, mine: FRONTIER.gemhollow.zone, vale: FRONTIER.sunvale.zone };
 /** Where you stand in each market: just off the street, so nobody walks through you. */
-const AVATAR_AT: Record<MarketId, [number, number]> = { produce: [260, 384], fabric: [700, 384], scrap: [560, 420], harbour: HARBOUR.you };
+const AVATAR_AT: Record<MarketId, [number, number]> = { produce: [260, 384], fabric: [700, 384], scrap: [560, 420], harbour: HARBOUR.you, woods: FRONTIER_LAYOUT.you, mine: FRONTIER_LAYOUT.you, vale: FRONTIER_LAYOUT.you };
 const AVATARS = ['#2f9e5f', '#e2557b', '#7b4de0', '#eb6834', '#18a999', '#2a6fdb', '#c98a00', '#0e9fb0'];
 const avatarColor = (id: string) => AVATARS[[...id].reduce((a, c) => a + c.charCodeAt(0), 0) % AVATARS.length];
 
@@ -325,6 +325,21 @@ function Good({ item }: { item: string }) {
       );
     case 'salt':
       return <mesh castShadow position={[0, 0.03, 0]}><coneGeometry args={[0.08, 0.1, 7]} /><meshStandardMaterial color="#f3f1ea" roughness={0.9} /></mesh>;
+    case 'timber':
+      return (
+        <group rotation={[0, 0, Math.PI / 2]}>
+          {[-0.04, 0.04].map((x) => <mesh key={x} position={[0, x, 0]} castShadow><cylinderGeometry args={[0.035, 0.035, 0.2, 8]} /><meshStandardMaterial color="#a87b4f" /></mesh>)}
+        </group>
+      );
+    case 'gems':
+      return <mesh castShadow position={[0, 0.04, 0]}><octahedronGeometry args={[0.06, 0]} /><meshStandardMaterial color="#7b4de0" metalness={0.3} roughness={0.15} emissive="#2a1a6e" emissiveIntensity={0.3} /></mesh>;
+    case 'wine':
+      return (
+        <group>
+          <mesh castShadow position={[0, 0.06, 0]}><cylinderGeometry args={[0.035, 0.035, 0.12, 10]} /><meshStandardMaterial color="#3d1a26" roughness={0.3} /></mesh>
+          <mesh position={[0, 0.14, 0]}><cylinderGeometry args={[0.012, 0.02, 0.05, 8]} /><meshStandardMaterial color="#3d1a26" /></mesh>
+        </group>
+      );
     case 'spice':
       return (
         <group>
@@ -476,6 +491,32 @@ function SourceModel({ item, label: text, detail, on, next, onSelect, lit, pos }
           <mesh position={[0, 0.04, 0]} receiveShadow><boxGeometry args={[2, 0.08, 1.2]} /><meshStandardMaterial color="#cfe3ea" roughness={0.3} /></mesh>
           {[[-0.55, -0.25], [0.15, -0.3], [-0.2, 0.3], [0.6, 0.25]].map(([x, z], i) => <mesh key={i} position={[x, 0.24, z]} castShadow><coneGeometry args={[0.28, 0.4, 9]} /><meshStandardMaterial color="#f3f1ea" roughness={0.95} /></mesh>)}
         </>
+      ) : item === 'timber' ? (
+        <>
+          {/* the lumber camp: a stack of logs */}
+          {[[-0.5, 0.18, 0], [0, 0.18, 0], [0.5, 0.18, 0], [-0.25, 0.48, 0], [0.25, 0.48, 0]].map(([x, y, z], i) => (
+            <mesh key={i} position={[x, y, z]} rotation={[Math.PI / 2, 0, 0]} castShadow><cylinderGeometry args={[0.17, 0.17, 1.1, 12]} /><meshStandardMaterial color="#a87b4f" /></mesh>
+          ))}
+        </>
+      ) : item === 'gems' ? (
+        <>
+          {/* the gem seam: a rock face with crystals */}
+          <mesh position={[0, 0.5, 0]} castShadow><dodecahedronGeometry args={[0.85, 0]} /><meshStandardMaterial color="#8e8a96" flatShading roughness={0.85} /></mesh>
+          {[[-0.35, 0.75, 0.55, '#7b4de0'], [0.25, 0.95, 0.5, '#d6336c'], [0.45, 0.5, 0.6, '#0b8f8f']].map(([x, y, z, c], i) => (
+            <mesh key={i} position={[x as number, y as number, z as number]}><octahedronGeometry args={[0.16, 0]} /><meshStandardMaterial color={c as string} emissive={c as string} emissiveIntensity={0.35} roughness={0.1} /></mesh>
+          ))}
+        </>
+      ) : item === 'wine' ? (
+        <>
+          {/* the vineyard: rows of vines and a barrel */}
+          {[-0.4, 0, 0.4].map((z) => (
+            <group key={z}>
+              <mesh position={[-0.2, 0.25, z]} castShadow><boxGeometry args={[1.4, 0.4, 0.14]} /><meshStandardMaterial color="#5a8a3a" /></mesh>
+              {[-0.7, -0.3, 0.1, 0.5].map((x) => <mesh key={x} position={[x, 0.32, z + 0.09]}><sphereGeometry args={[0.06, 8, 8]} /><meshStandardMaterial color="#7a2846" /></mesh>)}
+            </group>
+          ))}
+          <mesh position={[0.8, 0.3, 0]} castShadow><cylinderGeometry args={[0.22, 0.22, 0.55, 14]} /><meshStandardMaterial color="#8a5a32" /></mesh>
+        </>
       ) : item === 'cotton' ? (
         <>
           {/* cotton shed full of fluffy bales */}
@@ -503,6 +544,87 @@ function SourceModel({ item, label: text, detail, on, next, onSelect, lit, pos }
         <div style={label}>{text}<div style={{ fontSize: 10, color: '#ffc861' }}>{detail}</div>{next && <div style={{ background: '#d6336c', borderRadius: 6, marginTop: 2 }}>▼ NEXT</div>}</div>
       </Html>
     </group>
+  );
+}
+
+/** A plot of frontier land: a marked-out patch with a sign showing its price, its owner, or both. */
+function LandModel({ plot, pos, on, onSelect }: { plot: Plot; pos: [number, number]; on: boolean; onSelect: () => void }) {
+  const price = plot.owner ? plot.forSale : plot.price;
+  const top = plot.owner ? (plot.owner.mine ? 'Your land' : `${plot.owner.name}'s land`) : 'Land for sale';
+  return (
+    <group position={[wx(pos[0]), 0, wz(pos[1])]} onClick={(e) => { e.stopPropagation(); onSelect(); }}
+      onPointerOver={() => { document.body.style.cursor = 'pointer'; }} onPointerOut={() => { document.body.style.cursor = ''; }}>
+      <mesh position={[0, 0.03, 0]} receiveShadow><boxGeometry args={[3, 0.04, 2]} /><meshStandardMaterial color={plot.owner ? '#efe2c2' : '#e6e0d2'} /></mesh>
+      {[[-1.5, -1], [1.5, -1], [-1.5, 1], [1.5, 1]].map(([x, z]) => <mesh key={`${x}${z}`} position={[x, 0.2, z]} castShadow><cylinderGeometry args={[0.04, 0.04, 0.4, 6]} /><meshStandardMaterial color="#8a5a32" /></mesh>)}
+      <mesh position={[-0.6, 0.5, 0]} castShadow><cylinderGeometry args={[0.04, 0.05, 1, 6]} /><meshStandardMaterial color="#5a4632" /></mesh>
+      <mesh position={[-0.6, 0.95, 0]} castShadow><boxGeometry args={[0.7, 0.3, 0.05]} /><meshStandardMaterial color={plot.owner?.mine ? '#2f8cff' : '#f2b01e'} /></mesh>
+      {on && <mesh position={[0, 0.06, 0]} rotation={[-Math.PI / 2, 0, 0]}><ringGeometry args={[1.7, 1.85, 48]} /><meshBasicMaterial color="#f2b01e" /></mesh>}
+      <Html zIndexRange={[5, 0]} position={[0, 1.5, 0]} center style={{ pointerEvents: 'none' }}>
+        <div style={label}>{top}{price !== null && <div style={{ fontSize: 10, color: '#ffc861' }}>{price.toLocaleString('en-US')} coins</div>}</div>
+      </Html>
+    </group>
+  );
+}
+
+/**
+ * A frontier, in 3D: open ground with the trees, rocks or vines of the place, its source, eight plots of land, and the businesses
+ * players have built on them. No shops until players build them.
+ */
+function FrontierScene({ realm, state, selected, onSelect, popups, animate }: { realm: FrontierId; state: GameState; selected: Selection; onSelect: (s: Selection) => void; popups: Popup[]; animate: boolean }) {
+  const f = FRONTIER[realm];
+  const light = lightAt(state.hour);
+  const focus = state.coach.focus;
+  const night = light.opacity;
+  const dark = Math.min(1, night / 0.5);
+  const rain = state.shocks.some((x) => x.kind === 'rain');
+  const z = FRONTIER_LAYOUT.zone;
+  const plots = state.land?.here ?? [];
+  const sign = ROAD_SIGN[realm];
+  const decor: [number, number, number][] = [[40, 120, 1], [60, 520, 0.9], [975, 60, 0.8], [130, 650, 0.8], [700, 655, 0.7], [400, 650, 0.9], [985, 400, 0.8]];
+  return (
+    <>
+      <color attach="background" args={[mix('#e4ece4', '#080d24', dark)]} />
+      <fog attach="fog" args={[mix('#e4ece4', '#080d24', dark), 24 - dark * 6, 60 - dark * 14]} />
+      <ambientLight intensity={0.95 - dark * 0.68} color={mix('#ffffff', '#7f93ff', dark)} />
+      <directionalLight position={[6, 10, 5]} intensity={1.3 - dark * 0.95} color={mix('#ffffff', '#a9bcff', dark)} castShadow shadow-mapSize={[1024, 1024]}
+        shadow-camera-left={-12} shadow-camera-right={12} shadow-camera-top={9} shadow-camera-bottom={-9} />
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0]} receiveShadow onClick={() => onSelect(null)}>
+        <planeGeometry args={[26, 18]} /><meshStandardMaterial color={mix(f.ground, '#262f52', dark)} />
+      </mesh>
+      <RoundedBox args={[z.w / U, 0.05, z.h / U]} radius={0.03} position={[wx(z.x + z.w / 2), 0.015, wz(z.y + z.h / 2)]} receiveShadow>
+        <meshStandardMaterial color={f.zone} />
+      </RoundedBox>
+      <Html zIndexRange={[5, 0]} position={[wx(z.x + z.w / 2), 4, wz(z.y + 30)]} center style={{ pointerEvents: 'none' }}><div style={{ ...label, background: 'rgba(22,38,74,.55)', font: '700 15px system-ui, sans-serif', letterSpacing: 1.5, padding: '4px 14px', border: '1px solid rgba(255,255,255,.35)' }}>{f.label.toUpperCase()}{state.land?.discovered ? ` · FIRST REACHED BY ${state.land.discovered.by.toUpperCase()}` : ''}</div></Html>
+      {decor.map(([x, y, sc], i) => (
+        f.decor === 'trees' ? <group key={i}><Tree x={x} y={y} s={sc} /><Tree x={x + 30} y={y + 16} s={sc * 0.8} /></group>
+          : f.decor === 'rocks' ? <mesh key={i} position={[wx(x), 0.35 * sc, wz(y)]} castShadow><dodecahedronGeometry args={[0.6 * sc, 0]} /><meshStandardMaterial color="#8e8a96" flatShading /></mesh>
+          : <group key={i} position={[wx(x), 0, wz(y)]}>{[-0.4, 0, 0.4].map((dz) => <mesh key={dz} position={[0, 0.22, dz]} castShadow><boxGeometry args={[1.4, 0.4, 0.12]} /><meshStandardMaterial color="#5a8a3a" /></mesh>)}</group>
+      ))}
+      {plots.filter((x) => !x.business).map((plot) => (
+        <LandModel key={plot.id} plot={plot} pos={FRONTIER_LAYOUT.plots[plot.n]} on={selected?.kind === 'land' && selected.id === plot.id} onSelect={() => onSelect({ kind: 'land', id: plot.id })} />
+      ))}
+      {state.stalls.map((s) => {
+        const plot = plots.find((x) => x.business?.id === s.id);
+        if (!plot) return null;
+        return <StallModel key={s.id} s={s} pos={FRONTIER_LAYOUT.plots[plot.n]} selected={selected?.kind === 'stall' && selected.id === s.id}
+          next={focus?.kind === 'stall' && focus.id === s.id} onSelect={() => onSelect({ kind: 'stall', id: s.id })} />;
+      })}
+      {state.sources.filter((src) => src.item === f.source).map((src) => (
+        <SourceModel key={src.item} pos={FRONTIER_LAYOUT.source} lit={night >= 0.28} item={src.item} label={src.item} detail={`${src.cost} coins each`}
+          on={selected?.kind === 'source' && selected.item === src.item} next={focus?.kind === 'source' && focus.id === src.item}
+          onSelect={() => onSelect({ kind: 'source', item: src.item })} />
+      ))}
+      <RoadSign3D at={sign.at} label={sign.label} on={selected?.kind === 'road'} onSelect={() => onSelect({ kind: 'road', realm: sign.to })} />
+      <YouModel state={state} at={FRONTIER_LAYOUT.you} />
+      {[[200, 600], [920, 600], [200, 20], [920, 20]].map(([x, y], i) => <Lamp key={i} x={wx(x)} z={wz(y)} on={night >= 0.28} />)}
+      {night >= 0.28 && plots.filter((x) => x.business).map((x) => { const [px, py] = FRONTIER_LAYOUT.plots[x.n]; return <pointLight key={x.id} position={[wx(px), 1.2, wz(py) + 0.8]} intensity={9} distance={6} color="#ffc861" />; })}
+      {animate && rain && <Rain />}
+      {popups.map((p) => (
+        <Html zIndexRange={[5, 0]} key={p.id} position={[wx(p.x), 1.6, wz(p.y)]} center style={{ pointerEvents: 'none' }}>
+          <div style={{ ...label, background: p.tone === 'gain' ? '#2f8f4e' : p.tone === 'spend' ? '#d6336c' : '#16264a', fontSize: 14 }}>{p.text}</div>
+        </Html>
+      ))}
+    </>
   );
 }
 
@@ -639,7 +761,9 @@ function Rain() {
 
 function Scene(props: { state: GameState; selected: Selection; onSelect: (s: Selection) => void; popups: Popup[]; animate: boolean }) {
   // Saltmere Harbour has its own scene; everything below is the town.
-  if ((props.state.realm?.here ?? 'town') === 'saltmere') return <HarbourScene {...props} />;
+  const here = props.state.realm?.here ?? 'town';
+  if (here === 'saltmere') return <HarbourScene {...props} />;
+  if (isFrontier(here)) return <FrontierScene realm={here} {...props} />;
   return <TownScene {...props} />;
 }
 

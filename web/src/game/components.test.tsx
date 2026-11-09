@@ -16,7 +16,7 @@ import { StallPanel, SourcePanel, Actions } from './Panels';
 afterEach(cleanup);
 const state = fixture as unknown as GameState;
 const act = (): Actions => ({
-  sell: vi.fn(), buy: vi.fn(), order: vi.fn(), cancelOrder: vi.fn(), gather: vi.fn(), upgrade: vi.fn(), setName: vi.fn(), setAvatar: vi.fn(), travel: vi.fn(), claimQuest: vi.fn(), claimDaily: vi.fn(), buyShares: vi.fn(), sellShares: vi.fn(), contribute: vi.fn(),
+  sell: vi.fn(), buy: vi.fn(), order: vi.fn(), cancelOrder: vi.fn(), gather: vi.fn(), upgrade: vi.fn(), setName: vi.fn(), setAvatar: vi.fn(), travel: vi.fn(), buyLand: vi.fn(), listLand: vi.fn(), build: vi.fn(), claimQuest: vi.fn(), claimDaily: vi.fn(), buyShares: vi.fn(), sellShares: vi.fn(), contribute: vi.fn(),
   openStall: vi.fn(), councilPropose: vi.fn(), councilVote: vi.fn(), stallStock: vi.fn(), stallTake: vi.fn(), stallPrice: vi.fn(), stallDeposit: vi.fn(), stallWithdraw: vi.fn(), ack: vi.fn(), scavenge: vi.fn(), takeJob: vi.fn(), deliverJob: vi.fn(), dropJob: vi.fn(),
 });
 /** What it costs to walk the test player's load to each market: the panel shows the one for the stall's own market. */
@@ -366,9 +366,9 @@ describe('ownership', () => {
     fireEvent.change(pay, { target: { value: String(thread.buy + 5) } });
     expect(set.disabled).toBe(false);
     fireEvent.click(set);
-    expect(a.stallPrice).toHaveBeenCalledWith('thread', thread.buy + 5, thread.sell);
+    expect(a.stallPrice).toHaveBeenCalledWith('thread', thread.buy + 5, thread.sell, undefined); // your town stall: no business id
     fireEvent.click(screen.getByText('Put in'));
-    expect(a.stallDeposit).toHaveBeenCalledWith(1000);
+    expect(a.stallDeposit).toHaveBeenCalledWith(1000, undefined);
     expect(screen.getByText(/Your till is what your stall uses to buy/)).toBeTruthy();
   });
 

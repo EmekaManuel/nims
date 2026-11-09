@@ -229,3 +229,16 @@ Simulated traders and the fast-forward stay in the town, so the week in the dash
 **Invite a friend.** A link built from the player's opaque id. A new player (no sale yet) who joins with it is linked to the inviter; on their first sale both get 300 coins. Not your own link, once per player, at most 10 rewarded friends per inviter.
 
 **Avatars.** A look is picks from fixed palettes (`server/game/avatar.ts` checks them), the same palettes the 3D town draws people with.
+
+## 14. The frontiers: land and businesses
+
+Three realms with no merchants: Timberfell Woods (8 game hours by car, 160 coins), Gem Hollow (10 hours by plane, 260) and Sunvale (10 hours by plane, 240). Each has a source of its own good (timber, gems, wine), which the town (Diego, Anil, June) and the harbour (Marlow) buy at an import premium; each frontier's customers pay a premium for what it lacks (`IMPORT_PRICE`).
+
+| Lever | Value | Why |
+|---|---|---|
+| Plots | 8 per frontier: 3,500 by the source, 2,600 in the middle, 1,800 at the edge | Being early and near the source is worth paying for |
+| Land per player | one plot per frontier | No one buys a whole place |
+| Building | 4,000 coins on land you own | Together with land, about the cost of a town stall, and a commitment |
+| Reselling | the owner sets an asking price for empty land; the buyer pays the owner through the ledger | Land is an asset players trade |
+
+A business is a player-run shop (the same mechanics as a town stall: your prices, your stock, your till) whose id is `biz-<plot>`; the stall actions take that id, and stocking one means going there. Everyday customers buy from it when its price is fair for that place (`localBase` x1.6). The first player to reach a frontier is recorded and named in the news. Saves from before the frontiers gain their plots, sources and the merchants' new goods on load.

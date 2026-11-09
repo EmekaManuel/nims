@@ -5,7 +5,7 @@ import { Glyph } from '../art/icons';
 import { Checkbox, Field, NumberField, Select, Slider } from '../ui';
 import { dayOf, itemColor, coins, SHOCK_LABEL, STATUS, when } from './viz';
 
-const MARKET_NAME = { produce: 'Produce Market', fabric: 'Fabric Market', scrap: 'Scrap & Hardware', harbour: 'Saltmere Harbour' } as const;
+const MARKET_NAME = { produce: 'Produce Market', fabric: 'Fabric Market', scrap: 'Scrap & Hardware', harbour: 'Saltmere Harbour', woods: 'Timberfell', mine: 'Gem Hollow', vale: 'Sunvale' } as const;
 const DEFAULTS: FastForwardParams = { days: 7, seed: 1, gatherers: 3, arbitrageur: true, investor: true, flooder: true };
 /** Playback speed at 1x: a week (168 hours) takes about 12 seconds. */
 const HOURS_PER_SECOND = 168 / 12;

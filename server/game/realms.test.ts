@@ -37,6 +37,7 @@ describe('the journey to Saltmere Harbour', () => {
     expect(player(g).cash).toBe(before - REALMS.saltmere.passage);
     expect(g.state(me).realm.journey).toMatchObject({ to: 'saltmere', hoursLeft: REALMS.saltmere.journeyHours });
     expect(g.gather(me, 'tomatoes')).toMatchObject({ ok: false, message: expect.stringMatching(/on the road to Saltmere/) });
+    expect(g.state(me).coach).toMatchObject({ focus: null, text: expect.stringMatching(/on the road to Saltmere Harbour/) });
     expect(g.travel(me, 'town')).toMatchObject({ ok: false });
     waitForArrival(g);
     expect(g.state(me).realm).toMatchObject({ here: 'saltmere', journey: null });
@@ -73,6 +74,8 @@ describe('the journey to Saltmere Harbour', () => {
     const harbourIds = ['pike', 'marlow', 'zara'];
     const town = g.state(me);
     expect(town.deals.every((d) => !harbourIds.includes(d.to.id))).toBe(true);
+    expect(town.deals.every((d) => d.from.id !== 'fish' && d.from.id !== 'salt')).toBe(true); // nor from the harbour's pier and salt pans
+    expect(town.coach.text).not.toMatch(/salt pans|fishing pier/);
     expect(town.jobs.board.every((j) => !harbourIds.includes(j.to.id))).toBe(true);
     g.travel(me, 'saltmere');
     waitForArrival(g);

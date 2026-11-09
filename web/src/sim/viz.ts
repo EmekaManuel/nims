@@ -12,7 +12,8 @@ import type { Item } from '../api';
 export const SERIES = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#6250d6', '#e34948'] as const;
 
 /** Each good keeps one colour everywhere. Consecutive slots within a market, so neighbours were validated together. */
-const ITEM_SLOT: Record<Item, number> = { tomatoes: 0, pepper: 1, flour: 2, cotton: 3, lace: 4, thread: 5, iron: 6, 'copper wire': 7 };
+// The harbour's goods reuse slots that are distinct from their neighbours in the Produce Market chart (spice purple, salt pink).
+const ITEM_SLOT: Record<Item, number> = { tomatoes: 0, pepper: 1, flour: 2, cotton: 3, lace: 4, thread: 5, iron: 6, 'copper wire': 7, spice: 6, salt: 4, fish: 3 };
 export const itemColor = (item: Item) => SERIES[ITEM_SLOT[item]];
 
 /** Reserved status colours: used only where the colour MEANS closed (critical) or reopened (good), always with an icon and label. */

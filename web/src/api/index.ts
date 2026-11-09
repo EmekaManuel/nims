@@ -1,7 +1,9 @@
 import type { Avatar } from '../art/avatar';
 /** Typed client for the Nims game server. Nothing here knows about wallets — the player never sees the chain. */
-export type Item = 'tomatoes' | 'pepper' | 'flour' | 'cotton' | 'lace' | 'thread' | 'iron' | 'copper wire';
-export type MarketId = 'produce' | 'fabric' | 'scrap';
+export type Item = 'tomatoes' | 'pepper' | 'flour' | 'cotton' | 'lace' | 'thread' | 'iron' | 'copper wire' | 'fish' | 'salt' | 'spice';
+export type MarketId = 'produce' | 'fabric' | 'scrap' | 'harbour';
+/** A place reached by a journey: the town, or Saltmere Harbour beyond the hills. */
+export type RealmId = 'town' | 'saltmere';
 
 export interface Offer {
   item: Item;
@@ -131,6 +133,13 @@ export interface GameState {
   board: { market: MarketId; item: Item; base: number; price: number | null }[];
   sources: { item: Item; label: string; units: number; cost: number }[];
   events: { hour: number; type: string; text: string }[];
+  /** Where you are, whether you're on the road, and the roads to other realms. */
+  realm?: {
+    here: RealmId;
+    name: string;
+    journey: { to: RealmId; name: string; hoursLeft: number } | null;
+    roads: { realm: RealmId; name: string; blurb: string; hours: number; passage: number; freight: number }[];
+  };
   /** Quests you're on and today's daily reward (server/game/quests.ts). */
   quests?: {
     active: { id: string; chain: 'starter' | 'realm'; title: string; story: string; reward: number; complete: boolean; objectives: { label: string; done: number; target: number }[] }[];
@@ -301,6 +310,7 @@ export const api = {
   claimQuest: (id: string) => post('/game/quest/claim', { id }).then((r) => r.body),
   claimDaily: () => post('/game/daily', {}).then((r) => r.body),
   redeemInvite: (code: string) => post('/game/invite', { code }).then((r) => r.body),
+  travel: (realm: RealmId) => post('/game/travel', { realm }).then((r) => r.body),
 };
 
 export const coins = (n: number) => `${Math.round(n).toLocaleString('en-US')} coins`;

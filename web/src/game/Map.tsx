@@ -1,8 +1,9 @@
 import { SHIRTS } from '../art/avatar';
-import type { Focus, GameState, Item, MarketId, Offer, Stall } from '../api';
+import { HARBOUR, REALM_OF, ROAD_SIGN } from './realms';
+import type { Focus, GameState, Item, MarketId, Offer, RealmId, Stall } from '../api';
 import { itemId } from '../art/icons';
 
-export type Selection = { kind: 'stall'; id: string } | { kind: 'source'; item: Item } | { kind: 'plot'; market: MarketId } | null;
+export type Selection = { kind: 'stall'; id: string } | { kind: 'source'; item: Item } | { kind: 'plot'; market: MarketId } | { kind: 'road'; realm: RealmId } | null;
 
 /**
  * The district, drawn. Layout is hand-placed on a 1000 x 680 canvas and exported so a test can prove
@@ -20,6 +21,7 @@ export const ZONES: Record<MarketId, { x: number; y: number; w: number; h: numbe
   produce: { x: 160, y: 30, w: 400, h: 300, label: 'Produce Market', plate: 176 },
   fabric: { x: 590, y: 30, w: 400, h: 300, label: 'Fabric Market', plate: 158 },
   scrap: { x: 200, y: 380, w: 600, h: 270, label: 'Scrap & Hardware', plate: 196 },
+  harbour: HARBOUR.zone,
 };
 
 export const STALL_POS: Record<string, [number, number]> = {
@@ -45,6 +47,7 @@ const CANOPY: Record<MarketId, [string, string]> = {
   produce: ['#2f9e5f', '#f1f8f3'],
   fabric: ['#2a6fdb', '#f1f6fe'],
   scrap: ['#c8622e', '#f1ede7'],
+  harbour: ['#0b8f8f', '#eef8f8'],
 };
 
 const STATE_LABEL = { open: 'Open', struggling: 'Low on cash', closed: 'Closed' } as const;
@@ -147,6 +150,26 @@ function StallArt({ s }: { s: Stall }) {
 
 function SourceArt({ item }: { item: Item }) {
   const crop = item === 'pepper' ? '#e24a22' : '#d93b2b';
+  if (item === 'fish') {
+    // the fishing pier: planks out over the water, crates of the catch
+    return (
+      <g>
+        <rect x="-46" y="-30" width="92" height="52" rx="4" fill="#a87b4f" stroke="#26364a" strokeWidth="1.6" />
+        {[-34, -18, -2, 14, 30].map((x) => <path key={x} d={`M${x} -30V22`} stroke="#7a5534" strokeWidth="1.2" />)}
+        {[-28, 4].map((x) => <g key={x}><rect x={x} y="-20" width="26" height="20" rx="3" fill="#6b4a2f" stroke="#26364a" strokeWidth="1.2" /><use href="#i-fish" x={x + 1} y="-22" width="24" height="24" /></g>)}
+      </g>
+    );
+  }
+  if (item === 'salt') {
+    // the salt pans: shallow beds with white heaps
+    return (
+      <g>
+        <rect x="-46" y="-30" width="92" height="52" rx="8" fill="#cfe3ea" stroke="#26364a" strokeWidth="1.6" />
+        <path d="M-46 -4H46M0 -30V22" stroke="#9cbfcc" strokeWidth="1.4" />
+        {[[-30, -20], [8, -22], [-20, 4], [20, 2]].map(([x, y], i) => <use key={i} href="#i-salt" x={x} y={y} width="26" height="26" />)}
+      </g>
+    );
+  }
   if (item === 'tomatoes' || item === 'pepper') {
     return (
       <g>
@@ -180,6 +203,40 @@ function SourceArt({ item }: { item: Item }) {
   );
 }
 
+/** The harbour: a quay, the sea below the shore line with gentle waves, and boats at their moorings. Decorative only. */
+function HarbourScenery() {
+  return (
+    <g aria-hidden="true">
+      <rect x="0" y={HARBOUR.shore} width="1000" height={680 - HARBOUR.shore} fill="#5f9fc4" />
+      <rect x="0" y={HARBOUR.shore - 8} width="1000" height="10" fill="#8a7a66" />
+      {[540, 570, 600, 630, 660].map((y, i) => <path key={y} d={`M${(i % 2) * 40} ${y} q25 -8 50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0`} fill="none" stroke="#9cc8e0" strokeWidth="2" opacity=".6" />)}
+      {/* the jetty out to the boats */}
+      <rect x="300" y={HARBOUR.shore - 6} width="60" height="110" fill="#a87b4f" stroke="#26364a" strokeWidth="1.4" />
+      {HARBOUR.boats.map(([x, y, r], i) => (
+        <g key={i} transform={`translate(${x} ${y}) rotate(${r * 30})`}>
+          <path d="M-60 0h120l-18 24h-84z" fill={['#c8622e', '#2a6fdb', '#2f9e5f'][i % 3]} stroke="#26364a" strokeWidth="1.6" />
+          <path d="M0 0V-62" stroke="#5a4632" strokeWidth="4" />
+          <path d="M3 -58L44 -8H3z" fill="#f6f2e6" stroke="#26364a" strokeWidth="1.4" />
+        </g>
+      ))}
+      <Tree x={50} y={420} s={0.8} /> <Tree x={955} y={300} s={0.9} />
+    </g>
+  );
+}
+
+/** The road out of the realm: a signpost. Tap it to see the journey and set off. */
+function RoadSign({ at, label, on, ...props }: { at: [number, number]; label: string; on: boolean } & React.SVGProps<SVGGElement>) {
+  return (
+    <g transform={`translate(${at[0]} ${at[1]})`} className={`roadsign ${on ? 'on' : ''}`} aria-label={`${label}. The road out: tap to see the journey.`} {...props}>
+      <rect className="hit" x="-62" y="-60" width="124" height="96" fill="transparent" />
+      <rect className="chosen" x="-66" y="-64" width="132" height="104" rx="12" />
+      <path d="M0 30V-30" stroke="#5a4632" strokeWidth="6" strokeLinecap="round" />
+      <path d="M-54 -46h96l14 13-14 13h-96z" fill="#f2b01e" stroke="#26364a" strokeWidth="1.6" strokeLinejoin="round" />
+      <text x="-6" y="-29" textAnchor="middle" className="roadsign-text">{label}</text>
+    </g>
+  );
+}
+
 function Tree({ x, y, s = 1 }: { x: number; y: number; s?: number }) {
   return (
     <g transform={`translate(${x} ${y}) scale(${s})`}>
@@ -194,13 +251,26 @@ function Tree({ x, y, s = 1 }: { x: number; y: number; s?: number }) {
 export interface Popup { id: number; x: number; y: number; text: string; tone: 'gain' | 'spend' | 'info' }
 
 /** Where a stall or source sits on the map (the point just above it), for popups and pointers. */
+/** The realm being shown: the one you are in. */
+export const realmShown = (state: GameState): RealmId => state.realm?.here ?? 'town';
+
+/** Where a stall sits in the realm being shown (undefined if it is in another realm). */
+export function stallPos(realm: RealmId, st: { id: string; market: MarketId }): [number, number] | undefined {
+  if (REALM_OF[st.market] !== realm) return undefined;
+  return realm === 'saltmere' ? HARBOUR.stalls[st.id] : STALL_POS[st.id] ?? PLOTS[st.market];
+}
+
+/** Where a source sits in the realm being shown. */
+export const sourcePos = (realm: RealmId, item: Item): [number, number] | undefined => (realm === 'saltmere' ? HARBOUR.sources[item] : SOURCE_POS[item]);
+
 export function spotOf(state: GameState, target: { kind: 'stall' | 'source'; id: string }): [number, number] | null {
+  const realm = realmShown(state);
   if (target.kind === 'source') {
-    const p = SOURCE_POS[target.id as Item];
+    const p = sourcePos(realm, target.id as Item);
     return p ? [p[0], p[1] - 40] : null;
   }
   const st = state.stalls.find((x) => x.id === target.id);
-  const p = st && (STALL_POS[st.id] ?? PLOTS[st.market]);
+  const p = st && stallPos(realm, st);
   return p ? [p[0], p[1] - STALL_H / 2 + 4] : null;
 }
 
@@ -209,7 +279,7 @@ const AVATARS = ['#2f9e5f', '#e2557b', '#7b4de0', '#eb6834', '#18a999', '#2a6fdb
 const avatarColor = (id: string) => AVATARS[[...id].reduce((a, c) => a + c.charCodeAt(0), 0) % AVATARS.length];
 
 /** Where your avatar stands in each market (the open plaza between the rows of stalls). */
-const AVATAR_AT: Record<MarketId, [number, number]> = { produce: [340, 368], fabric: [760, 368], scrap: [560, 372] };
+const AVATAR_AT: Record<MarketId, [number, number]> = { produce: [340, 368], fabric: [760, 368], scrap: [560, 372], harbour: HARBOUR.you };
 
 /** Little town folk and a delivery truck moving along the roads. Purely decorative, and still when motion is reduced. */
 const WALKERS: { path: string; dur: number; begin: number; color: string }[] = [
@@ -318,6 +388,9 @@ export function DistrictMap({ state, selected, onSelect, popups = [], moving }: 
   const animate = moving ?? !(typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches);
   const focus: Focus = state.coach.focus;
   const light = lightAt(state.hour);
+  const realm = realmShown(state);
+  const town = realm === 'town';
+  const sign = ROAD_SIGN[realm];
   const press = (fn: () => void) => ({
     role: 'button' as const,
     tabIndex: 0,
@@ -326,7 +399,7 @@ export function DistrictMap({ state, selected, onSelect, popups = [], moving }: 
   });
 
   return (
-    <svg viewBox="0 0 1000 680" className="map" aria-label="Map of the market district">
+    <svg viewBox="0 0 1000 680" className={`map realm-${realm}`} aria-label={town ? 'Map of the market district' : `Map of ${HARBOUR.zone.label}`}>
       <defs>
         <pattern id="speck" width="40" height="40" patternUnits="userSpaceOnUse">
           <path d="M40 0H0V40" fill="none" stroke="#cdd6e3" strokeWidth="1" />
@@ -338,15 +411,19 @@ export function DistrictMap({ state, selected, onSelect, popups = [], moving }: 
       <rect width="1000" height="680" fill="#dfe5ee" />
       <rect width="1000" height="680" fill="url(#speck)" />
 
-      <g className="road">
-        <path d="M130 110H160M130 250H160M150 470H200M150 590H200M560 190H590M360 330V380M800 500H846M890 330V430" />
-      </g>
-      <g className="road-dash">
-        <path d="M130 110H160M130 250H160M150 470H200M150 590H200M560 190H590M360 330V380M800 500H846M890 330V430" />
-      </g>
-      <Tree x={44} y={372} /> <Tree x={958} y={392} s={0.9} /> <Tree x={900} y={640} s={0.8} /> <Tree x={30} y={660} s={0.7} />
+      {town ? (
+        <>
+          <g className="road">
+            <path d="M130 110H160M130 250H160M150 470H200M150 590H200M560 190H590M360 330V380M800 500H846M890 330V430M800 655H845" />
+          </g>
+          <g className="road-dash">
+            <path d="M130 110H160M130 250H160M150 470H200M150 590H200M560 190H590M360 330V380M800 500H846M890 330V430M800 655H845" />
+          </g>
+          <Tree x={44} y={372} /> <Tree x={958} y={392} s={0.9} /> <Tree x={900} y={640} s={0.8} /> <Tree x={30} y={660} s={0.7} />
+        </>
+      ) : <HarbourScenery />}
 
-      {(Object.keys(ZONES) as MarketId[]).map((id) => {
+      {(Object.keys(ZONES) as MarketId[]).filter((id) => REALM_OF[id] === realm).map((id) => {
         const z = ZONES[id];
         const here = state.you.at === id;
         return (
@@ -360,7 +437,7 @@ export function DistrictMap({ state, selected, onSelect, popups = [], moving }: 
         );
       })}
 
-      {state.business.stallOffer && (Object.keys(PLOTS) as MarketId[]).map((mk) => {
+      {town && state.business.stallOffer && (Object.keys(PLOTS) as MarketId[]).map((mk) => {
         const [x, y] = PLOTS[mk]!;
         const on = selected?.kind === 'plot' && selected.market === mk;
         return (
@@ -373,7 +450,7 @@ export function DistrictMap({ state, selected, onSelect, popups = [], moving }: 
       })}
 
       {state.stalls.map((s) => {
-        const pos = STALL_POS[s.id] ?? PLOTS[s.market];
+        const pos = stallPos(realm, s);
         if (!pos) return null;
         const [x, y] = pos;
         const on = selected?.kind === 'stall' && selected.id === s.id;
@@ -390,7 +467,7 @@ export function DistrictMap({ state, selected, onSelect, popups = [], moving }: 
       })}
 
       {state.sources.map((src) => {
-        const pos = SOURCE_POS[src.item];
+        const pos = sourcePos(realm, src.item);
         if (!pos) return null;
         const [x, y] = pos;
         const on = selected?.kind === 'source' && selected.item === src.item;
@@ -410,14 +487,15 @@ export function DistrictMap({ state, selected, onSelect, popups = [], moving }: 
         );
       })}
 
-      <Life moving={animate} />
+      {town && <Life moving={animate} />}
+      <RoadSign at={sign.at} label={sign.label} on={selected?.kind === 'road'} {...press(() => onSelect({ kind: 'road', realm: sign.to }))} />
       <You at={state.you.at ?? 'produce'} vehicle={state.you.vehicle} shirt={state.you.avatar ? SHIRTS[state.you.avatar.shirt] : undefined} />
 
       {focus && (() => {
         // The "NEXT" pill is drawn last so no stall or awning can cover it.
         const at = focus.kind === 'stall'
-          ? (() => { const st = state.stalls.find((x) => x.id === focus.id); const p = st && (STALL_POS[st.id] ?? PLOTS[st.market]); return p ? [p[0] + STALL_W / 2 - 40, p[1] - STALL_H / 2 + 16] : null; })()
-          : (() => { const p = SOURCE_POS[focus.id as Item]; return p ? [p[0], p[1] - 52] : null; })();
+          ? (() => { const st = state.stalls.find((x) => x.id === focus.id); const p = st && stallPos(realm, st); return p ? [p[0] + STALL_W / 2 - 40, p[1] - STALL_H / 2 + 16] : null; })()
+          : (() => { const p = sourcePos(realm, focus.id as Item); return p ? [p[0], p[1] - 52] : null; })();
         return at ? (
           <g transform={`translate(${at[0]} ${at[1]})`} className="next-pill" aria-hidden="true">
             <rect x={-34} y={-11} width={68} height={22} rx={11} />
@@ -434,7 +512,7 @@ export function DistrictMap({ state, selected, onSelect, popups = [], moving }: 
       {light.opacity >= 0.28 && (
         <g aria-hidden="true" style={{ pointerEvents: 'none', mixBlendMode: 'screen' }} className="lamps">
           {state.stalls.map((st) => {
-            const p = STALL_POS[st.id] ?? PLOTS[st.market];
+            const p = stallPos(realm, st);
             return p && st.state !== 'closed' ? <circle key={st.id} cx={p[0]} cy={p[1]} r="92" fill="url(#glow)" /> : null;
           })}
         </g>

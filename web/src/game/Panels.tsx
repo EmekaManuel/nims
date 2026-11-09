@@ -1,6 +1,6 @@
 import type { Avatar } from '../art/avatar';
 import { useState } from 'react';
-import type { GameState, Item, MarketId, Stall } from '../api';
+import type { GameState, Item, MarketId, RealmId, Stall } from '../api';
 import { coins } from '../api';
 import { useServices } from '../lib/services';
 import { Tip } from './Tip';
@@ -22,6 +22,7 @@ export interface Actions {
   upgrade: (to: string) => void;
   setName: (name: string) => void;
   setAvatar: (a: Avatar) => void;
+  travel: (realm: RealmId) => void;
   claimQuest: (id: string) => void;
   claimDaily: () => void;
   buyShares: (merchant: string, shares: number) => void;

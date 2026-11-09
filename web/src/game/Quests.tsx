@@ -28,7 +28,7 @@ export function QuestsPanel({ quests, act, invite }: { quests: QuestsView; act: 
 
       {quests.active.length === 0 && <p className="muted">You've finished every quest for now. New ones come with new places to explore.</p>}
       {quests.active.map((q) => (
-        <article key={q.id} className={`quest ${q.complete ? 'complete' : ''}`} aria-label={q.title}>
+        <article key={q.id} className={`qcard ${q.complete ? 'complete' : ''}`} aria-label={q.title}>
           <header>
             <span className="quest-chain">{q.chain === 'starter' ? `Getting started · ${starter.done + 1} of ${starter.total}` : 'Journey'}</span>
             <span className="quest-reward">+{coins(q.reward)}</span>

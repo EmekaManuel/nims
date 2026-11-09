@@ -1078,7 +1078,8 @@ export class Game {
       const offers = stalls.flatMap((s) => s.offers.filter((o) => o.item === item).map((o) => ({ s, o })));
       const best = offers.filter((x) => x.o.willBuy).sort((a, b) => b.o.buyPrice - a.o.buyPrice)[0];
       if (!best) continue;
-      const src = this.w.sources.find((x) => x.item === item && x.units >= 5);
+      // only a source in your realm: one a journey away is not a deal you can make from here
+      const src = this.w.sources.find((x) => x.item === item && x.units >= 5 && (x.realm ?? 'town') === this.realmHere(p));
       const cheapStall = offers.filter((x) => x.o.willSell && x.s.id !== best.s.id).sort((a, b) => a.o.sellPrice - b.o.sellPrice)[0];
       let from: (typeof out)[number]['from'] | null = null;
       if (src && (!cheapStall || src.cost <= cheapStall.o.sellPrice)) from = { kind: 'source', id: item, label: src.label, cost: src.cost };
@@ -1097,6 +1098,11 @@ export class Game {
     const pr = this.prog(email);
     type Focus = { kind: 'source' | 'stall'; id: string } | null;
     const say = (text: string, focus: Focus = null) => ({ text, focus });
+    if (p.journey) {
+      const left = Math.max(1, p.journey.arrive - this.w.hour);
+      const to = realmOf(p.journey.to);
+      return say(`You're on the road to ${REALMS[to].name}: you arrive in ${left} hour${left === 1 ? '' : 's'}.${to === 'saltmere' ? ' The harbour pays well for thread and iron, and sells spice the town pays more for.' : ' June\'s Pantry pays well for spice and salt.'}`);
+    }
     if (!pr.kind) return say('Pick a goal to play towards. You can change it any time.');
     if (pr.done) return say('Goal reached! Well traded. Pick a new goal to keep going.');
     // Goal-specific nudges first.

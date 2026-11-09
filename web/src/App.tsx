@@ -175,6 +175,7 @@ function Game() {
     upgrade: (to) => run(api.upgrade(to)),
     setName: (name) => run(api.setName(name)),
     setAvatar: (a) => run(api.setAvatar(a)),
+    travel: (realm) => run(api.travel(realm)),
     claimQuest: (id) => run(api.claimQuest(id)),
     claimDaily: () => run(api.claimDaily()),
     buyShares: (m, n) => run(api.buyShares(m, n), { kind: 'stall', id: m }),

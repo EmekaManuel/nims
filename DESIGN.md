@@ -209,3 +209,23 @@ Each in-game day every town merchant plans its own business through NEAR AI Clou
 Words, not numbers, so the model cannot set a price: `pricing.ts` is unchanged and simply given the chosen target and margin. A reply that does not parse, names an unknown choice or misses the margin is ignored, and the merchant keeps its plan. The fast-forward sim never calls the model, so it stays deterministic; a server without NEAR AI (or with `MERCHANT_AGENTS=0`) behaves exactly as before. One merchant plans every 15 real seconds, so all eight plan within a game day.
 
 Checked: with all eight merchants on wider margins (the worst case for players), `npm run balance`'s trader still reaches the 10,000 goal in every seeded run. In a live run against NEAR AI Cloud all eight replies parsed; most reasons passed the number check in the merchant's own words and the rest fell back to the plain sentence.
+
+## 13. Beyond the town: realms, quests and new-player incentives
+
+**Realms.** The town (three markets) and Saltmere Harbour (one market, three merchants, the fishing pier and the salt pans) are realms. Moving between markets inside a realm costs a fare as before; moving between realms is a journey (`Game.travel`): `REALMS[..].journeyHours` game hours (6) and `passage` coins (120) plus freight of twice the usual fare per unit carried, paid up front. On the road nothing can be traded; the player arrives on the tick the journey ends. Trading, collecting, orders and odd jobs in another realm are refused with a plain "a journey away" message, and deals, the coach and the jobs board only point at the realm you are in.
+
+| Lever | Value | Why |
+|---|---|---|
+| Import price, harbour | thread and iron x1.5 | Ships need them; a reason to carry town goods out |
+| Import price, town | spice x1.6, salt x1.3 (June's Pantry) | The town has none of its own; a reason to carry harbour goods back |
+| Journey | 6 game hours, 120 coins + freight | Long enough to be a decision, short enough to make in one session |
+
+Simulated traders and the fast-forward stay in the town, so the week in the dashboard is the town's. A save from before the harbour gains its merchants, sources and council when it loads, booked in the ledger like a new world's genesis (`addMissingPlaces`).
+
+**Quests** (`server/game/quests.ts`). Chains of quests whose objectives count what a player does (collect, sell, haggle, buy a share, vote, travel ...). One quest per chain is open at a time; claiming pays its reward (town to player, through the ledger) and opens the next. Starter rewards total 1,250 coins, small next to the 10,000-coin goal. The realm chain (travel to Saltmere, sell 10 units there, sell 5 spice in the Produce Market) opens after "Know the town".
+
+**Daily reward.** In real days (UTC): 100, 150, 200, 300, 400, 500, then 700 a day; a missed day starts again.
+
+**Invite a friend.** A link built from the player's opaque id. A new player (no sale yet) who joins with it is linked to the inviter; on their first sale both get 300 coins. Not your own link, once per player, at most 10 rewarded friends per inviter.
+
+**Avatars.** A look is picks from fixed palettes (`server/game/avatar.ts` checks them), the same palettes the 3D town draws people with.

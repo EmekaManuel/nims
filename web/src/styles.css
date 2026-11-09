@@ -586,12 +586,12 @@ th { font-size: .7rem; letter-spacing: .06em; text-transform: uppercase; color: 
 .streak li { width: 22px; height: 8px; border-radius: 4px; background: var(--line); }
 .streak li.got { background: var(--gold-deep); }
 .streak li.today { background: var(--gold); box-shadow: 0 0 0 2px var(--gold-soft); }
-.quest { border: 1px solid var(--line); border-radius: 14px; padding: .75rem .85rem; margin-bottom: .7rem; background: var(--surface); }
-.quest.complete { border-color: var(--good); box-shadow: 0 0 0 3px var(--good-soft); }
-.quest header { display: flex; justify-content: space-between; align-items: center; }
+.qcard { border: 1px solid var(--line); border-radius: 14px; padding: .75rem .85rem; margin-bottom: .7rem; background: var(--surface); }
+.qcard.complete { border-color: var(--good); box-shadow: 0 0 0 3px var(--good-soft); }
+.qcard header { display: flex; justify-content: space-between; align-items: center; }
 .quest-chain { font-size: .72rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--accent-deep); }
 .quest-reward { font-weight: 800; color: var(--gold-deep); }
-.quest h3 { margin: .3rem 0 .1rem; }
+.qcard h3 { margin: .3rem 0 .1rem; }
 .objectives { list-style: none; margin: .5rem 0; padding: 0; display: grid; gap: .45rem; }
 .objectives li { display: grid; grid-template-columns: 1fr auto; gap: .2rem .6rem; font-size: .9rem; }
 .objectives li.met { color: var(--good); font-weight: 700; }
@@ -620,3 +620,20 @@ th { font-size: .7rem; letter-spacing: .06em; text-transform: uppercase; color: 
 .creator-actions { justify-content: flex-end; gap: .5rem; display: flex; }
 .lookline { display: flex; align-items: center; gap: .6rem; margin: -.2rem 0 .7rem; }
 @media (max-width: 560px) { .creator-body { grid-template-columns: 1fr; } }
+
+/* Realms: the road sign out of town (or back), and the harbour */
+.roadsign { cursor: pointer; }
+.roadsign .chosen { fill: none; stroke: transparent; stroke-width: 3; }
+.roadsign.on .chosen, .roadsign:focus-visible .chosen { stroke: var(--accent); }
+.roadsign-text { font: 700 11px var(--font); fill: #3d2a00; }
+.map.realm-saltmere .zone-ground { fill: #d8e7e4; }
+
+.journey-facts { margin: .4rem 0 .8rem; padding-left: 1.1rem; display: grid; gap: .3rem; }
+.on-the-road { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(15, 26, 42, .45); backdrop-filter: blur(2px); z-index: 4; }
+.road-card { background: var(--surface); border-radius: 16px; padding: 18px 22px; width: min(420px, 90%); box-shadow: var(--shadow-lg); display: grid; gap: .4rem; }
+.road-card h3 { margin: 0; font-size: 1.3rem; }
+.road-track { position: relative; height: 10px; border-radius: 5px; background: var(--surface-2); margin: .6rem 0 .2rem; }
+.road-track i { position: absolute; inset: 0 auto 0 0; background: var(--gold); border-radius: 5px; transition: width .6s; }
+.road-track .cart { position: absolute; top: -16px; transform: translateX(-50%); font-size: 20px; transition: left .6s; }
+.road-btn { position: absolute; z-index: 5; right: 12px; top: 56px; padding: .45rem .9rem; border-radius: 999px; background: #f2b01e; border: 1px solid #c98a00; color: #3d2a00; font-weight: 800; box-shadow: var(--shadow); }
+.road-btn:hover { filter: brightness(1.05); }

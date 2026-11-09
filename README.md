@@ -8,7 +8,7 @@
 
 [Play it live](https://nims-app.up.railway.app) · [Demo video (143 s)](docs/nims-demo.mp4) · [Judge walk-through](docs/DEMO.md) · Contract: `oja-items.testnet`
 
-![NEAR testnet](https://img.shields.io/badge/NEAR-testnet-00ec97) ![NEP-245](https://img.shields.io/badge/items-NEP--245-blue) ![tests](https://img.shields.io/badge/tests-557%20passing-brightgreen) ![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)
+![NEAR testnet](https://img.shields.io/badge/NEAR-testnet-00ec97) ![NEP-245](https://img.shields.io/badge/items-NEP--245-blue) ![tests](https://img.shields.io/badge/tests-559%20passing-brightgreen) ![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)
 
 </div>
 
@@ -33,7 +33,7 @@ Game economies are usually scripts: prices follow a table, NPCs trade nothing, a
 - **A way back from broke.** Nearly out of coins with nothing to sell? Search the scrap heap, or take an odd job: a merchant who is short of a good pays you to fetch it, and pays the cost and your reward from their own till. Jobs are open only while you are short of coins, with a cooldown, so they are a way back up and not a way to farm.
 - **Delivery orders.** State the goods and the lowest price you will take; the town's carriers (a solver run by the game) sell for you when the price allows.
 
-The chain is invisible: sign in with Google or an emailed link, no wallet, no seed phrase, no gas prompt.
+The chain is invisible: continue with Google or play as a guest in one press, no wallet, no seed phrase, no gas prompt.
 
 <table>
 <tr>
@@ -61,7 +61,7 @@ The chain is invisible: sign in with Google or an emailed link, no wallet, no se
 | Piece | NEAR feature | Where |
 |---|---|---|
 | Every good and the `coins` token | One **NEP-245** multi-token contract (no per-item contracts), deployed as `oja-items.testnet` | [`contracts/items/`](contracts/items/) |
-| Player accounts | Created behind email sign-in; keys held encrypted by the server | [`server/accounts/accounts.ts`](server/accounts/accounts.ts) |
+| Player accounts | Created behind Google or guest sign-in; keys held encrypted by the server | [`server/accounts/accounts.ts`](server/accounts/accounts.ts) |
 | Gas | A relayer pays through **NEP-366** delegate actions: each merchant or player signs its own `send_many` as a delegate action, and the relayer submits it and pays the gas | [`server/chain/agent-chain.ts`](server/chain/agent-chain.ts) (the live settler), [`server/chain/relayer.ts`](server/chain/relayer.ts) (single transfers when the settler is off) |
 | Merchant agents | Each has its own account and signs its own transfers | [`merchants/agents/`](merchants/agents/), [`server/chain/rounds.ts`](server/chain/rounds.ts) |
 | Settlement | Trades apply instantly in the game, then settle to the chain in merged batches with per-signer sequence numbers, so a retry can never apply twice | [`server/chain/chainsync.ts`](server/chain/chainsync.ts) |
@@ -79,7 +79,7 @@ NEAR **testnet only**. No mainnet or real funds are used.
 
 **Live (no setup):** <https://nims-app.up.railway.app>. Do each step, then look for the result.
 
-1. Press **Continue with Google**, or enter any email, press **Send me a link**, then **Open my link (development)**. See the town map with a goal card and a next-step hint from Nim. No wallet or popup appears.
+1. Press **Continue with Google**, or **Play as a guest**. See the town map with a goal card and a next-step hint from Nim. No wallet or popup appears.
 2. Click the **Wholesaler (cotton)**, press **Collect cotton**. See your cash drop and the wheelbarrow fill.
 3. Click **Lena's Textiles** and hover a price. See the merchant explain it in their own voice (sound on for the spoken line).
 4. Tick **Haggle** and press **Sell**. See your cash rise at once and the merchant answer in character; the game never waits for a block.
@@ -111,19 +111,19 @@ npm run dev       # starts both; open the address Vite prints (usually http://lo
 | `NEAR_AI_API_KEY` | NEAR AI Cloud plans each merchant's day (`MERCHANT_AGENTS=0` turns that off) and writes the merchant voice, the town gazette and haggling reactions. Key from [cloud.near.ai](https://cloud.near.ai). Optional `NEAR_AI_MODEL`. |
 | `SPUTNIK_DAO_ID` | Records each council vote on this SputnikDAO (a `*.testnet` account). Make one with `npm run chain:dao -- create nims-council`. |
 | `OUTLAYER_API_KEY` | Makes the OutLayer-custodied Town Clerk the one who calls the DAO. Run `npm run chain:outlayer -- register`, then `fund`, and set the wallet's policy in the OutLayer dashboard (call only, the DAO account only, spending caps). |
-| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Adds **Continue with Google** to the sign-in screen. Same account as the emailed link, matched by the verified email. Register `PUBLIC_URL/auth/google/callback` as the redirect in Google Cloud. |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Adds **Continue with Google** to the sign-in screen, beside **Play as a guest**. The player is matched by their verified Google email. Register `PUBLIC_URL/auth/google/callback` as the redirect in Google Cloud. |
 | `ELEVENLABS_API_KEY` | Natural spoken merchants (one stock voice each). Without it the browser's own voice is used. Optional `ELEVENLABS_VOICES`, `ELEVENLABS_VOICE`, `ELEVENLABS_MODEL`. |
 | `TICK_MS` | Real milliseconds per game hour (default 10000). Lower is a faster, twitchier market. |
 
 Every one of these falls back to plain text and the browser voice, so the game plays the same without them.
 
-No `.env` is needed. Without testnet credentials the game plays the same and does not settle to a chain. The game saves to `server/data/game.json` and resumes after a restart. In development the sign-in link is shown on screen instead of emailed.
+No `.env` is needed. Without testnet credentials the game plays the same and does not settle to a chain. The game saves to `server/data/game.json` and resumes after a restart.
 
 ## How it works
 
 ```mermaid
 flowchart LR
-  P[Player: email login] --> G[Game state<br/>applies trades instantly]
+  P[Player: Google or guest sign-in] --> G[Game state<br/>applies trades instantly]
   A[8 AI merchants] --> G
   G -->|same pricing.ts| F[Fast-forward sim]
   G -->|batches, time-windowed| S[Settler]
@@ -156,7 +156,7 @@ merchants/
 sim/                   Headless economy: engine, world, simulated players, fast-forward, and the town council (council.ts)
 server/
   main.ts              Entry point: wires everything and starts the server
-  http/                HTTP API, email-link and Google login, mailer
+  http/                HTTP API, Google and guest sign-in
   game/                Live game state, saving, and the odd jobs board
   chain/               NEAR client, relayer, settlement batches, rounds, live settler, the DAO record (dao.ts) and OutLayer client (outlayer.ts)
   accounts/            Player accounts, merchant wallets, key encryption, secrets
@@ -187,8 +187,8 @@ Games With Real Economies asks for *"NPCs with wallets, player-owned markets and
 | **Player-owned markets** | Buy up to 49% of a merchant and share its profit each evening; open your own stall and set its prices; pay into a community fund to reopen a closed shop and own part of it | [`sim/engine.ts`](sim/engine.ts), [`server/game/game.ts`](server/game/game.ts) | [`ownership.test.ts`](sim/ownership.test.ts): shares, dividends, funds and player stalls; a round trip on shares makes no coins | In a stall panel's shares section, **Buy**; or open **My business** |
 | **Economies that evolve without a dev patch** | Prices come from supply and demand; shocks (rain, fuel queue, festive season) arrive at random; shareholders vote on each market's rent and profit payout, and a passing vote changes how the economy runs from the next day | [`sim/council.ts`](sim/council.ts), [`sim/engine.ts`](sim/engine.ts) | [`council.test.ts`](sim/council.test.ts), [`server/game/council.test.ts`](server/game/council.test.ts); [`guild.test.ts`](sim/guild.test.ts): 120 simulated days with stores staying open; [`fastforward.test.ts`](sim/fastforward.test.ts): a flooder crashes iron | **My business → Town council**; **Fast-forward** for a simulated week |
 | **Judged on the game loop** | Collect at a farm, scrap spot or wholesaler; haul to the market that pays most after the fare; sell, haggle or post a delivery order; invest; vote. Ranks and a 10,000-coin goal, odd jobs when you are broke | [`server/game/game.ts`](server/game/game.ts), [`web/src/game/`](web/src/game/) | [`game.test.ts`](server/game/game.test.ts), [`economy.test.ts`](sim/economy.test.ts), [`recovery.test.ts`](server/game/recovery.test.ts); `npm run balance` times the goal | The **Try it** steps above |
-| **Players never notice the chain** | Sign in with Google or an emailed link. No wallet, seed phrase or gas prompt: a relayer pays through NEP-366 delegate actions, and trades apply at once and settle in the background | [`server/http/google.ts`](server/http/google.ts), [`server/chain/relayer.ts`](server/chain/relayer.ts), [`server/chain/chainsync.ts`](server/chain/chainsync.ts) | [`api.test.ts`](server/http/api.test.ts) and [`game.test.ts`](server/game/game.test.ts): no API response or game state mentions wallets, keys, gas or signatures | Sign in on the live game: no popup at any point |
-| **SOCIAL LOGIN** | Continue with Google, matched to the same account as the emailed link by the verified email | [`server/http/google.ts`](server/http/google.ts) | [`Login.test.tsx`](web/src/game/Login.test.tsx) | **Continue with Google** on the sign-in screen |
+| **Players never notice the chain** | Continue with Google or play as a guest. No wallet, seed phrase or gas prompt: a relayer pays through NEP-366 delegate actions, and trades apply at once and settle in the background | [`server/http/google.ts`](server/http/google.ts), [`server/chain/relayer.ts`](server/chain/relayer.ts), [`server/chain/chainsync.ts`](server/chain/chainsync.ts) | [`api.test.ts`](server/http/api.test.ts) and [`game.test.ts`](server/game/game.test.ts): no API response or game state mentions wallets, keys, gas or signatures | Sign in on the live game: no popup at any point |
+| **SOCIAL LOGIN** | Continue with Google (matched by the verified email), or play as a guest in one press | [`server/http/google.ts`](server/http/google.ts) | [`Login.test.tsx`](web/src/game/Login.test.tsx) | **Continue with Google** on the sign-in screen |
 | **NEP-245** | One multi-token contract holds every good and the `coins` token: `mt_transfer`, `mt_batch_transfer`, balances and supply, `nep245` events, plus idempotent `batch_mint` and `send_many` | [`contracts/items/src/lib.rs`](contracts/items/src/lib.rs), deployed as `oja-items.testnet` | 18 contract tests (`npm run contract:test`) | `oja-items.testnet` on a testnet explorer |
 | **NEAR INTENTS** | Partly. Delivery orders take Intents' shape (state the goods and the lowest price you will take; a solver fills it when the price allows), but the solver runs inside the game, not on the Intents network, which has no testnet | [`server/game/game.ts`](server/game/game.ts) (`placeOrder`, `fillOrders`) | [`game.test.ts`](server/game/game.test.ts): *delivery orders (intents)* | **Place order** in a stall panel |
 
@@ -209,7 +209,7 @@ Games With Real Economies asks for *"NPCs with wallets, player-owned markets and
 - Quests (starter, harbour and frontier chains), the 7-day daily reward, and invites (300 coins each, up to 10 friends), all paid through the ledger.
 - Create your trader: the look and the name, checked on the server, shown in 2D, 3D and on the town board.
 - A way back from broke (scrap and odd jobs) and delivery orders.
-- The public town board (`/stats`), sign-in by Google or emailed link, and fast-forward week.
+- The public town board (`/stats`), sign-in with Google or as a guest (a few new guests per address per hour), and fast-forward week.
 
 **Not built, or not what it might sound like:**
 
@@ -223,8 +223,8 @@ Games With Real Economies asks for *"NPCs with wallets, player-owned markets and
 ## Tests and chain verification
 
 ```bash
-npm test               # economy, pricing, server, API, chain, merchant agents, names  (347 tests)
-npm run test:web       # the UI against real game state, 3D walkways, the 3D speed check, the town board, merchants' plans  (210 tests)
+npm test               # economy, pricing, server, API, chain, merchant agents, names  (345 tests)
+npm run test:web       # the UI against real game state, 3D walkways, the 3D speed check, the town board, merchants' plans  (214 tests)
 npm run contract:test  # the NEP-245 contract  (18 tests, needs Rust)
 ```
 
@@ -236,7 +236,7 @@ To verify the chain side, copy `.env.example` to `.env` with a testnet account, 
 npm run contract:build && npm run chain:deploy        # deploy the items contract
 npx tsx server/scripts/run-live-check.ts 30   # play 30 game hours, settle to testnet, check every balance on chain equals the game's
 npx tsx server/scripts/run-m4-check.ts 12     # 12 hours where every merchant and player signs its own transfers; compare stock to the sim
-npx tsx server/scripts/run-m3-check.ts        # a new email-only player gets an account and moves items with no wallet step
+npx tsx server/scripts/run-m3-check.ts        # a new player gets an account and moves items with no wallet step
 ```
 
 With credentials in `.env`, `npm run server` streams the running game to the chain in the background (`CHAIN_SYNC=0` turns that off).
@@ -251,7 +251,6 @@ One container serves the pages and the API ([`Dockerfile`](Dockerfile)). Steps f
 - **OutLayer for the merchants:** custody the merchants' own accounts the way the Town Clerk is, which means reworking how settlement epochs reuse accounts.
 - **Votes counted on chain:** have the DAO count weighted votes (for example with a token for seats), so it decides and the game follows, instead of recording the result.
 - **Shares and funds as contracts:** move share ownership and community-fund payouts from the game server to an on-chain contract.
-- **Real sign-in email:** Resend is wired in; it needs a key and a verified sending domain. Google sign-in already works without one.
 - **Scale out:** move game state from one process with a JSON save to a shared store.
 
 ## Built at NEAR HACKATHON

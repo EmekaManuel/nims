@@ -8,8 +8,6 @@ services:
     healthCheckPath: /
     autoDeploy: false          # don't redeploy (and wipe the free disk) by accident while judges are playing
     envVars:
-      - key: NIMS_DEV          # shows the sign-in link on screen so anyone can try the game without email (testnet demo only)
-        value: "1"
       - key: MASTER_KEY        # encrypts player keys; generated once by Render
         generateValue: true
       - key: SESSION_SECRET

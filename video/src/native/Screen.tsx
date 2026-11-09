@@ -113,7 +113,7 @@ export const LoginScreen: React.FC<{ email: string; camera?: Camera }> = ({ emai
       <div style={{ position: 'absolute', left: 0, top: 0, width: 1920, height: 1080, overflow: 'hidden', background: '#fff' }}>
         <div style={{ position: 'absolute', left: 0, top: 0, width: 1920, height: 1080, transformOrigin: '0 0', transform: `translate(${tx}px, ${ty}px) scale(${z})` }}>
           <IconSprite />
-          <Login onIn={noop} presetEmail={email} showGoogle />
+          <Login onIn={noop} showGoogle />
         </div>
       </div>
     </>

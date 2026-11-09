@@ -89,6 +89,9 @@ export function nameProblem(name: string): string | null {
 }
 
 export function displayName(email: string): string {
+  // a guest (server/http/auth.ts guestIdentity): "Guest" and a short code, until they choose a name
+  const guest = /^guest-([0-9a-f]+)@guest\.nims$/.exec(email);
+  if (guest) return `Guest ${guest[1].slice(0, 4).toUpperCase()}`;
   const words = email.split('@')[0].replace(/[0-9]+/g, '').split(/[._\-+]+/).filter((x) => x.length > 0);
   const first = words[0];
   if (!first) return 'Trader';

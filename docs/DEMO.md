@@ -31,7 +31,7 @@ Say: *"Every price here comes from the same `merchants/pricing.ts` the game uses
 
 ## 2. Playing it (2 minutes)
 
-Go back to the game (**Back to the game**), sign in with any email, and pick **Build a fortune** (reach 10,000 coins) when asked.
+Go back to the game (**Back to the game**), press **Play as a guest** (or continue with Google), and pick **Build a fortune** (reach 10,000 coins) when asked.
 
 1. Read Nim's **next step** (top left). It points at the best deal right now. **Show me on the map** puts a **NEXT** marker on it. The tabs along the bottom (Deals, Prices, My business, News) open panels on the right.
 2. Collect iron at the scrap spot, then tap **Anil Metals** and **hover a price**. The merchant answers in their own words: *"I'm holding 62 iron and I only want 50, so I'll pay less…"*
@@ -58,7 +58,7 @@ Run with `TICK_MS=1000 npm run dev` so a game day passes in about 25 seconds.
 
 ## 4. The chain you never see (1 minute)
 
-Nothing above showed a wallet, a seed phrase, a signature or a gas prompt. Your email created an account, and a relayer pays gas.
+Nothing above showed a wallet, a seed phrase, a signature or a gas prompt. Signing in created an account, and a relayer pays gas.
 
 To prove the chain side (needs a testnet `.env`, see the README):
 

@@ -15,7 +15,6 @@ import { OUTLAYER_TESTNET, outlayer } from './chain/outlayer';
 import { WalletStore } from './accounts/wallets';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { resendMailer } from './http/mailer';
 import { createChat } from './voice/llm';
 import { createPlanner } from './agents/planner';
 import { createGazette } from './voice/gazette';
@@ -126,16 +125,10 @@ const app = createApp({
   staticDir: existsSync(WEB_DIST) ? WEB_DIST : undefined,
   merchantParent,
   game,
-  devLinks: process.env.NIMS_DEV === '1',
   speaker: process.env.ELEVENLABS_API_KEY?.trim() ? createSpeaker({ apiKey: process.env.ELEVENLABS_API_KEY.trim().split(/\s+/)[0], voices: process.env.ELEVENLABS_VOICES ? JSON.parse(process.env.ELEVENLABS_VOICES) : undefined, defaultVoice: process.env.ELEVENLABS_VOICE || undefined, model: process.env.ELEVENLABS_MODEL || undefined }) : undefined,
   voice: ai ? createVoice({ chat: ai }) : undefined,
   gazette: ai ? createGazette({ chat: ai }) : undefined,
   haggler: ai ? createHaggler({ chat: ai }) : undefined,
-  mailer: process.env.RESEND_API_KEY ? resendMailer(process.env.RESEND_API_KEY, process.env.MAIL_FROM ?? 'Nims <onboarding@resend.dev>') : {
-    async sendLoginLink(email, link) {
-      console.log(`[dev mailer] login link for ${email}: ${link}`);
-    },
-  },
 });
 const server = await app.listen(port);
 
@@ -160,7 +153,6 @@ for (const sig of ['SIGINT', 'SIGTERM'] as const) process.on(sig, () => void shu
 if (process.env.NEAR_AI_API_KEY) console.log('Merchant voice: on (NEAR AI Cloud).');
 if (planner) console.log('Merchant agents: on (each merchant plans its day through NEAR AI Cloud).');
 if (process.env.ELEVENLABS_API_KEY?.trim()) console.log('Spoken merchants: on (ElevenLabs).'); else console.log('Spoken merchants: using the browser voice (set ELEVENLABS_API_KEY for natural speech).');
-if (google) console.log('Sign-in: Continue with Google is on.');
-if (process.env.RESEND_API_KEY) console.log('Login links are emailed.'); else console.log('No RESEND_API_KEY: login links are printed here instead of emailed.');
+console.log(google ? "Sign-in: Continue with Google, or play as a guest." : "Sign-in: play as a guest (set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET for Google).");
 if (!sync) setInterval(() => void app.flush(), 5_000); // batch-settle every few seconds
 console.log(`Nims server on http://localhost:${port}`);

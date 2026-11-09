@@ -11,6 +11,9 @@ import { rewardFor, planBoard, stillValid, totalDue, MAX_BOARD, JOB_TTL_HOURS } 
 import { transferCoins } from '../../sim/engine';
 import { COINS, type LedgerEntry, type Item, type World } from '../../sim/world';
 
+const AUTH = new Auth(randomHex(32));
+const sessionFor = (email: string) => `nims_session=${AUTH.sessionToken(email)}`;
+
 const me = 'ada@example.com';
 
 /** Replay the whole ledger for one token. Throws if anyone but the town ever goes negative. */
@@ -287,21 +290,17 @@ describe('the odd jobs board', () => {
 describe('recovery routes', () => {
   it('scavenge, take, deliver and drop work over HTTP, need a login, and report plain refusals', async () => {
     const { g, view } = withJob();
-    const links: string[] = [];
     const app = createApp({
-      auth: new Auth(randomHex(32)),
+      auth: AUTH,
       store: new AccountStore(join(mkdtempSync(join(tmpdir(), 'nims-rec-')), 'a.json'), 'oja.testnet', randomHex(32)),
       chain: { createPlayerAccount: async () => {}, transferItem: async () => {}, itemBalance: async () => 0 },
-      mailer: { sendLoginLink: async (_e, l) => void links.push(l) },
       baseUrl: 'http://localhost:0',
       merchantParent: 'run.oja.testnet',
       game: g,
-      devLinks: true,
     });
     const server = await app.listen(0);
     const base = `http://localhost:${(server.address() as { port: number }).port}`;
-    const r = await (await fetch(base + '/auth/request', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: me }) })).json();
-    const cookie = (await fetch(r.devLink.replace('http://localhost:0', base))).headers.get('set-cookie')!.split(';')[0];
+    const cookie = sessionFor(me);
     const post = (path: string, body: unknown = {}, c = cookie) => fetch(base + path, { method: 'POST', headers: { 'content-type': 'application/json', cookie: c }, body: JSON.stringify(body) });
 
     expect((await post('/game/scavenge', {}, '')).status).toBe(401);

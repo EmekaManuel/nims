@@ -1,18 +1,17 @@
 /**
- * Passwordless email login. The player clicks a link; there is no password, seed phrase or wallet.
+ * Sign-in without passwords, seed phrases or wallets: "Continue with Google", or play as a guest.
  *
- * Flow: requestLogin(email) -> emailed magic link -> verifyMagic(token) -> session token (cookie).
- * Magic links are short-lived and single-use. Sessions are signed, expiring tokens.
+ * A player is known by an identity string: their Google email, or a random guest identity (guestIdentity) that never
+ * leaves the server. Sessions are signed, expiring tokens kept in an HttpOnly cookie.
  */
 import { randomHex, signToken, verifyToken } from '../accounts/crypto';
 
-const MAGIC_TTL_MS = 15 * 60_000;
 const OAUTH_TTL_MS = 10 * 60_000;
 const SESSION_TTL_MS = 30 * 24 * 3_600_000;
 
 interface Payload {
-  t: 'magic' | 'session' | 'oauth';
-  e: string; // normalised email
+  t: 'session' | 'oauth';
+  e: string; // normalised email, or a guest identity
   x: number; // expiry (ms since epoch)
   n: string; // nonce
 }
@@ -20,26 +19,16 @@ interface Payload {
 export const normaliseEmail = (e: string) => e.trim().toLowerCase();
 export const looksLikeEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e) && e.length <= 254;
 
-export class Auth {
-  /** Magic-link nonces already used. In-memory is fine for a single server process. */
-  private used = new Set<string>();
+/** Guests are known by a random identity on this made-up domain. It is never shown: the game shows "Guest" and a short code. */
+export const GUEST_DOMAIN = 'guest.nims';
+export const guestIdentity = () => `guest-${randomHex(6)}@${GUEST_DOMAIN}`;
+export const isGuest = (identity: string) => identity.endsWith(`@${GUEST_DOMAIN}`);
 
+export class Auth {
   constructor(
     private secretHex: string,
     private now: () => number = Date.now,
   ) {}
-
-  magicToken(email: string): string {
-    return signToken({ t: 'magic', e: normaliseEmail(email), x: this.now() + MAGIC_TTL_MS, n: randomHex(8) } satisfies Payload, this.secretHex);
-  }
-
-  /** Spend a magic link. Returns the email once; null if expired, forged or already used. */
-  verifyMagic(token: string): string | null {
-    const p = verifyToken<Payload>(token, this.secretHex);
-    if (!p || p.t !== 'magic' || p.x < this.now() || this.used.has(p.n)) return null;
-    this.used.add(p.n);
-    return p.e;
-  }
 
   /** A sign-in-with-a-provider attempt. The nonce also goes in a cookie, so only the browser that started it can finish it. */
   oauthState(): { state: string; nonce: string } {

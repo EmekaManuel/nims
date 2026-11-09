@@ -1,7 +1,7 @@
 /**
  * "Continue with Google". The player is sent to Google, comes back with a one-time code, and the server
- * exchanges it (server to server, over TLS) for the player's verified email. From there it is the same as the
- * emailed link: that email picks the account, so someone who signed in by email earlier gets the same account.
+ * exchanges it (server to server, over TLS) for the player's verified email. That email picks the account, so a
+ * player gets the same trader on any device (and players from before email sign-in was removed keep theirs).
  *
  * Only a verified email is accepted. An unverified one could belong to someone else.
  */

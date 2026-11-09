@@ -234,6 +234,7 @@ describe('ownership', () => {
     expect(displayName('ada.obi@example.com')).toBe('Ada');
     expect(displayName('CHIDI_99@x.io')).toBe('C.'); // one word and a number: initial only
     expect(displayName('chidi_okafor@x.io')).toBe('Chidi');
+    expect(displayName('guest-3fa9c1d2e4b5@guest.nims')).toBe('Guest 3FA9');
     expect(displayName('1234@x.io')).toBe('Trader');
     g.state(me);
     expect(JSON.stringify(g.state(me))).not.toContain('example.com');

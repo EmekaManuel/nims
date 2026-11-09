@@ -15,8 +15,8 @@ export function AvatarCreator({ initial, name, first, onSave, onClose }: {
   onClose?: () => void;
 }) {
   const [a, setA] = useState<Avatar>(initial ?? DEFAULT_AVATAR);
-  // An initial ("N.") is a placeholder, not a name to edit: start blank so the player types their own.
-  const [typed, setTyped] = useState(name.endsWith('.') ? '' : name);
+  // An initial ("N.") or a guest's "Guest 3FA9" is a placeholder, not a name to edit: start blank so the player types their own.
+  const [typed, setTyped] = useState(name.endsWith('.') || /^Guest [0-9A-F]{4}$/.test(name) ? '' : name);
   const set = <K extends keyof Avatar>(k: K, v: Avatar[K]) => setA((x) => ({ ...x, [k]: v }));
   const nameOk = typed.trim().length === 0 || typed.trim().length >= 2;
   return (
@@ -40,7 +40,7 @@ export function AvatarCreator({ initial, name, first, onSave, onClose }: {
             </fieldset>
           </div>
         </div>
-        <TextField label="Your name in town" value={typed} onChange={setTyped} placeholder="e.g. Ngozi" hint="2 to 16 letters. Leave it blank to keep the name from your email." error={nameOk ? undefined : 'At least 2 letters.'} />
+        <TextField label="Your name in town" value={typed} onChange={setTyped} placeholder="e.g. Ngozi" hint="2 to 16 letters. Leave it blank to keep your current name." error={nameOk ? undefined : 'At least 2 letters.'} />
         <div className="row creator-actions">
           {onClose && <button type="button" onClick={onClose}>Cancel</button>}
           <button className="primary" disabled={!nameOk} onClick={() => onSave(a, typed.trim() && typed.trim() !== name ? typed.trim() : null)}>{first ? 'Start trading' : 'Save'}</button>

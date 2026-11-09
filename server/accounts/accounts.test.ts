@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { Auth } from '../http/auth';
+import { Auth, guestIdentity, isGuest } from '../http/auth';
 import { AccountStore, accountIdFor } from './accounts';
 import { decrypt, encrypt, randomHex, signToken, verifyToken } from './crypto';
 
@@ -30,21 +30,17 @@ describe('crypto', () => {
 });
 
 describe('auth', () => {
-  it('magic links work once and expire', () => {
-    let now = 1_000_000;
-    const a = new Auth(SECRET, () => now);
-    const t = a.magicToken('Ada@Example.com ');
-    expect(a.verifyMagic(t)).toBe('ada@example.com');
-    expect(a.verifyMagic(t)).toBeNull(); // single use
-    const t2 = a.magicToken('ada@example.com');
-    now += 16 * 60_000;
-    expect(a.verifyMagic(t2)).toBeNull(); // expired
+  it('guest identities are random, private and recognisable', () => {
+    const a = guestIdentity(), b = guestIdentity();
+    expect(a).toMatch(/^guest-[0-9a-f]{12}@guest\.nims$/);
+    expect(a).not.toBe(b);
+    expect(isGuest(a)).toBe(true);
+    expect(isGuest('ada@example.com')).toBe(false);
   });
 
-  it('a session token is not a magic link, and vice versa', () => {
+  it('sessions verify; sign-in-with-Google state is not a session', () => {
     const a = new Auth(SECRET);
-    expect(a.verifyMagic(a.sessionToken('a@b.co'))).toBeNull();
-    expect(a.verifySession(a.magicToken('a@b.co'))).toBeNull();
+    expect(a.verifySession(a.oauthState().state)).toBeNull();
     expect(a.verifySession(a.sessionToken('a@b.co'))).toBe('a@b.co');
     expect(a.verifySession(undefined)).toBeNull();
   });

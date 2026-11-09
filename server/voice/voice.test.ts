@@ -10,6 +10,9 @@ import { Game } from '../game/game';
 import { accept, createVoice, prompt, type VoiceFacts } from './voice';
 import { createSpeaker } from './speaker';
 
+const AUTH = new Auth(randomHex(32));
+const sessionFor = (email: string) => `nims_session=${AUTH.sessionToken(email)}`;
+
 const facts: VoiceFacts = {
   id: 'mira',
   merchant: "Mira's Greens",
@@ -127,24 +130,20 @@ describe('createVoice', () => {
 
 describe('Game.voiceFacts and /game/voice', () => {
   const setup = async (voice?: Parameters<typeof createApp>[0]['voice']) => {
-    const links: string[] = [];
     const dir = mkdtempSync(join(tmpdir(), 'nims-voice-'));
     const game = new Game(3);
     const app = createApp({
-      auth: new Auth(randomHex(32)),
+      auth: AUTH,
       store: new AccountStore(join(dir, 'a.json'), 'oja.testnet', randomHex(32)),
       chain: { createPlayerAccount: async () => {}, transferItem: async () => {}, itemBalance: async () => 0 },
-      mailer: { sendLoginLink: async (_e, l) => void links.push(l) },
       baseUrl: 'http://localhost:0',
       merchantParent: 'run.oja.testnet',
       game,
-      devLinks: true,
       voice,
     });
     const server = await app.listen(0);
     const base = `http://localhost:${(server.address() as { port: number }).port}`;
-    const r = await (await fetch(base + '/auth/request', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: 'ada@example.com' }) })).json();
-    const cookie = (await fetch(r.devLink.replace('http://localhost:0', base))).headers.get('set-cookie')!.split(';')[0];
+    const cookie = sessionFor('ada@example.com');
     return { server, base, cookie, game };
   };
 
@@ -249,26 +248,22 @@ describe('spoken merchants (ElevenLabs)', () => {
 
 describe('/game/voice with audio', () => {
   it('returns the line and an audio link, serves the audio, and needs a login', async () => {
-    const links: string[] = [];
     const dir = mkdtempSync(join(tmpdir(), 'nims-audio-'));
     const mp3 = Buffer.from('ID3-route-bytes');
     const speaker = createSpeaker({ apiKey: 'k', fetchImpl: (async () => new Response(mp3, { status: 200 })) as unknown as typeof fetch });
     const app = createApp({
-      auth: new Auth(randomHex(32)),
+      auth: AUTH,
       store: new AccountStore(join(dir, 'a.json'), 'oja.testnet', randomHex(32)),
       chain: { createPlayerAccount: async () => {}, transferItem: async () => {}, itemBalance: async () => 0 },
-      mailer: { sendLoginLink: async (_e, l) => void links.push(l) },
       baseUrl: 'http://localhost:0',
       merchantParent: 'run.oja.testnet',
       game: new Game(3),
-      devLinks: true,
       voice: { say: async () => 'I only have 5 tomatoes, so it is dear.' },
       speaker,
     });
     const server = await app.listen(0);
     const base = `http://localhost:${(server.address() as { port: number }).port}`;
-    const r = await (await fetch(base + '/auth/request', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: 'ada@example.com' }) })).json();
-    const cookie = (await fetch(r.devLink.replace('http://localhost:0', base))).headers.get('set-cookie')!.split(';')[0];
+    const cookie = sessionFor('ada@example.com');
 
     const v = await (await fetch(base + '/game/voice?merchant=mira&item=tomatoes', { headers: { cookie } })).json();
     expect(v.text).toBe('I only have 5 tomatoes, so it is dear.');

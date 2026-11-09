@@ -67,7 +67,6 @@ describe('Continue with Google, through the server', () => {
       auth: new Auth(randomHex(32)),
       store: new AccountStore(join(dir, 'a.json'), 'oja.testnet', randomHex(32)),
       chain,
-      mailer: { sendLoginLink: async () => {} },
       baseUrl: 'http://localhost:0',
       merchantParent: 'run.oja.testnet',
       google: withGoogle ? createGoogle({ ...OPTS, fetchImpl: fakeGoogle(userinfo).f }) : undefined,
@@ -120,10 +119,10 @@ describe('Continue with Google, through the server', () => {
 
   it('reports which sign-in options exist, and has no Google routes when it is not set up', async () => {
     const on = await start({ email: 'a@b.co', email_verified: true });
-    expect(await (await fetch(`${on}/auth/providers`)).json()).toEqual({ google: true });
+    expect(await (await fetch(`${on}/auth/providers`)).json()).toEqual({ google: true, guest: true });
     server.close();
     const off = await start(null, false);
-    expect(await (await fetch(`${off}/auth/providers`)).json()).toEqual({ google: false });
+    expect(await (await fetch(`${off}/auth/providers`)).json()).toEqual({ google: false, guest: true });
     expect((await fetch(`${off}/auth/google`, manual)).status).not.toBe(302);
   });
 });

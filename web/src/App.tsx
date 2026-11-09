@@ -82,15 +82,23 @@ function Game() {
     if (!needGoal) asked.current = false;
   }, [needGoal]);
 
-  const [offline, setOffline] = useState(false);
+  // How many state checks in a row have failed. One failure is usually a blip (a redeploy, a slow request), so nothing
+  // scary is shown for it: the page keeps what it has and tries again.
+  const [fails, setFails] = useState(0);
+  const inFlight = useRef(false);
   const refresh = useCallback(async () => {
+    if (inFlight.current) return; // never stack requests on a slow server
+    inFlight.current = true;
     try {
-      setState(await api.state());
-      setOffline(false);
+      const s = await api.state();
+      setState(s);
+      setFails(0);
+      setChecked(true);
     } catch {
-      setOffline(true); // keep whatever we last showed; polling retries every 2s
+      setFails((n) => n + 1); // keep whatever we last showed; polling retries every 2s
+    } finally {
+      inFlight.current = false;
     }
-    setChecked(true);
   }, []);
 
   useEffect(() => {
@@ -98,6 +106,8 @@ function Game() {
     const t = window.setInterval(() => void refresh(), 2000);
     return () => window.clearInterval(t);
   }, [refresh]);
+  /** Lost touch for a while (three checks in a row, about six seconds), not just a blip. */
+  const offline = fails >= 3;
 
   // Setting off on a journey closes whatever drawer is open: nothing in it can be used on the road.
   const onRoad = !!state?.realm?.journey;
@@ -214,17 +224,9 @@ function Game() {
     if (t === 'news' && state) setNewsSeen(Math.max(-1, ...state.events.map((e) => e.hour)));
   };
 
-  if (!checked) return <Loading />;
-  if (offline && !state) {
-    return (
-      <main className="login">
-        <Mascot size={72} />
-        <h1>Nims</h1>
-        <p className="note warn" role="alert">The market is closed for now: we can’t reach the game server. It will open automatically as soon as it’s back.</p>
-        <p className="muted small">Running it yourself? Start everything with <code>npm run dev</code>.</p>
-      </main>
-    );
-  }
+  // Until the server first answers, keep the loading screen up and keep trying. After about 20 seconds without an answer,
+  // say so calmly; the page carries on trying and opens the game by itself.
+  if (!checked) return <Loading label={fails >= 10 ? 'Waking the market up, one moment' : undefined} />;
   if (!state) return <Login onIn={refresh} />;
 
   const newsCount = newsSeen === null ? 0 : state.events.filter((e) => e.hour > newsSeen).length;

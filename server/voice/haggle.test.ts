@@ -10,6 +10,9 @@ import { Game } from '../game/game';
 import { createHaggler, prompt, type HaggleFacts } from './haggle';
 import { acceptLine, type Chat } from './llm';
 
+const AUTH = new Auth(randomHex(32));
+const sessionFor = (email: string) => `nims_session=${AUTH.sessionToken(email)}`;
+
 const sold: HaggleFacts = { id: 'anil', merchant: 'Anil Metals', personality: 'greedy', item: 'iron', side: 'sold', units: 5, usual: 200, deal: 208, pct: 4 };
 const GOOD = 'You drive a hard bargain, friend. 208 coins each for your iron, and not a coin more.';
 
@@ -77,26 +80,22 @@ describe('Game: winning a haggle', () => {
 
 describe('/game/haggle', () => {
   it('needs a login, answers from the stored deal, and gives audio when a speaker is on', async () => {
-    const links: string[] = [];
     const dir = mkdtempSync(join(tmpdir(), 'nims-haggle-'));
     const game = new Game(3);
     const heard: HaggleFacts[] = [];
     const app = createApp({
-      auth: new Auth(randomHex(32)),
+      auth: AUTH,
       store: new AccountStore(join(dir, 'a.json'), 'oja.testnet', randomHex(32)),
       chain: { createPlayerAccount: async () => {}, transferItem: async () => {}, itemBalance: async () => 0 },
-      mailer: { sendLoginLink: async (_e, l) => void links.push(l) },
       baseUrl: 'http://localhost:0',
       merchantParent: 'run.oja.testnet',
       game,
-      devLinks: true,
       haggler: { reply: async (f) => { heard.push(f); return 'You drive a hard bargain, friend.'; } },
       speaker: { register: () => 'abc123', audio: async () => null },
     });
     const server = await app.listen(0);
     const base = `http://localhost:${(server.address() as { port: number }).port}`;
-    const r = await (await fetch(base + '/auth/request', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: 'ada@example.com' }) })).json();
-    const cookie = (await fetch(r.devLink.replace('http://localhost:0', base))).headers.get('set-cookie')!.split(';')[0];
+    const cookie = sessionFor('ada@example.com');
     const post = (path: string, body: unknown) => fetch(base + path, { method: 'POST', headers: { 'content-type': 'application/json', cookie }, body: JSON.stringify(body) }).then((x) => x.json());
 
     expect((await fetch(base + '/game/haggle')).status).toBe(401);

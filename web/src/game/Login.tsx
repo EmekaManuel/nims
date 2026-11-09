@@ -1,17 +1,14 @@
-import { FormEvent, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { Mascot } from '../art/Mascot';
-import { TextField } from '../ui';
 
-/** The sign-in screen. `presetEmail` and `showGoogle` (used by the demo video) show a fixed email and force the Google button instead of asking the server. */
-export function Login({ onIn, presetEmail, showGoogle }: { onIn: () => void; presetEmail?: string; showGoogle?: boolean }) {
-  const [typed, setEmail] = useState('');
-  const email = presetEmail ?? typed;
+/**
+ * The sign-in screen: "Continue with Google", or "Play as a guest" in one press. No email, password or wallet.
+ * `showGoogle` (used by the demo video) forces the Google button instead of asking the server.
+ */
+export function Login({ onIn, showGoogle }: { onIn: () => void; showGoogle?: boolean }) {
   const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState(() => {
-    const why = new URLSearchParams(location.search).get('login');
-    return why === 'expired' ? 'That link has expired or was already used. Ask for a new one.' : why === 'failed' ? 'Google sign-in did not work. Try again, or use your email.' : '';
-  });
+  const [msg, setMsg] = useState(() => (new URLSearchParams(location.search).get('login') === 'failed' ? 'Google sign-in did not work. Try again, or play as a guest.' : ''));
   const [asked, setGoogle] = useState(false);
   // Arrived from a friend's invite link (App.tsx keeps the code until after sign-in).
   const [invited] = useState(() => { try { return !!localStorage.getItem('nims-invite') || new URLSearchParams(location.search).has('invite'); } catch { return false; } });
@@ -22,24 +19,12 @@ export function Login({ onIn, presetEmail, showGoogle }: { onIn: () => void; pre
     void api.providers().then((p) => live && setGoogle(p.google));
     return () => { live = false; };
   }, [showGoogle]);
-  /** Something wrong with the email itself, shown on the field. */
-  const [error, setError] = useState('');
-  const [devLink, setDevLink] = useState('');
 
-  async function submit(e: FormEvent) {
-    e.preventDefault();
+  async function guest() {
     setBusy(true);
     setMsg('');
-    setError('');
-    const r = await api.requestLogin(email);
+    const r = await api.guest();
     setBusy(false);
-    if (r.error) return setError(r.error);
-    if (r.devLink) setDevLink(r.devLink);
-    else setMsg('Check your email — we sent you a link to come in.');
-  }
-
-  async function open() {
-    const r = await api.openLink(devLink);
     if (r.error) setMsg(r.error);
     else onIn();
   }
@@ -50,19 +35,10 @@ export function Login({ onIn, presetEmail, showGoogle }: { onIn: () => void; pre
       <h1>Nims</h1>
       {invited && <p className="invited" role="status">A friend invited you. Sign in and make your first sale: you both get coins.</p>}
       <p className="lede">A market town where every trader runs on their own. Start with a wheelbarrow. Read the market. End up with a share in half the stalls.</p>
-      {google && (
-        <>
-          <a className="google" href="/auth/google"><GoogleMark />Continue with Google</a>
-          <p className="or muted small">or use your email</p>
-        </>
-      )}
-      <form onSubmit={submit}>
-        <TextField label="Your email" type="email" required autoComplete="email" value={email} onChange={(v) => { setEmail(v); setError(''); }} placeholder="you@example.com" error={error || undefined} />
-        <button className="primary" disabled={busy || !email}>Send me a link</button>
-      </form>
-      {devLink && <button onClick={open}>Open my link (development)</button>}
+      {google && <a className="google" href="/auth/google"><GoogleMark />Continue with Google</a>}
+      <button className={google ? 'guest-btn' : 'primary guest-btn'} disabled={busy} onClick={guest}>{busy ? 'Opening the market…' : 'Play as a guest'}</button>
       {msg && <p role="status" className="note">{msg}</p>}
-      <p className="muted small">Buy low, carry it, sell high. No password, no wallet — just your email.</p>
+      <p className="muted small">Buy low, carry it, sell high. No password, no wallet.{google ? ' Sign in with Google to keep your trader on any device; a guest trader lives in this browser.' : ' Your trader lives in this browser.'}</p>
       <p className="login-links">
         <a className="simlink" href="#town">See who's playing: the town board →</a>
         <a className="simlink" href="#sim">Or watch a week of the market unfold →</a>

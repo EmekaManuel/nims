@@ -10,6 +10,9 @@ import { Game } from '../game/game';
 import { accept, createGazette, prompt, type GazetteFacts } from './gazette';
 import { createChat, type Chat } from './llm';
 
+const AUTH = new Auth(randomHex(32));
+const sessionFor = (email: string) => `nims_session=${AUTH.sessionToken(email)}`;
+
 const facts: GazetteFacts = {
   events: [
     { hour: 153, text: 'Shock: festive season for 24h.' },
@@ -99,25 +102,21 @@ describe('Game.gazetteFacts and /game/gazette', () => {
 
   it('needs a login, returns headlines, and returns null when the gazette is off', async () => {
     const setup = async (gazette?: Parameters<typeof createApp>[0]['gazette']) => {
-      const links: string[] = [];
       const dir = mkdtempSync(join(tmpdir(), 'nims-gaz-'));
       const game = new Game(3);
       for (let i = 0; i < 60; i++) game.tickOnce();
       const app = createApp({
-        auth: new Auth(randomHex(32)),
+        auth: AUTH,
         store: new AccountStore(join(dir, 'a.json'), 'oja.testnet', randomHex(32)),
         chain: { createPlayerAccount: async () => {}, transferItem: async () => {}, itemBalance: async () => 0 },
-        mailer: { sendLoginLink: async (_e, l) => void links.push(l) },
         baseUrl: 'http://localhost:0',
         merchantParent: 'run.oja.testnet',
         game,
-        devLinks: true,
         gazette,
       });
       const server = await app.listen(0);
       const base = `http://localhost:${(server.address() as { port: number }).port}`;
-      const r = await (await fetch(base + '/auth/request', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: 'ada@example.com' }) })).json();
-      const cookie = (await fetch(r.devLink.replace('http://localhost:0', base))).headers.get('set-cookie')!.split(';')[0];
+      const cookie = sessionFor('ada@example.com');
       return { server, base, cookie };
     };
     const on = await setup({ headlines: async () => ['The town is quiet today'] });

@@ -9,7 +9,7 @@ import { createServer, IncomingMessage, Server, ServerResponse } from 'node:http
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { extname, join, normalize } from 'node:path';
 import { AccountStore } from '../accounts/accounts';
-import { Auth, looksLikeEmail, normaliseEmail } from './auth';
+import { Auth, guestIdentity, looksLikeEmail, normaliseEmail } from './auth';
 import type { Google } from './google';
 import { ChainPort } from '../chain/relayer';
 import { Game } from '../game/game';
@@ -20,23 +20,16 @@ import type { Haggler } from '../voice/haggle';
 import { runFastForward, sanitize, FastForwardResult } from '../../sim/fastforward';
 import { BASE_PRICE, createMerchants } from '../../sim/world';
 
-export interface Mailer {
-  sendLoginLink(email: string, link: string): Promise<void>;
-}
-
 export interface AppDeps {
   auth: Auth;
   store: AccountStore;
   chain: ChainPort;
-  mailer: Mailer;
-  /** Public origin used to build the login link, e.g. http://localhost:3000 */
+  /** Public origin, e.g. http://localhost:3000 (Google's return address is built from it). */
   baseUrl: string;
   /** Parent account for merchant NEAR accounts (see server/chain/settle.ts accountFor). */
   merchantParent: string;
   /** The live game. Optional so the account/relayer API can be tested alone. */
   game?: Game;
-  /** Dev only: return the login link in the response instead of emailing it. Never enable in production. */
-  devLinks?: boolean;
   /** Opt-in proof for the curious: where the game's goods and coins live on the testnet. Nothing in the game needs it. */
   chainStatus?: () => unknown;
   /** The signed-in player's own proof link, if the live settler is on. */
@@ -49,10 +42,12 @@ export interface AppDeps {
   gazette?: Gazette;
   /** Optional: the merchant's reaction after the player wins a haggle. Without it the plain result stands. */
   haggler?: Haggler;
-  /** Optional: "Continue with Google". Without it the login screen only offers the emailed link. */
+  /** Optional: "Continue with Google". Without it the sign-in screen offers only "Play as a guest". */
   google?: Google;
   /** Folder of the built web app (web/dist). When set, this server also serves the game's pages, so one process hosts everything. */
   staticDir?: string;
+  /** Guest sign-ins allowed from one address per hour. Default 20; tests may raise it. */
+  guestsPerHour?: number;
   /** Minimum gap between two different fast-forward runs. Default 500ms; tests set 0. */
   fastForwardGapMs?: number;
 }
@@ -75,7 +70,8 @@ function staticFile(dir: string, pathname: string): string | null {
 }
 
 const MERCHANTS = new Set(createMerchants().map((m) => m.id));
-const COOKIE = 'nims_session';
+export const SESSION_COOKIE = 'nims_session';
+const COOKIE = SESSION_COOKIE;
 const OAUTH_COOKIE = 'nims_oauth';
 
 const readJson = (req: IncomingMessage): Promise<Record<string, unknown>> =>
@@ -104,6 +100,8 @@ export function createApp(d: AppDeps) {
   const ffCache = new Map<string, FastForwardResult>();
   let ffLast = 0;
   const creating = new Set<string>();
+  /** address -> times of recent guest sign-ins (POST /auth/guest). */
+  const guests = new Map<string, number[]>();
 
   /** First login: make the player's on-chain account in the background. Gameplay doesn't wait for it. */
   function ensureAccount(email: string) {
@@ -144,17 +142,8 @@ export function createApp(d: AppDeps) {
   async function handler(req: IncomingMessage, res: ServerResponse) {
     const url = new URL(req.url ?? '/', d.baseUrl);
 
-    if (req.method === 'POST' && url.pathname === '/auth/request') {
-      const email = normaliseEmail(String((await readJson(req)).email ?? ''));
-      if (!looksLikeEmail(email)) return send(res, 400, { error: 'Enter a valid email address.' });
-      const link = `${d.baseUrl}/auth/verify?token=${d.auth.magicToken(email)}`;
-      await d.mailer.sendLoginLink(email, link);
-      // Same answer whether or not we've seen this email before.
-      return send(res, 200, d.devLinks ? { ok: true, devLink: link } : { ok: true });
-    }
-
     // Which sign-in options this server offers, so the login screen shows only what works.
-    if (req.method === 'GET' && url.pathname === '/auth/providers') return send(res, 200, { google: !!d.google });
+    if (req.method === 'GET' && url.pathname === '/auth/providers') return send(res, 200, { google: !!d.google, guest: true });
 
     const secure = d.baseUrl.startsWith('https:') ? '; Secure' : '';
     const sessionCookie = (email: string) => `${COOKIE}=${d.auth.sessionToken(email)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=2592000${secure}`;
@@ -177,18 +166,17 @@ export function createApp(d: AppDeps) {
       return void res.end();
     }
 
-    if (req.method === 'GET' && url.pathname === '/auth/verify') {
-      const email = d.auth.verifyMagic(url.searchParams.get('token') ?? '');
-      // A person clicking the emailed link (a browser page load) lands back in the game; API callers get JSON.
-      const fromBrowser = (req.headers.accept ?? '').includes('text/html');
-      if (!email) {
-        if (fromBrowser) { res.writeHead(302, { location: '/?login=expired' }); return void res.end(); }
-        return send(res, 400, { error: 'That link has expired. Ask for a new one.' });
-      }
-      ensureAccount(email);
-      const cookie = sessionCookie(email);
-      if (fromBrowser) { res.writeHead(302, { location: '/', 'set-cookie': cookie }); return void res.end(); }
-      return send(res, 200, { ok: true }, { 'set-cookie': cookie });
+    // Play as a guest: a new private identity and a session cookie, so trying the game takes one press. A few per address
+    // per hour, so nobody can fill the town with empty players.
+    if (req.method === 'POST' && url.pathname === '/auth/guest') {
+      const ip = String(req.headers['x-forwarded-for'] ?? req.socket.remoteAddress ?? '').split(',')[0].trim();
+      const now = Date.now();
+      const recent = (guests.get(ip) ?? []).filter((t) => now - t < 3_600_000);
+      if (recent.length >= (d.guestsPerHour ?? 20)) return send(res, 429, { error: 'Too many new guests from here. Try again later, or continue with Google.' });
+      guests.set(ip, [...recent, now]);
+      const id = guestIdentity();
+      ensureAccount(id);
+      return send(res, 200, { ok: true }, { 'set-cookie': sessionCookie(id) });
     }
 
     if (req.method === 'GET' && d.staticDir) {

@@ -263,15 +263,20 @@ export const api = {
 
   /** null means "not logged in". */
   async state(): Promise<GameState | null> {
-    const r = await json<GameState>('/game/state');
+    // a request that hangs counts as a failed check, so the next poll can try again
+    const r = await json<GameState>('/game/state', typeof AbortSignal.timeout === 'function' ? { signal: AbortSignal.timeout(8000) } : undefined);
     if (r.status >= 500) throw new Error('offline'); // e.g. the dev proxy can't reach the game server
     return r.status === 401 ? null : r.body;
   },
-  async requestLogin(email: string) {
-    const r = await json<{ ok?: boolean; error?: string; devLink?: string }>('/auth/request', { method: 'POST', body: JSON.stringify({ email }) });
-    return r.body;
+  /** Play as a guest: the server sets a session cookie for a new guest trader. */
+  async guest(): Promise<{ ok?: boolean; error?: string }> {
+    try {
+      return (await json<{ ok?: boolean; error?: string }>('/auth/guest', { method: 'POST', body: '{}' })).body;
+    } catch {
+      return { error: 'Lost touch with the game server. Try again in a moment.' };
+    }
   },
-  /** Which sign-in options the server offers. Never throws: if it can't be reached, only the email link is shown. */
+  /** Which sign-in options the server offers. Never throws: if it can't be reached, only the guest button is shown. */
   async providers(): Promise<{ google: boolean }> {
     try {
       const r = await json<{ google?: boolean }>('/auth/providers');
@@ -288,12 +293,6 @@ export const api = {
     } catch {
       return null;
     }
-  },
-  /** Open a sign-in link (dev only: the server returns it directly). */
-  async openLink(link: string) {
-    const u = new URL(link);
-    const r = await json<{ ok?: boolean; error?: string }>(u.pathname + u.search);
-    return r.body;
   },
   gather: (item: Item) => post('/game/gather', { item }).then((r) => r.body),
   sell: (merchant: string, item: Item, units: number, haggle: boolean) => post('/game/sell', { merchant, item, units, haggle }).then((r) => r.body),

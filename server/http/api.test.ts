@@ -13,14 +13,14 @@ const WALLET_WORDS = /seed|mnemonic|private|secret|wallet|gas|ed25519|yocto|\.te
 
 let server: Server;
 let base: string;
-let links: string[];
+let auth: Auth;
 let transfers: { from: string; to: string; item: string; units: number }[];
 let created: string[];
 let app: ReturnType<typeof createApp>;
 let slowChain = false;
 
 beforeEach(async () => {
-  links = [];
+  auth = new Auth(randomHex(32));
   transfers = [];
   created = [];
   slowChain = false;
@@ -39,10 +39,9 @@ beforeEach(async () => {
   const dir = mkdtempSync(join(tmpdir(), 'oja-api-'));
   const master = randomHex(32);
   app = createApp({
-    auth: new Auth(randomHex(32)),
+    auth,
     store: new AccountStore(join(dir, 'a.json'), 'oja.testnet', master),
     chain,
-    mailer: { sendLoginLink: async (_e, link) => void links.push(link) },
     baseUrl: 'http://localhost:0',
     merchantParent: 'run.oja.testnet',
   });
@@ -54,46 +53,43 @@ afterEach(() => void server.close());
 const post = (path: string, body: unknown, cookie = '') =>
   fetch(base + path, { method: 'POST', headers: { 'content-type': 'application/json', cookie }, body: JSON.stringify(body) });
 
-/** Log in by email and return the session cookie. */
+/** A signed-in player's session cookie (sessions are what Google sign-in and guest sign-in both hand out). */
 async function login(email = 'ada@example.com') {
-  await post('/auth/request', { email });
-  const token = new URL(links[links.length - 1]).searchParams.get('token');
-  const r = await fetch(`${base}/auth/verify?token=${token}`);
-  expect(r.status).toBe(200);
-  return r.headers.get('set-cookie')!.split(';')[0];
+  const cookie = `nims_session=${auth.sessionToken(email)}`;
+  await fetch(base + '/me', { headers: { cookie } }); // a real sign-in sets up the player's account; so does the first visit
+  return cookie;
 }
 
 describe('api', () => {
-  it('a browser clicking the emailed link is signed in and sent to the game; a spent link goes to a friendly page', async () => {
-    await post('/auth/request', { email: 'ada@example.com' });
-    const token = new URL(links[0]).searchParams.get('token');
-    const html = { accept: 'text/html' };
-    const ok = await fetch(`${base}/auth/verify?token=${token}`, { headers: html, redirect: 'manual' });
-    expect(ok.status).toBe(302);
-    expect(ok.headers.get('location')).toBe('/');
-    expect(ok.headers.get('set-cookie')).toContain('nims_session=');
-    const spent = await fetch(`${base}/auth/verify?token=${token}`, { headers: html, redirect: 'manual' });
-    expect(spent.headers.get('location')).toBe('/?login=expired');
-  });
-
-  it('logs in by email link, then /me works', async () => {
-    const cookie = await login();
+  it('play as a guest: one press gives a session, and /me works with it', async () => {
+    const r = await post('/auth/guest', {});
+    expect(r.status).toBe(200);
+    const cookie = r.headers.get('set-cookie')!.split(';')[0];
+    expect(cookie).toMatch(/^nims_session=/);
     const me = await (await fetch(base + '/me', { headers: { cookie } })).json();
-    expect(me.email).toBe('ada@example.com');
+    expect(me.email).toMatch(/^guest-[0-9a-f]{12}@guest\.nims$/);
+    // a second guest is a different player
+    const other = (await post('/auth/guest', {})).headers.get('set-cookie')!.split(';')[0];
+    expect((await (await fetch(base + '/me', { headers: { cookie: other } })).json()).email).not.toBe(me.email);
     expect((await fetch(base + '/me')).status).toBe(401);
   });
 
-  it('rejects bad emails, reused links and tampered cookies', async () => {
-    expect((await post('/auth/request', { email: 'nope' })).status).toBe(400);
-    await post('/auth/request', { email: 'a@b.co' });
-    const token = new URL(links[0]).searchParams.get('token');
-    expect((await fetch(`${base}/auth/verify?token=${token}`)).status).toBe(200);
-    expect((await fetch(`${base}/auth/verify?token=${token}`)).status).toBe(400);
+  it('limits new guests from one address, so nobody can fill the town with empty players', async () => {
+    for (let i = 0; i < 20; i++) expect((await post('/auth/guest', {})).status).toBe(200);
+    const r = await post('/auth/guest', {});
+    expect(r.status).toBe(429);
+    expect((await r.json()).error).toMatch(/Too many new guests/);
+  });
+
+  it('offers Google (when set up) and guest sign-in; the emailed-link routes are gone; forged cookies are refused', async () => {
+    expect(await (await fetch(base + '/auth/providers')).json()).toEqual({ google: false, guest: true });
+    expect((await post('/auth/request', { email: 'a@b.co' })).status).not.toBe(200);
+    expect((await fetch(base + '/auth/verify?token=x')).status).not.toBe(200);
     expect((await fetch(base + '/me', { headers: { cookie: 'nims_session=forged.value' } })).status).toBe(401);
   });
 
-  it('creates the account in the background on first login', async () => {
-    await login();
+  it('creates the account in the background on first visit', async () => {
+    await fetch(base + '/me', { headers: { cookie: await login() } });
     await new Promise((r) => setTimeout(r, 20));
     expect(created).toHaveLength(1);
   });
@@ -131,7 +127,7 @@ describe('api', () => {
     const cookie = await login();
     await new Promise((r) => setTimeout(r, 20));
     const bodies = [
-      await (await post('/auth/request', { email: 'ada@example.com' })).text(),
+      await (await post('/auth/guest', {})).text(),
       await (await fetch(base + '/me', { headers: { cookie } })).text(),
       await (await post('/trade/send', { to: 'mira', item: 'iron', units: 1 }, cookie)).text(),
       await (await post('/trade/send', { to: 'x', item: 'iron', units: 1 }, cookie)).text(),
@@ -148,23 +144,18 @@ describe('game routes', () => {
     const dir = mkdtempSync(join(tmpdir(), 'oja-api2-'));
     const master = randomHex(32);
     const a2 = createApp({
-      auth: new Auth(randomHex(32)),
+      auth,
       store: new AccountStore(join(dir, 'a.json'), 'oja.testnet', master),
       chain: { createPlayerAccount: async () => {}, transferItem: async () => {}, itemBalance: async () => 0 },
-      mailer: { sendLoginLink: async (_e, link) => void links.push(link) },
       baseUrl: 'http://localhost:0',
       merchantParent: 'run.oja.testnet',
       game: new Game(3),
-      devLinks: true,
     });
     server = await a2.listen(0);
     base = `http://localhost:${(server.address() as { port: number }).port}`;
 
     expect((await fetch(base + '/game/state')).status).toBe(401);
-    const r = await (await post('/auth/request', { email: 'ada@example.com' })).json();
-    expect(r.devLink).toContain('/auth/verify?token=');
-    const login = await fetch(r.devLink.replace('http://localhost:0', base));
-    const cookie = login.headers.get('set-cookie')!.split(';')[0];
+    const cookie = (await post('/auth/guest', {})).headers.get('set-cookie')!.split(';')[0];
 
     const state = await (await fetch(base + '/game/state', { headers: { cookie } })).json();
     expect(state.stalls).toHaveLength(11);
@@ -185,19 +176,16 @@ describe('ownership routes', () => {
     const dir = mkdtempSync(join(tmpdir(), 'oja-api3-'));
     const game = new Game(3);
     const a3 = createApp({
-      auth: new Auth(randomHex(32)),
+      auth,
       store: new AccountStore(join(dir, 'a.json'), 'oja.testnet', randomHex(32)),
       chain: { createPlayerAccount: async () => {}, transferItem: async () => {}, itemBalance: async () => 0 },
-      mailer: { sendLoginLink: async (_e, link) => void links.push(link) },
       baseUrl: 'http://localhost:0',
       merchantParent: 'run.oja.testnet',
       game,
-      devLinks: true,
     });
     server = await a3.listen(0);
     base = `http://localhost:${(server.address() as { port: number }).port}`;
-    const r = await (await post('/auth/request', { email: 'ada@example.com' })).json();
-    const cookie = (await fetch(r.devLink.replace('http://localhost:0', base))).headers.get('set-cookie')!.split(';')[0];
+    const cookie = await login();
     game.playerFor('ada@example.com').cash = 20_000;
 
     const bought = await (await post('/game/shares/buy', { merchant: 'ruth', shares: 5 }, cookie)).json();
@@ -224,10 +212,9 @@ describe('public stats', () => {
     const { Game } = await import('../game/game');
     server.close();
     const a2 = createApp({
-      auth: new Auth(randomHex(32)),
+      auth,
       store: new AccountStore(join(mkdtempSync(join(tmpdir(), 'oja-stats-')), 'a.json'), 'oja.testnet', randomHex(32)),
       chain: { createPlayerAccount: async () => {}, transferItem: async () => {}, itemBalance: async () => 0 },
-      mailer: { sendLoginLink: async (_e, link) => void links.push(link) },
       baseUrl: 'http://localhost:0',
       merchantParent: 'run.oja.testnet',
       game: new Game(3),
@@ -255,10 +242,9 @@ describe('fast-forward route', () => {
     const dir = mkdtempSync(join(tmpdir(), 'oja-api4-'));
     server.close();
     const a4 = createApp({
-      auth: new Auth(randomHex(32)),
+      auth,
       store: new AccountStore(join(dir, 'a.json'), 'oja.testnet', randomHex(32)),
       chain: { createPlayerAccount: async () => {}, transferItem: async () => {}, itemBalance: async () => 0 },
-      mailer: { sendLoginLink: async () => {} },
       baseUrl: 'http://localhost:0',
       merchantParent: 'run.oja.testnet',
       fastForwardGapMs: 0,
@@ -286,10 +272,9 @@ describe('fast-forward route', () => {
     const dir = mkdtempSync(join(tmpdir(), 'oja-api5-'));
     server.close();
     const a5 = createApp({
-      auth: new Auth(randomHex(32)),
+      auth,
       store: new AccountStore(join(dir, 'a.json'), 'oja.testnet', randomHex(32)),
       chain: { createPlayerAccount: async () => {}, transferItem: async () => {}, itemBalance: async () => 0 },
-      mailer: { sendLoginLink: async () => {} },
       baseUrl: 'http://localhost:0',
       merchantParent: 'run.oja.testnet',
       fastForwardGapMs: 60_000,
@@ -309,19 +294,16 @@ describe('selling when you cannot afford the fare (over HTTP)', () => {
     const dir = mkdtempSync(join(tmpdir(), 'nims-api6-'));
     const game = new Game(3);
     const a6 = createApp({
-      auth: new Auth(randomHex(32)),
+      auth,
       store: new AccountStore(join(dir, 'a.json'), 'oja.testnet', randomHex(32)),
       chain: { createPlayerAccount: async () => {}, transferItem: async () => {}, itemBalance: async () => 0 },
-      mailer: { sendLoginLink: async (_e, link) => void links.push(link) },
       baseUrl: 'http://localhost:0',
       merchantParent: 'run.oja.testnet',
       game,
-      devLinks: true,
     });
     server = await a6.listen(0);
     base = `http://localhost:${(server.address() as { port: number }).port}`;
-    const r = await (await post('/auth/request', { email: 'ada@example.com' })).json();
-    const cookie = (await fetch(r.devLink.replace('http://localhost:0', base))).headers.get('set-cookie')!.split(';')[0];
+    const cookie = await login();
 
     const p = game.playerFor('ada@example.com');
     game.w.shocks = [];

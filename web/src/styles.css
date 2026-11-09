@@ -667,3 +667,4 @@ th { font-size: .7rem; letter-spacing: .06em; text-transform: uppercase; color: 
 /* Frontier markets (2D) */
 .map .zone-woods .zone-ground { fill: #e2ead5; } .map .zone-mine .zone-ground { fill: #e6e1ea; } .map .zone-vale .zone-ground { fill: #f4ecd0; }
 .map .zone-woods .zone-plate { fill: #6b4a2f; } .map .zone-mine .zone-plate { fill: #6250d6; } .map .zone-vale .zone-plate { fill: #8a2846; }
+.login .guest-btn { width: 100%; margin-top: .6rem; }

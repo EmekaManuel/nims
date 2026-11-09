@@ -1,10 +1,12 @@
 import type { Avatar } from '../art/avatar';
+import { AvatarFigure, DEFAULT_AVATAR } from '../art/avatar';
 import { useState } from 'react';
-import type { GameState, Item, MarketId, RealmId, Stall } from '../api';
+import type { GameState, Item, MarketId, OnlinePlayer, RealmId, Stall } from '../api';
 import { coins } from '../api';
 import { useServices } from '../lib/services';
+import { rankOf } from '../lib/rank';
 import { Tip } from './Tip';
-import { ItemIcon } from '../art/icons';
+import { ItemIcon, VehicleIcon } from '../art/icons';
 import { Checkbox, Field, NumberField, Select } from '../ui';
 
 const BLURB = {
@@ -228,6 +230,27 @@ export function SourcePanel({ item, state, act }: { item: Item; state: GameState
       <button className="primary" disabled={full || src.units < 1} onClick={() => act.gather(item)}>
         {full ? 'Your vehicle is full' : `Collect ${item}`}
       </button>
+    </section>
+  );
+}
+
+/** Another signed-in player's public stats: the same ones the town board shows, for the one you clicked. */
+export function PlayerPanel({ player }: { player: OnlinePlayer }) {
+  return (
+    <section className="panel player-panel" aria-labelledby="player-h">
+      <div className="player-head">
+        <AvatarFigure a={player.avatar ?? DEFAULT_AVATAR} size={48} />
+        <div>
+          <h2 id="player-h">{player.name}</h2>
+          <p className="muted small">{rankOf(player.worth).title}</p>
+        </div>
+      </div>
+      <p><b>{coins(player.worth)}</b> net worth</p>
+      <p className="muted small">
+        <VehicleIcon vehicle={player.vehicle} size={20} /> {player.vehicle}
+        {player.shares > 0 && <> · {player.shares} {player.shares === 1 ? 'share' : 'shares'}</>}
+        {player.stall && <> · runs a stall</>}
+      </p>
     </section>
   );
 }

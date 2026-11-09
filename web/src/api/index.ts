@@ -119,6 +119,19 @@ export interface CouncilView {
   } | null;
 }
 
+/** Another signed-in person currently playing, for the map and the click-for-stats panel. */
+export interface OnlinePlayer {
+  id: string;
+  name: string;
+  avatar: Avatar | null;
+  market: MarketId;
+  realm: RealmId;
+  worth: number;
+  vehicle: 'wheelbarrow' | 'pickup' | 'van';
+  shares: number;
+  stall: boolean;
+}
+
 export interface GameState {
   /** Absent on older servers and in recorded fixtures. */
   council?: CouncilView[];
@@ -161,6 +174,8 @@ export interface GameState {
   };
   /** Your invite link's code, and how many friends joined and were rewarded. */
   invite?: { code: string; joined: number; rewarded: number; max: number; reward: number };
+  /** Other signed-in people currently playing: where they are, and a few public stats for clicking their avatar. */
+  online?: OnlinePlayer[];
   you: {
     /** The name other traders and the town board see. */
     name: string;

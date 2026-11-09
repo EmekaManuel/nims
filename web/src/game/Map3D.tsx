@@ -5,16 +5,18 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Html, OrbitControls, RoundedBox } from '@react-three/drei';
 import { Color, DoubleSide } from 'three';
 import type * as THREE from 'three';
-import type { GameState, Item, MarketId, Plot, Stall } from '../api';
+import type { GameState, Item, MarketId, OnlinePlayer, Plot, Stall } from '../api';
 import { PLOTS, STALL_POS, ZONES, crateCount, lightAt, type Popup, type Selection } from './Map';
-import { EDGES, LAMPS, newWalk, NODES, seeded, SOURCE_POS, SOURCE_STOP, stepWalk, stopForStall, TREES, U, walkAt, wx, wz, type Stop, type Walk } from './paths';
+import { EDGES, LAMPS, newWalk, NODES, PLOT_STOP, seeded, SOURCE_POS, SOURCE_STOP, stepWalk, stopForStall, TREES, U, walkAt, walkToward, wx, wz, type Stop, type Walk } from './paths';
 
 const CANOPY: Record<MarketId, [string, string]> = {
   produce: ['#2f9e5f', '#f1f8f3'], fabric: ['#2a6fdb', '#f1f6fe'], scrap: ['#c8622e', '#f1ede7'], harbour: ['#0b8f8f', '#eef8f8'], woods: FRONTIER.timberfell.canopy, mine: FRONTIER.gemhollow.canopy, vale: FRONTIER.sunvale.canopy,
 };
 const GROUND: Record<MarketId, string> = { produce: '#cfe8d3', fabric: '#cddcf3', scrap: '#ecd9c8', harbour: '#d8e7e4', woods: FRONTIER.timberfell.zone, mine: FRONTIER.gemhollow.zone, vale: FRONTIER.sunvale.zone };
-/** Where you stand in each market: just off the street, so nobody walks through you. */
+/** Where you stand in each market: just off the street, so nobody walks through you. Saltmere and the frontiers have one spot each, with no walkways, so you is pinned there. */
 const AVATAR_AT: Record<MarketId, [number, number]> = { produce: [260, 384], fabric: [700, 384], scrap: [560, 420], harbour: HARBOUR.you, woods: FRONTIER_LAYOUT.you, mine: FRONTIER_LAYOUT.you, vale: FRONTIER_LAYOUT.you };
+/** Where to stand in town with nothing in particular selected: near the middle of each market. */
+const DEFAULT_STOP: Record<'produce' | 'fabric' | 'scrap', Stop> = { produce: { node: 'm255', facing: Math.PI }, fabric: { node: 'm685', facing: Math.PI }, scrap: { node: 's500', facing: Math.PI } };
 const AVATARS = ['#2f9e5f', '#e2557b', '#7b4de0', '#eb6834', '#18a999', '#2a6fdb', '#c98a00', '#0e9fb0'];
 const avatarColor = (id: string) => AVATARS[[...id].reduce((a, c) => a + c.charCodeAt(0), 0) % AVATARS.length];
 
@@ -617,6 +619,10 @@ function FrontierScene({ realm, state, selected, onSelect, popups, animate }: { 
           onSelect={() => onSelect({ kind: 'source', item: src.item })} />
       ))}
       <RoadSign3D at={sign.at} label={sign.label} on={selected?.kind === 'road'} onSelect={() => onSelect({ kind: 'road', realm: sign.to })} />
+      {(state.online ?? []).filter((o) => o.realm === realm).map((o, _i, here) => {
+        const [ox, oy] = spotOffset(here.indexOf(o));
+        return <OtherPlayerModel key={o.id} player={o} at={[FRONTIER_LAYOUT.you[0] + ox, FRONTIER_LAYOUT.you[1] + oy]} selected={selected?.kind === 'player' && selected.id === o.id} onSelect={() => onSelect({ kind: 'player', id: o.id })} />;
+      })}
       <YouModel state={state} at={FRONTIER_LAYOUT.you} />
       {[[200, 600], [920, 600], [200, 20], [920, 20]].map(([x, y], i) => <Lamp key={i} x={wx(x)} z={wz(y)} on={night >= 0.28} />)}
       {night >= 0.28 && plots.filter((x) => x.business).map((x) => { const [px, py] = FRONTIER_LAYOUT.plots[x.n]; return <pointLight key={x.id} position={[wx(px), 1.2, wz(py) + 0.8]} intensity={9} distance={6} color="#ffc861" />; })}
@@ -644,7 +650,7 @@ function RoadSign3D({ at, label: text, on, onSelect }: { at: [number, number]; l
   );
 }
 
-/** You, with your look and your vehicle, standing at `at` (canvas coordinates). */
+/** You, with your look and your vehicle, standing at `at` (canvas coordinates). For Saltmere and the frontiers, which have no walkways. */
 function YouModel({ state, at }: { state: GameState; at: [number, number] }) {
   const look = state.you.avatar ?? DEFAULT_AVATAR;
   const shirt = SHIRTS[look.shirt];
@@ -653,6 +659,71 @@ function YouModel({ state, at }: { state: GameState; at: [number, number] }) {
       <Person id="you" shirt={shirt} look={look} cap={look.hat === 'cap' ? mix(shirt, '#000000', 0.45) : undefined} scale={1.45} />
       <group position={[0.6, 0, 0.1]} rotation={[0, 0.3, 0]}><Vehicle kind={state.you.vehicle} /></group>
       <Html zIndexRange={[5, 0]} position={[0, 1.55, 0]} center style={{ pointerEvents: 'none' }}><div style={{ ...label, background: shirt }}>You</div></Html>
+    </group>
+  );
+}
+
+/** The walkway stop for whatever is selected right now, so you can walk there; the market's own spot otherwise. */
+function goalFor(state: GameState, selected: Selection): Stop {
+  if (selected?.kind === 'stall') {
+    const s = state.stalls.find((x) => x.id === selected.id);
+    const g = s && stopForStall(s.id, s.market);
+    if (g) return g;
+  } else if (selected?.kind === 'source') {
+    const g = SOURCE_STOP[selected.item];
+    if (g) return g;
+  } else if (selected?.kind === 'plot') {
+    const g = PLOT_STOP[selected.market];
+    if (g) return g;
+  }
+  return DEFAULT_STOP[(state.you.at as 'produce' | 'fabric' | 'scrap') ?? 'produce'];
+}
+
+const YOU_SPEED = 1.6;
+
+/** You, in town: walks the streets to whatever you clicked (see walkToward in paths.ts), instead of snapping there. */
+function YouWalker({ state, goal }: { state: GameState; goal: Stop }) {
+  const ref = useRef<THREE.Group>(null);
+  const [mode, setMode] = useState<'walk' | 'idle'>('idle');
+  const walk = useRef<Walk | null>(null);
+  if (!walk.current) walk.current = { at: goal.node, path: [], dwell: 0, x: wx(NODES[goal.node][0]), z: wz(NODES[goal.node][1]), yaw: goal.facing, rng: seeded(1) };
+  const shown = useRef<'walk' | 'idle'>('idle');
+  useFrame((_, dt) => {
+    const g = ref.current;
+    const w = walk.current!;
+    if (!g) return;
+    walkToward(w, goal, YOU_SPEED, Math.min(dt, 0.1));
+    g.position.set(w.x, 0, w.z);
+    g.rotation.y = w.yaw;
+    const now = w.path.length ? 'walk' : 'idle';
+    if (now !== shown.current) { shown.current = now; setMode(now); }
+  });
+  const look = state.you.avatar ?? DEFAULT_AVATAR;
+  const shirt = SHIRTS[look.shirt];
+  return (
+    <group ref={ref}>
+      <Person id="you" shirt={shirt} look={look} cap={look.hat === 'cap' ? mix(shirt, '#000000', 0.45) : undefined} mode={mode} scale={1.45} />
+      <group position={[0.6, 0, 0.1]} rotation={[0, 0.3, 0]}><Vehicle kind={state.you.vehicle} /></group>
+      <Html zIndexRange={[5, 0]} position={[0, 1.55, 0]} center style={{ pointerEvents: 'none' }}><div style={{ ...label, background: shirt }}>You</div></Html>
+    </group>
+  );
+}
+
+/** Spreads two or more online players standing at the same spot (map pixel units, same scale as AVATAR_AT). */
+function spotOffset(i: number): [number, number] {
+  const a = i * 2.4 + 0.6;
+  return [Math.cos(a) * 26, Math.sin(a) * 16];
+}
+
+/** Another signed-in player, shown where they are right now. Click them to see their stats. `at` is in map pixel units, like AVATAR_AT. */
+function OtherPlayerModel({ player, at, selected, onSelect }: { player: OnlinePlayer; at: [number, number]; selected: boolean; onSelect: () => void }) {
+  const look = player.avatar ?? DEFAULT_AVATAR;
+  const shirt = SHIRTS[look.shirt];
+  return (
+    <group position={[wx(at[0]), 0, wz(at[1])]} onClick={(e) => { e.stopPropagation(); onSelect(); }}>
+      <Person id={player.id} shirt={shirt} look={look} cap={look.hat === 'cap' ? mix(shirt, '#000000', 0.45) : undefined} scale={1.3} />
+      <Html zIndexRange={[5, 0]} position={[0, 1.4, 0]} center style={{ pointerEvents: 'none' }}><div style={{ ...label, background: shirt, opacity: selected ? 1 : 0.88 }}>{player.name}</div></Html>
+      {selected && <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}><ringGeometry args={[0.6, 0.72, 32]} /><meshBasicMaterial color="#f2b01e" /></mesh>}
     </group>
   );
 }
@@ -728,6 +799,10 @@ function HarbourScene({ state, selected, onSelect, popups, animate }: { state: G
         ) : null;
       })}
       <RoadSign3D at={sign.at} label={sign.label} on={selected?.kind === 'road'} onSelect={() => onSelect({ kind: 'road', realm: sign.to })} />
+      {(state.online ?? []).filter((o) => o.realm === 'saltmere').map((o, _i, here) => {
+        const [ox, oy] = spotOffset(here.indexOf(o));
+        return <OtherPlayerModel key={o.id} player={o} at={[HARBOUR.you[0] + ox, HARBOUR.you[1] + oy]} selected={selected?.kind === 'player' && selected.id === o.id} onSelect={() => onSelect({ kind: 'player', id: o.id })} />;
+      })}
       <YouModel state={state} at={HARBOUR.you} />
       {[[150, 330], [500, 330], [850, 330], [150, 470], [850, 470]].map(([x, y], i) => <Lamp key={i} x={wx(x)} z={wz(y)} on={night >= 0.28} />)}
       {night >= 0.28 && Object.values(HARBOUR.stalls).map(([x, y], i) => <pointLight key={i} position={[wx(x), 1.2, wz(y) + 0.8]} intensity={9} distance={6} color="#ffc861" />)}
@@ -773,7 +848,7 @@ function TownScene({ state, selected, onSelect, popups, animate }: { state: Game
   const drive = useContext(Drive);
   const light = lightAt(state.hour);
   const focus = state.coach.focus;
-  const you = AVATAR_AT[state.you.at ?? 'produce'];
+  const goal = goalFor(state, selected);
   const rain = state.shocks.some((x) => x.kind === 'rain');
   const night = light.opacity;
   const dark = Math.min(1, night / 0.5); // 0 in daylight, 1 in the dead of night
@@ -842,7 +917,13 @@ function TownScene({ state, selected, onSelect, popups, animate }: { state: Game
         : <Walker key={i} id={`walker${i}`} color={c} stops={stops} speed={0.8 + (i % 3) * 0.12} seed={i * 7919 + 13} />)}
       {animate && <Truck />}
 
-      <YouModel state={state} at={you} />
+      {(state.online ?? []).filter((o) => o.realm === 'town').map((o, _i, here) => {
+        const sameSpot = here.filter((x) => x.market === o.market);
+        const [bx, by] = AVATAR_AT[o.market];
+        const [ox, oy] = spotOffset(sameSpot.indexOf(o));
+        return <OtherPlayerModel key={o.id} player={o} at={[bx + ox, by + oy]} selected={selected?.kind === 'player' && selected.id === o.id} onSelect={() => onSelect({ kind: 'player', id: o.id })} />;
+      })}
+      <YouWalker state={state} goal={goal} />
       {(!drive || drive.travel) && <RoadSign3D at={ROAD_SIGN.town.at} label={ROAD_SIGN.town.label} on={selected?.kind === 'road'} onSelect={() => onSelect({ kind: 'road', realm: ROAD_SIGN.town.to })} />}
 
       {state.shocks.some((x) => x.kind === 'festive season') && <Festive />}

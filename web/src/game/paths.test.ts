@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  distToBox, EDGES, LAMP_RADIUS, LAMPS, newWalk, NODES, PLOT_STOP, route, stepWalk, wx, wz, SOURCE_BOXES, SOURCE_STOP, STALL_BOXES, STALL_STOP, stallLamps, treeRadius, TREES, U, type Pt,
+  distToBox, EDGES, LAMP_RADIUS, LAMPS, newWalk, NODES, PLOT_STOP, route, stepWalk, walkToward, wx, wz, SOURCE_BOXES, SOURCE_STOP, STALL_BOXES, STALL_STOP, stallLamps, treeRadius, TREES, U, type Pt, type Walk,
 } from './paths';
 import { PLOTS, STALL_POS } from './Map';
 
@@ -83,17 +83,18 @@ describe('visiting places', () => {
   });
 });
 
+/** Distance from a world point to the nearest walkway, in pixels. */
+const offWalkway = (x: number, z: number) => {
+  const p: Pt = [x * U + 500, z * U + 340];
+  return Math.min(...EDGES.map(([a, b]) => {
+    const [x1, y1] = NODES[a], [x2, y2] = NODES[b];
+    const t = Math.max(0, Math.min(1, ((p[0] - x1) * (x2 - x1) + (p[1] - y1) * (y2 - y1)) / ((x2 - x1) ** 2 + (y2 - y1) ** 2)));
+    return Math.hypot(p[0] - (x1 + t * (x2 - x1)), p[1] - (y1 + t * (y2 - y1)));
+  }));
+};
+
 describe('people walking', () => {
   const stops = [...Object.values(STALL_STOP), ...Object.values(PLOT_STOP), ...Object.values(SOURCE_STOP)].map((s) => s!);
-  /** Distance from a world point to the nearest walkway, in pixels. */
-  const offWalkway = (x: number, z: number) => {
-    const p: Pt = [x * U + 500, z * U + 340];
-    return Math.min(...EDGES.map(([a, b]) => {
-      const [x1, y1] = NODES[a], [x2, y2] = NODES[b];
-      const t = Math.max(0, Math.min(1, ((p[0] - x1) * (x2 - x1) + (p[1] - y1) * (y2 - y1)) / ((x2 - x1) ** 2 + (y2 - y1) ** 2)));
-      return Math.hypot(p[0] - (x1 + t * (x2 - x1)), p[1] - (y1 + t * (y2 - y1)));
-    }));
-  };
 
   it('over ten minutes, ten walkers are always on a walkway and never in a building, tree or lamp', () => {
     for (let seed = 1; seed <= 10; seed++) {
@@ -147,5 +148,33 @@ describe('people walking', () => {
     for (let t = 0; t < 60; t += 1 / 30) stepWalk(w, [stops[0]], 1, 1 / 30);
     expect(w.path).toEqual([]);
     expect([w.x, w.z]).toEqual([wx(NODES[stops[0].node][0]), wz(NODES[stops[0].node][1])]);
+  });
+});
+
+describe('walking to a clicked place', () => {
+  it('heads straight for the goal, stays on the walkway the whole way, arrives and faces it, then stands still', () => {
+    const goal = STALL_STOP.diego!; // across town from the m255 start
+    const w: Walk = { at: 'm255', path: [], dwell: 0, x: wx(NODES.m255[0]), z: wz(NODES.m255[1]), yaw: 0, rng: () => 0 };
+    let arrivedAt = -1;
+    for (let i = 0, t = 0; t < 60; i++, t += 1 / 30) {
+      walkToward(w, goal, 1, 1 / 30);
+      expect(offWalkway(w.x, w.z), `left the walkway at ${w.x.toFixed(2)},${w.z.toFixed(2)}`).toBeLessThan(0.5);
+      if (w.path.length === 0 && arrivedAt < 0) arrivedAt = i;
+    }
+    expect(arrivedAt).toBeGreaterThan(0); // actually walked, didn't teleport
+    expect(w.x).toBeCloseTo(wx(NODES[goal.node][0]), 2);
+    expect(w.z).toBeCloseTo(wz(NODES[goal.node][1]), 2);
+    expect(w.yaw).toBeCloseTo(goal.facing, 1); // turned to face it
+  });
+
+  it('redirects at once to a new goal, from wherever the walk currently is', () => {
+    const first = STALL_STOP.lena!;
+    const second = STALL_STOP.anil!;
+    const w: Walk = { at: 'm255', path: [], dwell: 0, x: wx(NODES.m255[0]), z: wz(NODES.m255[1]), yaw: 0, rng: () => 0 };
+    for (let t = 0; t < 1; t += 1 / 30) walkToward(w, first, 1, 1 / 30); // partway to lena
+    expect(w.path.length).toBeGreaterThan(0); // still walking, not there yet
+    for (let t = 0; t < 60; t += 1 / 30) walkToward(w, second, 1, 1 / 30); // redirected to anil instead
+    expect(w.x).toBeCloseTo(wx(NODES[second.node][0]), 2);
+    expect(w.z).toBeCloseTo(wz(NODES[second.node][1]), 2);
   });
 });

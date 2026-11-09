@@ -197,6 +197,29 @@ export function stepWalk(s: Walk, stops: Stop[], speed: number, dt: number) {
   }
 }
 
+/**
+ * Head straight for `goal` and stand there facing it, instead of wandering between stops like an ambient
+ * Walker. Call it again with a different goal to redirect at once, from wherever the walk currently is.
+ */
+export function walkToward(w: Walk, goal: Stop, speed: number, dt: number) {
+  if (w.goal?.node !== goal.node) {
+    const r = route(w.at, goal.node);
+    w.goal = goal;
+    w.path = r ? r.slice(1).map((n) => [wx(NODES[n][0]), wz(NODES[n][1])] as Pt) : [];
+  }
+  if (w.path.length === 0) {
+    w.yaw = turn(w.yaw, goal.facing, dt * 6);
+    return;
+  }
+  const [tx, tz] = w.path[0];
+  const dx = tx - w.x, dz = tz - w.z;
+  const d = Math.hypot(dx, dz);
+  const step = speed * dt;
+  if (d > 1e-6) w.yaw = turn(w.yaw, Math.atan2(dx, dz), dt * 10);
+  if (d <= step) { w.x = tx; w.z = tz; w.path.shift(); if (w.path.length === 0) w.at = goal.node; }
+  else { w.x += (dx / d) * step; w.z += (dz / d) * step; }
+}
+
 // ---- walkers as a pure function of time (for the demo video) ---------------------------------
 
 export interface WalkSample { x: number; z: number; yaw: number; moving: boolean }

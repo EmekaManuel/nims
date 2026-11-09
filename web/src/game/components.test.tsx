@@ -40,6 +40,19 @@ describe('map', () => {
     render(<DistrictMap state={s} selected={null} onSelect={() => {}} />);
     expect(screen.getByLabelText(/Mira's Greens, Closed/)).toBeTruthy();
   });
+
+  it('walks to the stall you clicked instead of standing at one fixed spot', () => {
+    const { container, rerender } = render(<DistrictMap state={state} selected={null} onSelect={() => {}} />);
+    const you = () => container.querySelector('.you') as HTMLElement;
+    const generic = you().style.transform;
+    rerender(<DistrictMap state={state} selected={{ kind: 'stall', id: 'anil' }} onSelect={() => {}} />);
+    expect(you().style.transform).not.toBe(generic); // moved from the generic spot
+    const m = you().style.transform.match(/translate\(([-\d.]+)px, ([-\d.]+)px\)/)!;
+    const [ax, ay] = STALL_POS.anil;
+    expect(Number(m[1])).toBeCloseTo(ax, 0); // lined up with the stall
+    expect(Math.abs(Number(m[2]) - ay)).toBeGreaterThan(0); // but standing in front of it, not on top of it
+    expect(Math.abs(Number(m[2]) - ay)).toBeLessThan(STALL_H);
+  });
 });
 
 describe('stall panel', () => {

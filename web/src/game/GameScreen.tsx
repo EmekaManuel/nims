@@ -13,7 +13,7 @@ import { Mission } from './Mission';
 import { NewsFeed } from './NewsFeed';
 import { QuestsPanel, questsReady } from './Quests';
 import { JourneyPanel, LandPanel, OnTheRoad } from './Journey';
-import { SourcePanel, StallPanel } from './Panels';
+import { PlayerPanel, SourcePanel, StallPanel } from './Panels';
 import { PriceBoard } from './PriceBoard';
 
 const DistrictMap3D = lazy(() => import('./Map3D').then((m) => ({ default: m.DistrictMap3D })));
@@ -88,6 +88,11 @@ export function GameScreen(p: GameScreenProps) {
   else if (p.selected?.kind === 'source') drawer = { title: 'Collect goods', body: <SourcePanel item={p.selected.item} state={state} act={act} /> };
   else if (p.selected?.kind === 'road') drawer = { title: 'Travel', body: <JourneyPanel state={state} to={p.selected.realm} act={act} /> };
   else if (p.selected?.kind === 'land') drawer = { title: 'Land', body: <LandPanel key={p.selected.id} state={state} plotId={p.selected.id} act={act} /> };
+  else if (p.selected?.kind === 'player') {
+    const id = p.selected.id;
+    const other = state.online?.find((o) => o.id === id);
+    drawer = other ? { title: other.name, body: <PlayerPanel player={other} /> } : null;
+  }
   else if (p.selected?.kind === 'plot') drawer = { title: 'A free plot', body: <section className="panel"><h2>A free plot</h2><StallOffer state={state} act={act} focus={p.selected.market} /></section> };
   else if (p.tab === 'quests' && state.quests) drawer = { title: 'Quests', body: <QuestsPanel quests={state.quests} act={act} invite={state.invite} /> };
   else if (p.tab === 'deals') drawer = { title: 'Deals', body: <DealsDrawer state={state} act={act} onFocus={p.onFocus} forceTab={p.dealsTab} /> };

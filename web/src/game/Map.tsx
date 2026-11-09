@@ -1,9 +1,9 @@
 import { SHIRTS } from '../art/avatar';
 import { FRONTIER, FRONTIER_LAYOUT, HARBOUR, isFrontier, REALM_OF, ROAD_SIGN, type FrontierId } from './realms';
-import type { Focus, GameState, Item, MarketId, Offer, Plot, RealmId, Stall } from '../api';
+import type { Focus, GameState, Item, MarketId, Offer, OnlinePlayer, Plot, RealmId, Stall } from '../api';
 import { itemId } from '../art/icons';
 
-export type Selection = { kind: 'stall'; id: string } | { kind: 'source'; item: Item } | { kind: 'plot'; market: MarketId } | { kind: 'road'; realm: RealmId } | { kind: 'land'; id: string } | null;
+export type Selection = { kind: 'stall'; id: string } | { kind: 'source'; item: Item } | { kind: 'plot'; market: MarketId } | { kind: 'road'; realm: RealmId } | { kind: 'land'; id: string } | { kind: 'player'; id: string } | null;
 
 /**
  * The district, drawn. Layout is hand-placed on a 1000 x 680 canvas and exported so a test can prove
@@ -392,9 +392,28 @@ function Life({ moving }: { moving: boolean }) {
   );
 }
 
-/** You: a blue character with your vehicle. When you go to another market you walk there. */
-function You({ at, vehicle, shirt = '#1d63d6' }: { at: MarketId; vehicle: 'wheelbarrow' | 'pickup' | 'van'; shirt?: string }) {
-  const [x, y] = AVATAR_AT[at];
+/** Roughly where paths.ts's walkway stops would put a customer: south of a stall or plot, east of a source — close
+    enough for a straight glide there, since the 2D map doesn't follow streets the way the 3D town does. */
+function standFor(state: GameState, selected: Selection, realm: RealmId): [number, number] {
+  if (realm === 'town') {
+    if (selected?.kind === 'stall') {
+      const s = state.stalls.find((x) => x.id === selected.id);
+      const pos = s && stallPos(realm, s, state.land?.here);
+      if (pos) return [pos[0], pos[1] + STALL_H / 2 + 26];
+    } else if (selected?.kind === 'source') {
+      const pos = sourcePos(realm, selected.item);
+      if (pos) return [pos[0] + 70, pos[1]];
+    } else if (selected?.kind === 'plot') {
+      const pos = PLOTS[selected.market];
+      if (pos) return [pos[0], pos[1] + STALL_H / 2 + 26];
+    }
+  }
+  return AVATAR_AT[state.you.at ?? 'produce'];
+}
+
+/** You: a blue character with your vehicle, who walks to whatever stall, source or plot you clicked. */
+function You({ at, vehicle, shirt = '#1d63d6' }: { at: [number, number]; vehicle: 'wheelbarrow' | 'pickup' | 'van'; shirt?: string }) {
+  const [x, y] = at;
   return (
     <g className="you" style={{ transform: `translate(${x}px, ${y}px)` }} aria-hidden="true">
       <g className="bob"><Bean color={shirt} size={1.35} /></g>
@@ -402,6 +421,28 @@ function You({ at, vehicle, shirt = '#1d63d6' }: { at: MarketId; vehicle: 'wheel
       <g transform="translate(0 -34)">
         <rect x="-15" y="-9" width="30" height="16" rx="8" className="you-tag" />
         <text y="3" textAnchor="middle" className="you-text">You</text>
+      </g>
+    </g>
+  );
+}
+
+/** Spreads two or more online players standing in the same market so they don't sit exactly on top of each other. */
+function spotOffset(i: number): [number, number] {
+  const a = i * 2.4 + 0.6;
+  return [Math.cos(a) * 34, Math.sin(a) * 20];
+}
+
+/** Another signed-in player, shown where they are right now. Click them to see their stats. */
+function OtherPlayer({ player, at, on, ...handlers }: { player: OnlinePlayer; at: [number, number]; on: boolean } & React.HTMLAttributes<SVGGElement>) {
+  const [x, y] = at;
+  const shirt = player.avatar ? SHIRTS[player.avatar.shirt] : '#7b4de0';
+  return (
+    <g className={`other-player ${on ? 'on' : ''}`} style={{ transform: `translate(${x}px, ${y}px)` }} aria-label={`${player.name}, another trader`} {...handlers}>
+      <circle className="chosen" r="22" />
+      <g className="bob"><Bean color={shirt} size={1.1} /></g>
+      <g transform="translate(0 -30)">
+        <rect x="-28" y="-9" width="56" height="16" rx="8" className="other-tag" />
+        <text y="3" textAnchor="middle" className="other-text">{player.name}</text>
       </g>
     </g>
   );
@@ -563,7 +604,13 @@ export function DistrictMap({ state, selected, onSelect, popups = [], moving }: 
       })}
       {town && <Life moving={animate} />}
       <RoadSign at={sign.at} label={sign.label} on={selected?.kind === 'road'} {...press(() => onSelect({ kind: 'road', realm: sign.to }))} />
-      <You at={state.you.at ?? 'produce'} vehicle={state.you.vehicle} shirt={state.you.avatar ? SHIRTS[state.you.avatar.shirt] : undefined} />
+      {(state.online ?? []).filter((o) => o.realm === realm).map((o, _i, here) => {
+        const sameSpot = here.filter((x) => x.market === o.market);
+        const [bx, by] = AVATAR_AT[o.market];
+        const [ox, oy] = spotOffset(sameSpot.indexOf(o));
+        return <OtherPlayer key={o.id} player={o} at={[bx + ox, by + oy]} on={selected?.kind === 'player' && selected.id === o.id} {...press(() => onSelect({ kind: 'player', id: o.id }))} />;
+      })}
+      <You at={standFor(state, selected, realm)} vehicle={state.you.vehicle} shirt={state.you.avatar ? SHIRTS[state.you.avatar.shirt] : undefined} />
 
       {focus && (() => {
         // The "NEXT" pill is drawn last so no stall or awning can cover it.

@@ -33,6 +33,8 @@ const SOURCE_LABEL: Record<string, string> = {};
 const START_CASH = 4_000;
 /** Away for this many in-game hours (about 1.5 minutes of real time) and you get a summary on return. */
 const AWAY_HOURS = 24;
+/** The screen polls every 2 real seconds; a player not seen within this long is not shown as online. */
+const ONLINE_WINDOW_MS = 60_000;
 const HISTORY_KEEP = 24 * 7;
 const LEDGER_KEEP = 20_000;
 /**
@@ -148,6 +150,8 @@ export class Game {
   private haggled = new Map<string, number>();
   /** email -> the last haggle they won, so the merchant's reaction can be written from facts the server holds (not from anything the page sends). Not saved. */
   private lastHaggle = new Map<string, HaggleFacts>();
+  /** player id -> real-world ms they were last seen (state() polls). Not saved: everyone just looks offline for a few seconds after a restart. */
+  private lastActive = new Map<string, number>();
   private progress = new Map<string, Progress>();
   /** email -> delivery orders (open ones, and recent finished ones for display). */
   private orders = new Map<string, Order[]>();
@@ -1412,11 +1416,38 @@ export class Game {
     };
   }
 
+  /**
+   * Other signed-in people currently playing, for the map: where they are and a few public stats, so one
+   * player can click another's avatar. Only those seen in the last ONLINE_WINDOW_MS, and not mid-journey
+   * (there is no road position to show them at). Same privacy rule as the town board: the name shown, never
+   * the email.
+   */
+  private onlinePlayers(me: Player) {
+    const since = this.clock() - ONLINE_WINDOW_MS;
+    return [...this.humans.values()]
+      .filter((x) => x.id !== me.id && !x.journey && (this.lastActive.get(x.id) ?? 0) > since)
+      .map((x) => {
+        const market = x.at ?? 'produce';
+        return {
+          id: x.id,
+          name: this.names.get(x.id) ?? 'A trader',
+          avatar: this.avatars.get(x.id) ?? null,
+          market,
+          realm: realmOf(market),
+          worth: this.netWorth(x),
+          vehicle: x.vehicle,
+          shares: this.w.merchants.reduce((n, m) => n + (m.shares[x.id] ?? 0), 0),
+          stall: this.w.merchants.some((m) => m.owner === x.id),
+        };
+      });
+  }
+
   /** Everything the UI needs, including each merchant's own reasoning for every price. */
   state(email: string) {
     const w = this.w;
     const p = this.playerFor(email);
     this.activity.seen(p.id);
+    this.lastActive.set(p.id, this.clock());
     const raw = this.stallViews(p);
     // Flag, per item, which stall pays the most and which charges the least.
     const bestPay: Partial<Record<Item, number>> = {};
@@ -1508,6 +1539,7 @@ export class Game {
       events: w.events.slice(-12).reverse(),
       quests: questView(this.questsOf(p), this.clock()),
       invite: this.inviteView(p),
+      online: this.onlinePlayers(p),
       you: {
         name: this.names.get(p.id) ?? 'Trader',
         avatar: this.avatars.get(p.id) ?? null,

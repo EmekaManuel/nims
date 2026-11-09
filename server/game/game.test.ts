@@ -517,3 +517,34 @@ describe('delivery orders (intents)', () => {
     expect(back.state(me).orders).toHaveLength(1);
   });
 });
+
+describe('who is online', () => {
+  const friend = 'ben@example.com';
+
+  it('shows another player seen recently, but never yourself, with where they are and their stats', () => {
+    let now = 1_000_000;
+    g.clock = () => now;
+    g.state(me);
+    g.state(friend);
+    const online = g.state(me).online!;
+    expect(online).toHaveLength(1);
+    expect(online[0]).toMatchObject({ name: displayName(friend), market: 'produce', realm: 'town', worth: 4000, vehicle: 'wheelbarrow', shares: 0, stall: false });
+    expect(online.some((o) => o.name === displayName(me))).toBe(false);
+  });
+
+  it('drops a player once they have not been seen for a while', () => {
+    let now = 1_000_000;
+    g.clock = () => now;
+    g.state(me);
+    g.state(friend);
+    now += 61_000; // past the online window; friend has not polled again
+    expect(g.state(me).online).toEqual([]);
+  });
+
+  it('does not show a player mid-journey: there is no road position to put them at', () => {
+    g.state(me);
+    g.state(friend);
+    expect(g.travel(friend, 'saltmere').ok).toBe(true);
+    expect(g.state(me).online).toEqual([]);
+  });
+});

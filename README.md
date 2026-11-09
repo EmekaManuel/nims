@@ -28,7 +28,7 @@ Game economies are usually scripts: prices follow a table, NPCs trade nothing, a
 - **A 3D town.** The game opens in a 3D town (React Three Fiber): stalls with real goods in their crates, shopkeepers and townsfolk, day and night, rain. The townsfolk walk only on paved walkways and stop in front of stalls and sources, and a test simulates them to check they never touch a building. Phones and tablets, small windows, reduced-motion settings and browsers without WebGL start on the 2D map instead, a button on the map switches either way, and the game remembers your choice. If the 3D town ever fails to start, the 2D map takes over. If it opens in 3D on its own and runs slowly (under about 22 frames a second over the first few seconds), the game drops to the 2D map, says so, offers **Try 3D anyway**, and does not try again by itself on that browser. A view you chose yourself is never overridden.
 - **A world beyond the town.** Take the road out of Nims to **Saltmere Harbour**: a journey of 6 game hours (about a minute) that costs a passage plus freight on what you carry, and you can't trade on the road. The harbour has its own merchants (fish and salt, a chandlery, a spice house), a fishing pier and salt pans, drawn in 2D and 3D with the sea and boats. Distance makes goods dear: the harbour pays 1.5x for thread and iron from town, the town pays 1.6x for spice and 1.3x for salt from the harbour, so goods are worth carrying both ways. Code: [`sim/world.ts`](sim/world.ts) (realms and prices), `Game.travel` in [`server/game/game.ts`](server/game/game.ts).
 - **Three unexplored frontiers to settle.** Timberfell Woods (by car), Gem Hollow and Sunvale (by plane) have no shops at all, just 8 plots of land each and a source of their own (timber, gems, wine). Buy a plot where you are (one per place; the plots by the source cost more), build a business on it, stock it and set its prices, and the people there buy from you; they pay more for what their place lacks. Put empty land up for sale and another player can buy it from you. The first to reach each frontier is named in the news. Code: `buyLand`, `listLand` and `build` in [`server/game/game.ts`](server/game/game.ts), plots in [`sim/world.ts`](sim/world.ts).
-- **Quests, daily rewards and invites for new players.** A starter quest chain teaches the first ten minutes (first haul, first sale, a haggle, two markets, a share, a council vote) and a realm chain sends you to the harbour and back with spice; each pays a small reward when claimed. A daily reward grows for 7 days in a row. Invite a friend with your link, and when they make their first sale you each get 300 coins (up to 10 friends). Every reward is paid through the ledger. Code: [`server/game/quests.ts`](server/game/quests.ts).
+- **Quests, daily rewards and invites for new players.** A starter quest chain teaches the first ten minutes (first haul, first sale, a haggle, two markets, a share, a council vote) and a realm chain sends you to the harbour and back with spice, and an explorer chain takes you to a frontier to buy land and open a business; each pays a small reward when claimed. A daily reward grows for 7 days in a row. Invite a friend with your link, and when they make their first sale you each get 300 coins (up to 10 friends). Every reward is paid through the ledger. Code: [`server/game/quests.ts`](server/game/quests.ts).
 - **Create your trader.** A new player picks a look (skin, hair, hairstyle, shirt, cap) and a name before trading; it shows in the 2D and 3D towns and on the town board. Code: [`web/src/game/AvatarCreator.tsx`](web/src/game/AvatarCreator.tsx).
 - **A way back from broke.** Nearly out of coins with nothing to sell? Search the scrap heap, or take an odd job: a merchant who is short of a good pays you to fetch it, and pays the cost and your reward from their own till. Jobs are open only while you are short of coins, with a cooldown, so they are a way back up and not a way to farm.
 - **Delivery orders.** State the goods and the lowest price you will take; the town's carriers (a solver run by the game) sell for you when the price allows.
@@ -196,10 +196,20 @@ Games With Real Economies asks for *"NPCs with wallets, player-owned markets and
 
 **Built and tested** (unit tests, and the council record and Town Clerk also run once against testnet):
 
+- The merchant agents: pricing from stock, cash and recent trades, and each merchant's daily plan through NEAR AI Cloud, kept within fixed bounds.
+- Prices that explain themselves (NEAR AI Cloud and ElevenLabs, with the plain line when either is off), haggling, and the town gazette.
+- Markets players can move: flooding, closures, community funds that reopen a merchant, fares and freight.
+- Ownership: shares (up to 49%) with nightly dividends, player stalls, and the fare, share-price, dividend and store-cash fixes, and the merchants' guild.
 - The town council, with merchants' votes, regulars' seats, rent and payout rules, and the rent levy.
 - The council record on a SputnikDAO, signed by an OutLayer-custodied Town Clerk with a policy set on its wallet.
-- The fare, share-price, dividend and store-cash fixes, and the merchants' guild.
-- The 3D town and its checked walkways.
+- Settlement of every good and coin to the NEP-245 contract, with per-player accounts and proof links.
+- The 3D town and its checked walkways, the 2D map, and the speed check that falls back to 2D.
+- Saltmere Harbour and the journey there: passage and freight, no trading on the road, prices that make goods worth carrying both ways.
+- The three frontiers: land (one plot per place), building and stocking a business, selling empty land to another player, first-arrival news, travel by car or plane.
+- Quests (starter, harbour and frontier chains), the 7-day daily reward, and invites (300 coins each, up to 10 friends), all paid through the ledger.
+- Create your trader: the look and the name, checked on the server, shown in 2D, 3D and on the town board.
+- A way back from broke (scrap and odd jobs) and delivery orders.
+- The public town board (`/stats`), sign-in by Google or emailed link, and fast-forward week.
 
 **Not built, or not what it might sound like:**
 

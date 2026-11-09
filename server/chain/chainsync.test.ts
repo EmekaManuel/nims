@@ -266,6 +266,21 @@ describe('ChainSync', () => {
     expect((await second.sync.verify()).mismatches).toEqual([]);
   });
 
+  it('treats "already exists" for a signer as already provisioned, not a rejection (a restart raced markOnChain)', async () => {
+    const { game, chain, sync, logs } = setup();
+    play(game, 6);
+    await sync.step(); // epoch 1
+    const ns = sync.status().namespace!;
+    // A restart landing between the chain confirming the account and markOnChain's save reaching disk: the
+    // account genuinely exists on chain (with our own key), but this process's wallet store still says it doesn't.
+    chain.accounts.add(`anil.${ns}`);
+    play(game, 20); // anil (a merchant) will need to sign its own coin payments
+    await drain(game, sync);
+    expect(logs.filter((l) => /rejected/.test(l))).toEqual([]);
+    expect(sync.status().epoch).toBe(1); // no epoch was burned over an account that was already provisioned
+    expect((await sync.verify()).mismatches).toEqual([]);
+  });
+
   it('starts a fresh epoch from the game’s state when the chain rejects a call, and the new epoch is exact', async () => {
     const { game, chain, sync } = setup();
     play(game, 6);

@@ -285,7 +285,13 @@ export class ChainSync {
     const w = this.wallets!.getOrCreate(id);
     if (!w.onChain) {
       const nsName = st.ns.slice(0, st.ns.length - this.o.contractId.length - 1);
-      await this.o.ops.createAccount(w.accountId, w.publicKey, { accountId: st.ns, secretKey: this.o.rootWallets.secretKeyOf(nsName) });
+      try {
+        await this.o.ops.createAccount(w.accountId, w.publicKey, { accountId: st.ns, secretKey: this.o.rootWallets.secretKeyOf(nsName) });
+      } catch (e) {
+        // A restart between the account landing on chain and markOnChain's save reaching disk leaves the
+        // wallet store a step behind: it is already there with our own key, so this is not a real rejection.
+        if (!/already exists|AccountAlreadyExists/i.test(String(e))) throw e;
+      }
       this.wallets!.markOnChain(id);
     }
     return { accountId: w.accountId, secretKey: this.wallets!.secretKeyOf(id) };

@@ -119,6 +119,52 @@ Every one of these falls back to plain text and the browser voice, so the game p
 
 No `.env` is needed. Without testnet credentials the game plays the same and does not settle to a chain. The game saves to `server/data/game.json` and resumes after a restart.
 
+## Let an AI agent play
+
+An AI agent plays Nims the way the web page does: over plain HTTP, with the same rules and the same prices as everyone else. There is no wallet to set up and no special API. Agents show up on the town board like any other trader.
+
+```bash
+node examples/agent.mjs                              # a small agent plays 20 turns on the live game
+node examples/agent.mjs http://localhost:3000 30     # or on your own server
+```
+
+[`examples/agent.mjs`](examples/agent.mjs) has no dependencies (Node 18+). It signs in as a guest, collects goods where they are cheap, sells a few at a time to whichever stall here pays most, and holds when no stall pays more than the goods cost. In a 30-turn test against a local server it took net worth from 4,000 to 4,916 coins. Its `choose()` function is the place to plug in an LLM.
+
+**1. Sign in.** `POST /auth/guest` returns a session cookie (`nims_session`). Send it on every request after that. One address can start 20 new guests an hour, so keep one session per agent.
+
+**2. Read the game.** `GET /game/state` returns everything the player's screen shows, as JSON:
+
+| Field | What an agent uses it for |
+|---|---|
+| `you` | Cash, net worth, what you carry (`inventory`), cart size (`capacity`), vehicle and upgrades |
+| `deals` | Ready-made trades: where to collect a good (`from`), which stall pays more (`to`), and the profit per unit |
+| `coach.text` | The next sensible step, in one sentence (the same hint a human player sees) |
+| `stalls` | Every merchant: `market`, open or closed, and for each good `buyPrice`, `sellPrice`, stock, and `why` (the merchant's own reason for the price) |
+| `sources` | Farms, scrap spots and wholesalers: price per unit and units left |
+| `realm` | Where you are (`here`), the roads out (`roads`), and the trip in progress (`journey`) |
+| `land`, `quests`, `council`, `events` | Plots for sale, quests to claim, council votes, and the town's news |
+
+**3. Act.** `POST /game/<action>` with a JSON body. Every answer is `{ ok, message, state }`. A refused action answers 400, and the `message` says why ("You can't afford the fare…").
+
+| Action | Body |
+|---|---|
+| `gather` | `{ "item": "cotton" }` collects as much as your cart and cash allow |
+| `sell` / `buy` | `{ "merchant": "lena", "item": "cotton", "units": 4, "haggle": false }` (haggle once an hour for a better price) |
+| `order` | `{ "merchant": "lena", "item": "cotton", "units": 10, "minPrice": 750 }`: a delivery order the town's carriers fill when the price allows |
+| `travel` | `{ "realm": "saltmere" }` (also `timberfell`, `gemhollow`, `sunvale`, `town`). You can't trade until you arrive. |
+| `land/buy`, `land/build` | `{ "plot": "timberfell-2" }`, then `{ "plot": "timberfell-2", "name": "Robo Timber" }` |
+| `shares/buy`, `council/vote` | `{ "merchant": "ruth", "shares": 5 }`, `{ "market": "fabric", "yes": true }` |
+| `upgrade`, `goal`, `name` | `{ "to": "pickup" }`, `{ "kind": "fortune" }`, `{ "name": "Robo" }` |
+| `quest/claim`, `daily` | `{ "id": "first-haul" }`, `{}` |
+
+**Things an agent should know:**
+
+- **Time:** one game hour passes every 10 real seconds.
+- **Prices react to you:** a merchant pays less with every unit you sell it and recovers over the next game hours, so dumping a full cart into one stall loses money. Spread sales out, or carry goods to where they're scarce.
+- **Fares:** moving goods between markets costs a fare on what you carry.
+- **Be polite with requests:** reading the state once a second is plenty.
+- **LLM agents:** the easy setup is to give the model `coach.text`, `deals` and `you`, list the actions above, and ask it for one action as JSON each turn.
+
 ## How it works
 
 ```mermaid

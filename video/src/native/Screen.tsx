@@ -89,7 +89,7 @@ function ForceCheck({ id, checked }: { id: string; checked: boolean | undefined 
 export interface Camera { x: number; y: number; zoom: number }
 
 /** The 3D town in a shot: where the camera is, and how many seconds into the scene it is (which moves the townsfolk, the rain, the truck). */
-export interface Town { t: number; camera: VideoDrive['camera']; dpr?: number }
+export interface Town { t: number; camera: VideoDrive["camera"]; dpr?: number; travel?: boolean }
 /** Everyone shops at every stall and source for the whole video, so a walker's route never changes when the picture cuts to another shot. */
 const WALK_STOPS = [...Object.values(STALL_STOP), ...Object.values(SOURCE_STOP)];
 /** The video is set at night: the hour is moved into the dark (9pm to 3am), keeping each shot's own place in the story. */

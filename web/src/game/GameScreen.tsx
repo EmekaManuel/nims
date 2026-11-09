@@ -110,7 +110,7 @@ export function GameScreen(p: GameScreenProps) {
               )
               : <DistrictMap state={state} selected={p.selected} onSelect={p.onSelect} popups={p.popups} />}
             {!p.drive && <button type="button" className="view-toggle" onClick={toggle3d} aria-pressed={view3d}>{view3d ? '2D map' : '3D view'}</button>}
-            {!p.drive && state.realm && !state.realm.journey && state.realm.roads.length > 0 && (
+            {(!p.drive || p.drive.travel) && state.realm && !state.realm.journey && state.realm.roads.length > 0 && (
               <button type="button" className="road-btn" onClick={() => p.onSelect({ kind: 'road', realm: state.realm!.roads[0].realm })}>Travel →</button>
             )}
             {slowNotice && <div className="view-notice" role="status">The 3D town runs slowly here, so this is the flat map. <button type="button" onClick={toggle3d}>Try 3D anyway</button></div>}

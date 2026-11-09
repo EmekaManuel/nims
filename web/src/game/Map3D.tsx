@@ -39,6 +39,8 @@ export interface VideoDrive {
   frameKey?: number;
   /** Called once the frame has been drawn, with `frameKey`. */
   onDrawn?: (frameKey: number | undefined) => void;
+  /** Show the way out of town (the road sign, and the screen's Travel button), as the game does: the Places video travels. */
+  travel?: boolean;
 }
 const Drive = createContext<VideoDrive | null>(null);
 
@@ -841,7 +843,7 @@ function TownScene({ state, selected, onSelect, popups, animate }: { state: Game
       {animate && <Truck />}
 
       <YouModel state={state} at={you} />
-      {!drive && <RoadSign3D at={ROAD_SIGN.town.at} label={ROAD_SIGN.town.label} on={selected?.kind === 'road'} onSelect={() => onSelect({ kind: 'road', realm: ROAD_SIGN.town.to })} />}
+      {(!drive || drive.travel) && <RoadSign3D at={ROAD_SIGN.town.at} label={ROAD_SIGN.town.label} on={selected?.kind === 'road'} onSelect={() => onSelect({ kind: 'road', realm: ROAD_SIGN.town.to })} />}
 
       {state.shocks.some((x) => x.kind === 'festive season') && <Festive />}
       {state.shocks.some((x) => x.kind === 'fuel queue') && <FuelQueue />}

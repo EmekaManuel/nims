@@ -99,6 +99,12 @@ function Game() {
     return () => window.clearInterval(t);
   }, [refresh]);
 
+  // Setting off on a journey closes whatever drawer is open: nothing in it can be used on the road.
+  const onRoad = !!state?.realm?.journey;
+  useEffect(() => {
+    if (onRoad) { setSelected(null); setTab(null); }
+  }, [onRoad]);
+
   // Once signed in, redeem a friend's invite code from the link, once.
   const invited = useRef(false);
   useEffect(() => {

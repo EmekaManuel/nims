@@ -632,8 +632,12 @@ th { font-size: .7rem; letter-spacing: .06em; text-transform: uppercase; color: 
 .on-the-road { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(15, 26, 42, .45); backdrop-filter: blur(2px); z-index: 4; }
 .road-card { background: var(--surface); border-radius: 16px; padding: 18px 22px; width: min(420px, 90%); box-shadow: var(--shadow-lg); display: grid; gap: .4rem; }
 .road-card h3 { margin: 0; font-size: 1.3rem; }
-.road-track { position: relative; height: 10px; border-radius: 5px; background: var(--surface-2); margin: .6rem 0 .2rem; }
+.road-track { position: relative; height: 10px; border-radius: 5px; background: var(--surface-2); margin: 1.9rem 0 .3rem; }
 .road-track i { position: absolute; inset: 0 auto 0 0; background: var(--gold); border-radius: 5px; transition: width .6s; }
-.road-track .cart { position: absolute; top: -16px; transform: translateX(-50%); font-size: 20px; transition: left .6s; }
+.road-track { background: repeating-linear-gradient(90deg, #c3cfe3 0 14px, transparent 14px 24px) center / 100% 2px no-repeat, var(--surface-2); }
+.road-track .car { position: absolute; top: -22px; transform: translateX(-60%); transition: left .6s linear; line-height: 0; }
+.road-track .car svg { animation: carbob .5s ease-in-out infinite alternate; }
+@keyframes carbob { from { transform: translateY(0); } to { transform: translateY(-1.5px); } }
+@media (prefers-reduced-motion: reduce) { .road-track .car svg { animation: none; } .road-track .car, .road-track i { transition: none; } }
 .road-btn { position: absolute; z-index: 5; right: 12px; top: 56px; padding: .45rem .9rem; border-radius: 999px; background: #f2b01e; border: 1px solid #c98a00; color: #3d2a00; font-weight: 800; box-shadow: var(--shadow); }
 .road-btn:hover { filter: brightness(1.05); }

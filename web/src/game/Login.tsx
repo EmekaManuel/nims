@@ -13,6 +13,8 @@ export function Login({ onIn, presetEmail, showGoogle }: { onIn: () => void; pre
     return why === 'expired' ? 'That link has expired or was already used. Ask for a new one.' : why === 'failed' ? 'Google sign-in did not work. Try again, or use your email.' : '';
   });
   const [asked, setGoogle] = useState(false);
+  // Arrived from a friend's invite link (App.tsx keeps the code until after sign-in).
+  const [invited] = useState(() => { try { return !!localStorage.getItem('nims-invite') || new URLSearchParams(location.search).has('invite'); } catch { return false; } });
   const google = showGoogle ?? asked;
   useEffect(() => {
     if (showGoogle !== undefined) return;
@@ -46,6 +48,7 @@ export function Login({ onIn, presetEmail, showGoogle }: { onIn: () => void; pre
     <main className="login">
       <Mascot size={84} mood="cheer" />
       <h1>Nims</h1>
+      {invited && <p className="invited" role="status">A friend invited you. Sign in and make your first sale: you both get coins.</p>}
       <p className="lede">A market town where every trader runs on their own. Start with a wheelbarrow. Read the market. End up with a share in half the stalls.</p>
       {google && (
         <>

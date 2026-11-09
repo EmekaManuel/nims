@@ -5,7 +5,7 @@
 import { clampPlayerPrice, merchantState, playerQuote, quote, Quote } from '../merchants/pricing';
 import { paramsOf, targetOf } from './plan';
 import { PAYOUT_RATE, RENT_MULT, resolveCouncils } from './council';
-import { BASE_PRICE, CARRY_VALUE, COINS, Item, MARKETS, MAX_PUBLIC_SHARES, Merchant, MarketId, PERISHABLE, Player, SHARES_TOTAL, ShockKind, Vehicle, VEHICLE_VALUE, World } from './world';
+import { BASE_PRICE, CARRY_VALUE, COINS, localBase, Item, MARKETS, MAX_PUBLIC_SHARES, Merchant, MarketId, PERISHABLE, Player, SHARES_TOTAL, ShockKind, Vehicle, VEHICLE_VALUE, World } from './world';
 
 /** Demand memory length in in-game hours. */
 export const WINDOW = 24;
@@ -36,7 +36,7 @@ export function quoteFor(w: World, m: Merchant, item: Item, player?: Player): Qu
   const festive = activeShock(w, 'festive season') && m.market === 'fabric';
   return quote({
     itemName: item,
-    basePrice: BASE_PRICE[item],
+    basePrice: localBase(m.market, item),
     stock: m.stock[item] ?? 0,
     targetStock: targetOf(m, item),
     cash: m.cash,
@@ -209,6 +209,12 @@ export const DEMAND_PER_HOUR: Record<Item, number> = {
   thread: 1.6,
   iron: 2.5,
   'copper wire': 1.3,
+  fish: 3.2,
+  salt: 1.4,
+  spice: 0.5,
+  timber: 1.5,
+  gems: 0.3,
+  wine: 0.8,
 };
 
 /**
@@ -247,7 +253,7 @@ function ambientTrade(w: World) {
       // How many units everyday customers want this hour: the item's usual rate, a little random.
       const rate = DEMAND_PER_HOUR[item];
       const want = Math.floor(rate) + (w.rng.next() < rate % 1 ? 1 : 0);
-      if (q.willSell && q.sellPrice <= BASE_PRICE[item] * 1.6) {
+      if (q.willSell && q.sellPrice <= localBase(m.market, item) * 1.6) {
         const n = Math.min(want, m.stock[item] ?? 0);
         m.stock[item] = (m.stock[item] ?? 0) - n;
         transferCoins(w, 'town', m, n * q.sellPrice);
@@ -445,15 +451,16 @@ export const STALL_COST = 6_000;
 /** Markets that have a free plot for a player's stall. */
 export const STALL_MARKETS: MarketId[] = ['produce', 'fabric'];
 
+/** A player's stall in town (their frontier businesses are separate: see the plots). */
 export function ownerStallOf(w: World, p: Player): Merchant | undefined {
-  return w.merchants.find((m) => m.owner === p.id);
+  return w.merchants.find((m) => m.owner === p.id && m.id === `stall-${p.id}`);
 }
 
-export function openOwnerStall(w: World, p: Player, market: MarketId, ownerName: string): Merchant {
+export function openOwnerStall(w: World, p: Player, market: MarketId, ownerName: string, as?: { id: string; name: string }): Merchant {
   const items = MARKETS[market].items;
   const stall: Merchant = {
-    id: `stall-${p.id}`,
-    name: `${ownerName}'s stall`,
+    id: as?.id ?? `stall-${p.id}`,
+    name: as?.name ?? `${ownerName}'s stall`,
     market,
     personality: 'cautious', // unused: a player's prices are not formula-driven
     cash: 0,

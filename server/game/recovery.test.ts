@@ -264,6 +264,7 @@ describe('the odd jobs board', () => {
 
   it('cannot be farmed: a player who keeps taking jobs the moment they are allowed stays far below the economy', () => {
     const g = new Game(5);
+    g.markSettled(0); // as if a settler were at the start: the game keeps the whole ledger, so the books can be replayed
     g.state(me);
     for (let i = 0; i < 40; i++) g.tickOnce();
     broke(g, 5);

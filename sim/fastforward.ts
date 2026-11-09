@@ -5,7 +5,7 @@
  */
 import { act, newPlayer } from './players';
 import { playerWorth, tick } from './engine';
-import { BASE_PRICE, createWorld, MARKETS, MarketId } from './world';
+import { createWorld, localBase, MARKETS, marketsIn } from './world';
 
 export interface FastForwardParams {
   days: number;
@@ -54,19 +54,23 @@ export function runFastForward(params: FastForwardParams) {
     for (const p of players) worth[p.id].push(playerWorth(w, p));
   }
 
+  // The week in the town: its markets and merchants (the simulated traders never make the journey to the harbour).
+  const town = new Set(marketsIn('town'));
+  const shown = w.merchants.filter((m) => town.has(m.market));
+  const inTown = (id: string) => shown.some((m) => m.id === id);
   // Prices as a share of the usual price (100 = usual), so 120 coins tomatoes and 1,500 coins lace share one axis.
-  const items = (Object.keys(MARKETS) as MarketId[]).flatMap((market) => MARKETS[market].items.map((item) => ({ item, market, base: BASE_PRICE[item] })));
+  const items = [...town].flatMap((market) => MARKETS[market].items.map((item) => ({ item, market, base: localBase(market, item) })));
   const prices: Record<string, number[]> = {};
   for (const { item, market } of items) {
-    let last = BASE_PRICE[item];
+    let last = localBase(market, item);
     prices[item] = w.history.map((snap) => (last = snap.prices[`${market}:${item}`] ?? last));
   }
-  const cash: Record<string, number[]> = Object.fromEntries(w.merchants.map((m) => [m.id, w.history.map((s) => s.cash[m.id] ?? 0)]));
+  const cash: Record<string, number[]> = Object.fromEntries(shown.map((m) => [m.id, w.history.map((s) => s.cash[m.id] ?? 0)]));
 
   const shocks = w.events.filter((e) => e.type === 'shock').map((e) => ({ kind: e.shock!, start: e.hour, end: Math.min(hours, e.hour + (e.length ?? 0)) }));
-  const closures = w.events.filter((e) => e.type === 'state' && e.to === 'closed').map((e) => ({ hour: e.hour, merchant: e.merchant!, text: e.text }));
-  const revivals = w.events.filter((e) => e.type === 'revived').map((e) => ({ hour: e.hour, merchant: e.merchant!, text: e.text }));
-  const dividends = w.events.filter((e) => e.type === 'dividend').map((e) => ({ hour: e.hour, merchant: e.merchant!, amount: e.amount ?? 0 }));
+  const closures = w.events.filter((e) => e.type === 'state' && e.to === 'closed' && inTown(e.merchant!)).map((e) => ({ hour: e.hour, merchant: e.merchant!, text: e.text }));
+  const revivals = w.events.filter((e) => e.type === 'revived' && inTown(e.merchant!)).map((e) => ({ hour: e.hour, merchant: e.merchant!, text: e.text }));
+  const dividends = w.events.filter((e) => e.type === 'dividend' && inTown(e.merchant!)).map((e) => ({ hour: e.hour, merchant: e.merchant!, amount: e.amount ?? 0 }));
 
   // A few plain sentences about what stood out.
   const highlights: string[] = [];
@@ -89,7 +93,7 @@ export function runFastForward(params: FastForwardParams) {
     hours,
     items,
     prices,
-    merchants: w.merchants.map((m) => ({ id: m.id, name: m.name, market: m.market })),
+    merchants: shown.map((m) => ({ id: m.id, name: m.name, market: m.market })),
     cash,
     shocks,
     closures,

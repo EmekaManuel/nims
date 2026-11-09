@@ -1,5 +1,5 @@
 /** Simple simulated-player strategies (DESIGN.md §5). They only use engine trade helpers. */
-import { BASE_PRICE, CAPACITY, Item, MARKETS, MarketId, Player, World } from './world';
+import { BASE_PRICE, CAPACITY, Item, MARKETS, MarketId, Player, realmOf, World } from './world';
 import {
   buyShares,
   transferCoins,
@@ -12,6 +12,9 @@ import {
   sellToMerchant,
   Strategy,
 } from './engine';
+
+/** Simulated traders work the town only: the harbour is a journey away, and they don't make it. */
+const townMerchants = (w: World) => w.merchants.filter((m) => realmOf(m.market) === 'town');
 
 const carried = (p: Player) => Object.values(p.inventory).reduce((a, b) => a + (b ?? 0), 0);
 
@@ -36,7 +39,7 @@ export function gather(w: World, p: Player, item: Item): number {
 /** Sell everything we carry of `item` to whichever merchant pays most right now. */
 function sellBest(w: World, p: Player, item: Item, floorFraction: number) {
   while ((p.inventory[item] ?? 0) > 0) {
-    const buyers = w.merchants
+    const buyers = townMerchants(w)
       .filter((m) => m.target[item] !== undefined && m.state !== 'closed')
       .map((m) => ({ m, q: quoteFor(w, m, item, p) }))
       .filter((x) => x.q.willBuy && x.q.buyPrice >= BASE_PRICE[item] * floorFraction)
@@ -72,7 +75,7 @@ const gatherer: Strategy = (w, p) => {
     holdOrSell(w, p, item, src.cost);
     return;
   }
-  const best = Math.max(0, ...w.merchants.filter((m) => m.target[item] !== undefined && m.state !== 'closed').map((m) => {
+  const best = Math.max(0, ...townMerchants(w).filter((m) => m.target[item] !== undefined && m.state !== 'closed').map((m) => {
     const q = quoteFor(w, m, item, p);
     return q.willBuy ? q.buyPrice : 0;
   }));
@@ -97,7 +100,7 @@ function holdOrSell(w: World, p: Player, item: Item, cost: number) {
 const arbitrageur: Strategy = (w, p) => {
   for (const item of Object.keys(p.inventory) as Item[]) sellBest(w, p, item, 0.5);
   let best: { item: Item; from: number; to: number; profit: number } | null = null;
-  const sellers = (item: Item) => w.merchants.filter((m) => m.target[item] !== undefined && m.state !== 'closed');
+  const sellers = (item: Item) => townMerchants(w).filter((m) => m.target[item] !== undefined && m.state !== 'closed');
   for (const item of Object.keys(BASE_PRICE) as Item[]) {
     const qs = sellers(item).map((m) => ({ m, q: quoteFor(w, m, item, p) }));
     const cheap = qs.filter((x) => x.q.willSell).sort((a, b) => a.q.sellPrice - b.q.sellPrice)[0];
@@ -116,9 +119,9 @@ const arbitrageur: Strategy = (w, p) => {
 
 /** Revives closed shops through fund, and otherwise holds a stake in each market so dividends keep arriving. */
 const investor: Strategy = (w, p) => {
-  for (const m of w.merchants) if (m.state === 'closed') contributeToFund(w, p, m, 4_000);
+  for (const m of townMerchants(w)) if (m.state === 'closed') contributeToFund(w, p, m, 4_000);
   const staked = new Set(w.merchants.filter((m) => !m.owner && (m.shares[p.id] ?? 0) > 0).map((m) => m.market));
-  for (const market of Object.keys(MARKETS) as MarketId[]) {
+  for (const market of (Object.keys(MARKETS) as MarketId[]).filter((m) => realmOf(m) === 'town')) {
     if (staked.has(market) || p.cash < 12_000) continue;
     const pick = w.merchants.find((m) => !m.owner && m.market === market && m.state === 'open');
     if (pick) buyShares(w, p, pick, 10);

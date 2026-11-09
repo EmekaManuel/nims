@@ -56,10 +56,10 @@ describe('merchants planning their day in the game', () => {
     g.state('ada.obi@example.com');
     const chat = { complete: vi.fn(async (_s: string, user: string) => (user.includes('cotton') ? reply({ cotton: 'more' }, 'wider', 'Festive season, so I am stocking up on cotton.') : reply({}))) };
     const planner = createPlanner({ chat, game: g });
-    expect(g.merchantsToPlan()).toHaveLength(8);
-    for (let i = 0; i < 8; i++) expect(await planner.step()).toBe('planned');
+    expect(g.merchantsToPlan()).toHaveLength(11);
+    for (let i = 0; i < 11; i++) expect(await planner.step()).toBe('planned');
     expect(await planner.step()).toBe('idle');
-    expect(chat.complete).toHaveBeenCalledTimes(8);
+    expect(chat.complete).toHaveBeenCalledTimes(11);
     const lena = g.state('ada.obi@example.com').stalls.find((s) => s.id === 'lena')!;
     expect(lena.plan).toMatchObject({ stock: { cotton: 'more' }, margin: 'wider', reason: 'Festive season, so I am stocking up on cotton.' });
     expect(lena.offers.find((o) => o.item === 'cotton')!.target).toBe(Math.round(40 * 1.3));
@@ -67,7 +67,7 @@ describe('merchants planning their day in the game', () => {
     expect(news.some((t) => t.startsWith("Lena's Textiles:"))).toBe(true);
     expect(news.some((t) => t.includes('Keeping to my usual'))).toBe(false); // a plan that changes nothing is not news
     for (let h = 0; h < 24; h++) g.tickOnce();
-    expect(g.merchantsToPlan()).toHaveLength(8); // a new day, a new plan
+    expect(g.merchantsToPlan()).toHaveLength(11); // a new day, a new plan
   });
 
   it('a failed or nonsensical reply leaves the merchant as it was, and is asked again later', async () => {
@@ -75,7 +75,7 @@ describe('merchants planning their day in the game', () => {
     const planner = createPlanner({ chat: { complete: async () => 'not a plan' }, game: g });
     expect(await planner.step()).toBe('kept');
     expect(g.w.merchants.every((m) => m.plan === undefined)).toBe(true);
-    expect(g.merchantsToPlan()).toHaveLength(8);
+    expect(g.merchantsToPlan()).toHaveLength(11);
     const down = createPlanner({ chat: { complete: async () => null }, game: g });
     expect(await down.step()).toBe('kept');
   });

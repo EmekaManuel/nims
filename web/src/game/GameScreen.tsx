@@ -11,6 +11,8 @@ import { useSpeedCheck } from './speed';
 import { readViewChoice, SLOW_KEY } from './view';
 import { Mission } from './Mission';
 import { NewsFeed } from './NewsFeed';
+import { QuestsPanel, questsReady } from './Quests';
+import { JourneyPanel, LandPanel, OnTheRoad } from './Journey';
 import { SourcePanel, StallPanel } from './Panels';
 import { PriceBoard } from './PriceBoard';
 
@@ -84,7 +86,10 @@ export function GameScreen(p: GameScreenProps) {
   let drawer: { title: string; body: React.ReactNode } | null = null;
   if (stall) drawer = { title: stall.name, body: <StallPanel stall={stall} state={state} act={act} /> };
   else if (p.selected?.kind === 'source') drawer = { title: 'Collect goods', body: <SourcePanel item={p.selected.item} state={state} act={act} /> };
+  else if (p.selected?.kind === 'road') drawer = { title: 'Travel', body: <JourneyPanel state={state} to={p.selected.realm} act={act} /> };
+  else if (p.selected?.kind === 'land') drawer = { title: 'Land', body: <LandPanel key={p.selected.id} state={state} plotId={p.selected.id} act={act} /> };
   else if (p.selected?.kind === 'plot') drawer = { title: 'A free plot', body: <section className="panel"><h2>A free plot</h2><StallOffer state={state} act={act} focus={p.selected.market} /></section> };
+  else if (p.tab === 'quests' && state.quests) drawer = { title: 'Quests', body: <QuestsPanel quests={state.quests} act={act} invite={state.invite} /> };
   else if (p.tab === 'deals') drawer = { title: 'Deals', body: <DealsDrawer state={state} act={act} onFocus={p.onFocus} forceTab={p.dealsTab} /> };
   else if (p.tab === 'prices') drawer = { title: 'Prices', body: <PriceBoard state={state} /> };
   else if (p.tab === 'business') drawer = { title: 'My business', body: <BusinessPanel state={state} act={act} onFocus={(id) => p.onSelect({ kind: 'stall', id })} /> };
@@ -105,13 +110,17 @@ export function GameScreen(p: GameScreenProps) {
               )
               : <DistrictMap state={state} selected={p.selected} onSelect={p.onSelect} popups={p.popups} />}
             {!p.drive && <button type="button" className="view-toggle" onClick={toggle3d} aria-pressed={view3d}>{view3d ? '2D map' : '3D view'}</button>}
+            {!p.drive && state.realm && !state.realm.journey && state.realm.roads.length > 0 && (
+              <button type="button" className="road-btn" onClick={() => p.onSelect({ kind: 'road', realm: state.realm!.roads[0].realm })}>Travel →</button>
+            )}
             {slowNotice && <div className="view-notice" role="status">The 3D town runs slowly here, so this is the flat map. <button type="button" onClick={toggle3d}>Try 3D anyway</button></div>}
           </div>
+          {state.realm?.journey && <OnTheRoad journey={state.realm.journey} hoursTotal={6} />}
           <Mission state={state} onFocus={p.onFocus} onPickGoal={p.onPickGoal} />
         </div>
         {drawer && <Drawer title={drawer.title} onClose={p.onDrawerClose}>{drawer.body}</Drawer>}
       </main>
-      <Dock tab={p.selected ? null : p.tab} onTab={p.onTab} newsCount={p.newsCount} />
+      <Dock tab={p.selected ? null : p.tab} onTab={p.onTab} newsCount={p.newsCount} questCount={questsReady(state.quests)} />
       <div className="aria-live" aria-live="polite">{p.toast?.text} {p.toast?.line}</div>
       {p.toast && <div className={`toast ${p.toast.ok ? 'good' : 'bad'}`}>{p.toast.text}{p.toast.line && <div className="toastline">{p.toast.line}</div>}</div>}
       {!!p.confetti && p.confetti > 0 && <Confetti key={p.confetti} />}

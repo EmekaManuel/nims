@@ -3,6 +3,7 @@ import { api, coins, type TownStats } from '../api';
 import { Mascot } from '../art/Mascot';
 import { VehicleIcon } from '../art/icons';
 import { rankOf } from '../lib/rank';
+import { AvatarFigure, DEFAULT_AVATAR } from '../art/avatar';
 
 const REFRESH_MS = 15_000;
 const n = (x: number) => x.toLocaleString('en-US');
@@ -70,8 +71,11 @@ export function TownBoard() {
                     <li key={i} className={i < 3 ? `top top-${i + 1}` : undefined}>
                       <span className="place" aria-label={`Number ${i + 1}`}>{i + 1}</span>
                       <span className="who">
-                        <b>{l.name}</b>
-                        <span className="muted small">{rankOf(l.worth).title}</span>
+                        <AvatarFigure a={l.avatar ?? DEFAULT_AVATAR} size={36} />
+                        <span className="who-t">
+                          <b>{l.name}</b>
+                          <span className="muted small">{rankOf(l.worth).title}</span>
+                        </span>
                       </span>
                       <span className="holds" aria-label="What they hold">
                         <VehicleIcon vehicle={l.vehicle} size={26} />

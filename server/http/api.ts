@@ -282,6 +282,7 @@ export function createApp(d: AppDeps) {
         const merchant = String(b.merchant ?? '');
         const units = Number(b.units ?? 1);
         const haggle = b.haggle === true;
+        const shopId = typeof b.shop === 'string' && b.shop ? b.shop : undefined; // one of your businesses; your town stall when absent
         const routes: Record<string, () => ReturnType<typeof g.gather>> = {
           '/game/order': () => g.placeOrder(email, merchant, item, units, Number(b.minPrice)),
           '/game/order/cancel': () => g.cancelOrder(email, Number(b.id)),
@@ -291,17 +292,25 @@ export function createApp(d: AppDeps) {
           '/game/upgrade': () => g.upgrade(email, String(b.to ?? '')),
           '/game/goal': () => g.chooseGoal(email, String(b.kind ?? '')),
           '/game/name': () => g.setName(email, String(b.name ?? '')),
+          '/game/quest/claim': () => g.claimQuest(email, String(b.id ?? '')),
+          '/game/daily': () => g.claimDailyReward(email),
+          '/game/invite': () => g.redeemInvite(email, String(b.code ?? '')),
+          '/game/avatar': () => g.setAvatar(email, b.avatar),
+          '/game/travel': () => g.travel(email, String(b.realm ?? '')),
           '/game/shares/buy': () => g.buyShares(email, merchant, Number(b.shares)),
           '/game/shares/sell': () => g.sellShares(email, merchant, Number(b.shares)),
           '/game/council/propose': () => g.councilPropose(email, String(b.market ?? ''), String(b.lever ?? ''), String(b.to ?? '')),
           '/game/council/vote': () => g.councilVote(email, String(b.market ?? ''), b.yes === true),
           '/game/fund': () => g.contribute(email, merchant, Number(b.amount)),
           '/game/stall/open': () => g.openStall(email, String(b.market ?? '')),
-          '/game/stall/stock': () => g.stallStock(email, item, units),
-          '/game/stall/take': () => g.stallTake(email, item, units),
-          '/game/stall/price': () => g.stallPrice(email, item, Number(b.buy), Number(b.sell)),
-          '/game/stall/deposit': () => g.stallCash(email, 'deposit', Number(b.amount)),
-          '/game/stall/withdraw': () => g.stallCash(email, 'withdraw', Number(b.amount)),
+          '/game/stall/stock': () => g.stallStock(email, item, units, shopId),
+          '/game/stall/take': () => g.stallTake(email, item, units, shopId),
+          '/game/stall/price': () => g.stallPrice(email, item, Number(b.buy), Number(b.sell), shopId),
+          '/game/stall/deposit': () => g.stallCash(email, 'deposit', Number(b.amount), shopId),
+          '/game/stall/withdraw': () => g.stallCash(email, 'withdraw', Number(b.amount), shopId),
+          '/game/land/buy': () => g.buyLand(email, String(b.plot ?? '')),
+          '/game/land/list': () => g.listLand(email, String(b.plot ?? ''), Number(b.price ?? 0)),
+          '/game/land/build': () => g.build(email, String(b.plot ?? ''), b.name === undefined ? undefined : String(b.name)),
           '/game/scavenge': () => g.scavenge(email),
           '/game/job/take': () => g.takeJob(email, Number(b.id)),
           '/game/job/deliver': () => g.deliverJob(email),

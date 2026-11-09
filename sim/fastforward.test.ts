@@ -21,9 +21,9 @@ describe('fast-forward run', () => {
   it('returns a full week for every item and every merchant', () => {
     const r = run();
     expect(r.hours).toBe(168);
-    expect(r.items).toHaveLength(8);
+    expect(r.items).toHaveLength(13); // the town's markets, including what June, Anil and Diego buy from the harbour and the frontiers
     for (const { item } of r.items) expect(r.prices[item]).toHaveLength(168);
-    expect(r.merchants).toHaveLength(8);
+    expect(r.merchants).toHaveLength(8); // the town's merchants; the harbour is a journey the simulated traders don't make
     for (const m of r.merchants) expect(r.cash[m.id]).toHaveLength(168);
     for (const p of r.players) expect(p.worth).toHaveLength(168);
   });

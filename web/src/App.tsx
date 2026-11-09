@@ -7,6 +7,7 @@ import { rankOf } from './lib/rank';
 import { setSound, sfx, soundOn } from './lib/sfx';
 import { Actions } from './game/Panels';
 import { AwayModal, GoalPicker, HowToPlay } from './game/Modals';
+import { AvatarCreator } from './game/AvatarCreator';
 import { GameScreen } from './game/GameScreen';
 import { Loading } from './game/Loading';
 import { IconSprite } from './art/icons';
@@ -14,6 +15,13 @@ import { Mascot } from './art/Mascot';
 import { Login } from './game/Login';
 import { FastForwardPage } from './sim/Fastforward';
 import { TownBoard } from './town/TownBoard';
+
+/** A friend's invite code from the link (?invite=CODE), kept until this player has signed in and it has been redeemed. */
+const INVITE_KEY = 'nims-invite';
+try {
+  const code = new URLSearchParams(location.search).get('invite');
+  if (code && /^[0-9a-z]{4,16}$/i.test(code)) localStorage.setItem(INVITE_KEY, code);
+} catch { /* private mode: the invite is simply not remembered */ }
 
 function useHash() {
   const [hash, setHash] = useState(() => location.hash);
@@ -66,7 +74,9 @@ function Game() {
   };
 
   // Ask for a goal once when there isn't one (or when the last one is done).
-  const needGoal = !!state && (state.goal === null || state.goal.done);
+  // A new player creates their trader first (look and name), then picks a goal.
+  const needAvatar = !!state && state.you.avatar === null;
+  const needGoal = !!state && !needAvatar && (state.goal === null || state.goal.done);
   useEffect(() => {
     if (needGoal && !asked.current) { asked.current = true; setGoalOpen(true); }
     if (!needGoal) asked.current = false;
@@ -88,6 +98,22 @@ function Game() {
     const t = window.setInterval(() => void refresh(), 2000);
     return () => window.clearInterval(t);
   }, [refresh]);
+
+  // Setting off on a journey closes whatever drawer is open: nothing in it can be used on the road.
+  const onRoad = !!state?.realm?.journey;
+  useEffect(() => {
+    if (onRoad) { setSelected(null); setTab(null); }
+  }, [onRoad]);
+
+  // Once signed in, redeem a friend's invite code from the link, once.
+  const invited = useRef(false);
+  useEffect(() => {
+    if (!state || invited.current) return;
+    invited.current = true;
+    let code: string | null = null;
+    try { code = localStorage.getItem(INVITE_KEY); localStorage.removeItem(INVITE_KEY); } catch { /* nothing to redeem */ }
+    if (code) void api.redeemInvite(code).then((r) => setToast({ ok: r.ok, text: r.message }));
+  }, [state]);
 
   // Remember the peak (silently on arrival, so reaching the game never fires a celebration).
   useEffect(() => {
@@ -154,17 +180,24 @@ function Game() {
     gather: (i) => run(api.gather(i), { kind: 'source', id: i }),
     upgrade: (to) => run(api.upgrade(to)),
     setName: (name) => run(api.setName(name)),
+    setAvatar: (a) => run(api.setAvatar(a)),
+    travel: (realm) => run(api.travel(realm)),
+    claimQuest: (id) => run(api.claimQuest(id)),
+    claimDaily: () => run(api.claimDaily()),
     buyShares: (m, n) => run(api.buyShares(m, n), { kind: 'stall', id: m }),
     sellShares: (m, n) => run(api.sellShares(m, n), { kind: 'stall', id: m }),
     contribute: (m, amount) => run(api.contribute(m, amount), { kind: 'stall', id: m }),
     openStall: (market) => run(api.openStall(market)),
     councilPropose: (market, lever, to) => run(api.councilPropose(market, lever, to)),
     councilVote: (market, yes) => run(api.councilVote(market, yes)),
-    stallStock: (i, u) => run(api.stallStock(i, u)),
-    stallTake: (i, u) => run(api.stallTake(i, u)),
-    stallPrice: (i, b, s) => run(api.stallPrice(i, b, s)),
-    stallDeposit: (n) => run(api.stallDeposit(n)),
-    stallWithdraw: (n) => run(api.stallWithdraw(n)),
+    stallStock: (i, u, shop) => run(api.stallStock(i, u, shop)),
+    stallTake: (i, u, shop) => run(api.stallTake(i, u, shop)),
+    stallPrice: (i, b, s, shop) => run(api.stallPrice(i, b, s, shop)),
+    stallDeposit: (n, shop) => run(api.stallDeposit(n, shop)),
+    stallWithdraw: (n, shop) => run(api.stallWithdraw(n, shop)),
+    buyLand: (plot) => run(api.buyLand(plot)),
+    listLand: (plot, price) => run(api.listLand(plot, price)),
+    build: (plot, name) => run(api.build(plot, name)),
     ack: () => run(api.ack()),
     scavenge: () => run(api.scavenge()),
     takeJob: (id) => run(api.takeJob(id)),
@@ -219,7 +252,8 @@ function Game() {
     >
       {help && <HowToPlay onClose={closeHelp} />}
       {!help && state.away && <AwayModal away={state.away} onClose={() => act.ack()} />}
-      {!help && !state.away && goalOpen && <GoalPicker goals={state.goals} current={state.goal?.kind} onPick={pickGoal} onClose={() => setGoalOpen(false)} />}
+      {!help && !state.away && needAvatar && <AvatarCreator first initial={null} name={state.you.name} onSave={(a, name) => { act.setAvatar(a); if (name) act.setName(name); }} />}
+      {!help && !state.away && !needAvatar && goalOpen && <GoalPicker goals={state.goals} current={state.goal?.kind} onPick={pickGoal} onClose={() => setGoalOpen(false)} />}
     </GameScreen>
   );
 }

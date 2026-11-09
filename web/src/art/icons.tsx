@@ -59,6 +59,21 @@ export function IconSprite() {
           <path d="M8 14c3-2 13-2 16 0" fill="none" stroke="#fff" strokeWidth="1.2" opacity=".5" strokeLinecap="round" />
         </symbol>
 
+        <symbol id="i-fish" viewBox="0 0 32 32">
+          <path d="M4 16c4-6 13-8 19-3l5-4v14l-5-4c-6 5-15 3-19-3z" fill="#7fa7c9" {...o} />
+          <path d="M8 16c3-3 9-4 13-1" fill="none" stroke="#fff" strokeWidth="1.2" opacity=".55" strokeLinecap="round" />
+          <circle cx="9" cy="14.5" r="1.4" fill="#14253d" />
+        </symbol>
+        <symbol id="i-salt" viewBox="0 0 32 32">
+          <path d="M4 26L12 10l5 8 3-5 8 13z" fill="#f3f1ea" {...o} />
+          <path d="M12 10l3 6M20 13l2 4" stroke="#c9c3b3" strokeWidth="1.2" strokeLinecap="round" />
+        </symbol>
+        <symbol id="i-spice" viewBox="0 0 32 32">
+          <path d="M9 11c0-3 3-5 7-5s7 2 7 5l3 13c0 2-5 4-10 4S6 26 6 24z" fill="#c8551e" {...o} />
+          <path d="M10 11h12" stroke="#7a2f0c" strokeWidth="2" strokeLinecap="round" />
+          <circle cx="13" cy="19" r="1.5" fill="#f0b23c" /><circle cx="18" cy="22" r="1.5" fill="#f0b23c" /><circle cx="19" cy="16" r="1.3" fill="#f0b23c" />
+        </symbol>
+
         {/* ---- vehicles (56 x 36) ---- */}
         <symbol id="v-wheelbarrow" viewBox="0 0 56 36">
           <path d="M6 10h26l-4 14H12z" fill="#2f9e5f" {...o} />

@@ -1,6 +1,18 @@
+import type { Avatar } from '../art/avatar';
 /** Typed client for the Nims game server. Nothing here knows about wallets — the player never sees the chain. */
-export type Item = 'tomatoes' | 'pepper' | 'flour' | 'cotton' | 'lace' | 'thread' | 'iron' | 'copper wire';
-export type MarketId = 'produce' | 'fabric' | 'scrap';
+export type Item = 'tomatoes' | 'pepper' | 'flour' | 'cotton' | 'lace' | 'thread' | 'iron' | 'copper wire' | 'fish' | 'salt' | 'spice' | 'timber' | 'gems' | 'wine';
+export type MarketId = 'produce' | 'fabric' | 'scrap' | 'harbour' | 'woods' | 'mine' | 'vale';
+/** A place reached by a journey: the town, Saltmere Harbour, and the three unexplored frontiers. */
+export type RealmId = 'town' | 'saltmere' | 'timberfell' | 'gemhollow' | 'sunvale';
+
+/** A shop you run: your town stall or a frontier business. */
+export interface Shop { id: string; name: string; market: MarketId; till: number; items: StallItem[] }
+/** A plot of land in a frontier. */
+export interface Plot {
+  id: string; realm: RealmId; n: number; price: number; forSale: number | null;
+  owner: { name: string; mine: boolean } | null;
+  business: { id: string; name: string } | null;
+}
 
 export interface Offer {
   item: Item;
@@ -66,7 +78,9 @@ export interface StallItem {
 
 export interface Business {
   shares: { id: string; name: string; market: MarketId; shares: number; price: number; value: number; state: 'open' | 'struggling' | 'closed' }[];
-  stall: { id: string; name: string; market: MarketId; till: number; items: StallItem[] } | null;
+  stall: Shop | null;
+  /** Your businesses in the frontiers, each on land you own. */
+  businesses?: (Shop & { realm: RealmId })[];
   stallOffer: { cost: number; markets: { id: MarketId; name: string; free: boolean }[] } | null;
   notes: { hour: number; text: string }[];
 }
@@ -130,9 +144,28 @@ export interface GameState {
   board: { market: MarketId; item: Item; base: number; price: number | null }[];
   sources: { item: Item; label: string; units: number; cost: number }[];
   events: { hour: number; type: string; text: string }[];
+  /** Where you are, whether you're on the road, and the roads to other realms. */
+  realm?: {
+    here: RealmId;
+    name: string;
+    journey: { to: RealmId; name: string; hoursLeft: number; hours?: number; travel?: 'car' | 'plane' } | null;
+    roads: { realm: RealmId; name: string; blurb: string; hours: number; passage: number; freight: number; travel?: 'car' | 'plane'; frontier?: boolean; discovered?: boolean }[];
+  };
+  /** Land in the place you're in (a frontier has plots), the land you own anywhere, and who first reached this place. */
+  land?: { buildCost: number; here: Plot[]; mine: Plot[]; discovered: { by: string; hour: number } | null };
+  /** Quests you're on and today's daily reward (server/game/quests.ts). */
+  quests?: {
+    active: { id: string; chain: 'starter' | 'realm'; title: string; story: string; reward: number; complete: boolean; objectives: { label: string; done: number; target: number }[] }[];
+    starter: { done: number; total: number };
+    daily: { day: number; reward: number; ready: boolean };
+  };
+  /** Your invite link's code, and how many friends joined and were rewarded. */
+  invite?: { code: string; joined: number; rewarded: number; max: number; reward: number };
   you: {
     /** The name other traders and the town board see. */
     name: string;
+    /** The look you chose, or null before you create one. */
+    avatar: Avatar | null;
     cash: number;
     /** Fare you couldn't pay up front. It comes out of your next sale. */
     fareOwed: number;
@@ -183,7 +216,7 @@ export interface TownStats {
   total: { trades: number; votes: number; decisions: number; passed: number };
   shops: { open: number; total: number; playerStalls: number };
   /** The ten richest people who have played, by the first name others see in the game. */
-  leaders: { name: string; worth: number; shares: number; stall: boolean; vehicle: 'wheelbarrow' | 'pickup' | 'van' }[];
+  leaders: { name: string; avatar?: Avatar | null; worth: number; shares: number; stall: boolean; vehicle: 'wheelbarrow' | 'pickup' | 'van' }[];
   /** The latest town-council decisions, newest first. */
   decisions: { day: number; market: string; lever: string; to: string; passed: boolean; yes: number; no: number; daoId: number | null }[];
 }
@@ -274,11 +307,14 @@ export const api = {
   councilVote: (market: MarketId, yes: boolean) => post('/game/council/vote', { market, yes }).then((r) => r.body),
   contribute: (merchant: string, amount: number) => post('/game/fund', { merchant, amount }).then((r) => r.body),
   openStall: (market: MarketId) => post('/game/stall/open', { market }).then((r) => r.body),
-  stallStock: (item: Item, units: number) => post('/game/stall/stock', { item, units }).then((r) => r.body),
-  stallTake: (item: Item, units: number) => post('/game/stall/take', { item, units }).then((r) => r.body),
-  stallPrice: (item: Item, buy: number, sell: number) => post('/game/stall/price', { item, buy, sell }).then((r) => r.body),
-  stallDeposit: (amount: number) => post('/game/stall/deposit', { amount }).then((r) => r.body),
-  stallWithdraw: (amount: number) => post('/game/stall/withdraw', { amount }).then((r) => r.body),
+  stallStock: (item: Item, units: number, shop?: string) => post('/game/stall/stock', { item, units, shop }).then((r) => r.body),
+  stallTake: (item: Item, units: number, shop?: string) => post('/game/stall/take', { item, units, shop }).then((r) => r.body),
+  stallPrice: (item: Item, buy: number, sell: number, shop?: string) => post('/game/stall/price', { item, buy, sell, shop }).then((r) => r.body),
+  stallDeposit: (amount: number, shop?: string) => post('/game/stall/deposit', { amount, shop }).then((r) => r.body),
+  stallWithdraw: (amount: number, shop?: string) => post('/game/stall/withdraw', { amount, shop }).then((r) => r.body),
+  buyLand: (plot: string) => post('/game/land/buy', { plot }).then((r) => r.body),
+  listLand: (plot: string, price: number) => post('/game/land/list', { plot, price }).then((r) => r.body),
+  build: (plot: string, name?: string) => post('/game/land/build', { plot, name }).then((r) => r.body),
   ack: () => post('/game/ack', {}).then((r) => r.body),
   scavenge: () => post('/game/scavenge', {}).then((r) => r.body),
   takeJob: (id: number) => post('/game/job/take', { id }).then((r) => r.body),
@@ -286,6 +322,11 @@ export const api = {
   dropJob: () => post('/game/job/drop', {}).then((r) => r.body),
   upgrade: (to: string) => post('/game/upgrade', { to }).then((r) => r.body),
   setName: (name: string) => post('/game/name', { name }).then((r) => r.body),
+  setAvatar: (avatar: Avatar) => post('/game/avatar', { avatar }).then((r) => r.body),
+  claimQuest: (id: string) => post('/game/quest/claim', { id }).then((r) => r.body),
+  claimDaily: () => post('/game/daily', {}).then((r) => r.body),
+  redeemInvite: (code: string) => post('/game/invite', { code }).then((r) => r.body),
+  travel: (realm: RealmId) => post('/game/travel', { realm }).then((r) => r.body),
 };
 
 export const coins = (n: number) => `${Math.round(n).toLocaleString('en-US')} coins`;

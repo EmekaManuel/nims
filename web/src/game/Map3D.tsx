@@ -1,18 +1,20 @@
+import { FRONTIER, FRONTIER_LAYOUT, HARBOUR, isFrontier, REALM_OF, ROAD_SIGN, type FrontierId } from './realms';
+import { DEFAULT_AVATAR, HAIR, SHIRTS, SKIN, type Avatar } from '../art/avatar';
 import { createContext, useContext, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Html, OrbitControls, RoundedBox } from '@react-three/drei';
-import { Color } from 'three';
+import { Color, DoubleSide } from 'three';
 import type * as THREE from 'three';
-import type { GameState, Item, MarketId, Stall } from '../api';
+import type { GameState, Item, MarketId, Plot, Stall } from '../api';
 import { PLOTS, STALL_POS, ZONES, crateCount, lightAt, type Popup, type Selection } from './Map';
 import { EDGES, LAMPS, newWalk, NODES, seeded, SOURCE_POS, SOURCE_STOP, stepWalk, stopForStall, TREES, U, walkAt, wx, wz, type Stop, type Walk } from './paths';
 
 const CANOPY: Record<MarketId, [string, string]> = {
-  produce: ['#2f9e5f', '#f1f8f3'], fabric: ['#2a6fdb', '#f1f6fe'], scrap: ['#c8622e', '#f1ede7'],
+  produce: ['#2f9e5f', '#f1f8f3'], fabric: ['#2a6fdb', '#f1f6fe'], scrap: ['#c8622e', '#f1ede7'], harbour: ['#0b8f8f', '#eef8f8'], woods: FRONTIER.timberfell.canopy, mine: FRONTIER.gemhollow.canopy, vale: FRONTIER.sunvale.canopy,
 };
-const GROUND: Record<MarketId, string> = { produce: '#cfe8d3', fabric: '#cddcf3', scrap: '#ecd9c8' };
+const GROUND: Record<MarketId, string> = { produce: '#cfe8d3', fabric: '#cddcf3', scrap: '#ecd9c8', harbour: '#d8e7e4', woods: FRONTIER.timberfell.zone, mine: FRONTIER.gemhollow.zone, vale: FRONTIER.sunvale.zone };
 /** Where you stand in each market: just off the street, so nobody walks through you. */
-const AVATAR_AT: Record<MarketId, [number, number]> = { produce: [260, 384], fabric: [700, 384], scrap: [560, 420] };
+const AVATAR_AT: Record<MarketId, [number, number]> = { produce: [260, 384], fabric: [700, 384], scrap: [560, 420], harbour: HARBOUR.you, woods: FRONTIER_LAYOUT.you, mine: FRONTIER_LAYOUT.you, vale: FRONTIER_LAYOUT.you };
 const AVATARS = ['#2f9e5f', '#e2557b', '#7b4de0', '#eb6834', '#18a999', '#2a6fdb', '#c98a00', '#0e9fb0'];
 const avatarColor = (id: string) => AVATARS[[...id].reduce((a, c) => a + c.charCodeAt(0), 0) % AVATARS.length];
 
@@ -55,18 +57,18 @@ const label: React.CSSProperties = {
   borderRadius: 8, whiteSpace: 'nowrap', pointerEvents: 'none', textAlign: 'center',
 };
 
-const SKIN = ['#f1c9a5', '#e0a98a', '#c68863', '#a56b45', '#7b4a2e', '#5a3622'];
-const HAIR = ['#1c1410', '#3a2618', '#6b4423', '#b8862b', '#8a8a8a', '#a1311f'];
 const PANTS = ['#2b3a55', '#3d3d4a', '#5a4632', '#33503f'];
 const hashOf = (id: string) => [...id].reduce((a, c) => a * 31 + c.charCodeAt(0), 7) >>> 0;
 
 /** A small articulated person: head, hair, eyes, torso, swinging arms and legs. Faces +z. */
-function Person({ id, shirt, scale = 1, mode = 'idle', apron, cap }: { id: string; shirt: string; scale?: number; mode?: 'idle' | 'walk'; apron?: string; cap?: string }) {
+function Person({ id, shirt, scale = 1, mode = 'idle', apron, cap, look }: { id: string; shirt: string; scale?: number; mode?: 'idle' | 'walk'; apron?: string; cap?: string; look?: Avatar }) {
   const h = hashOf(id);
-  const skin = SKIN[h % SKIN.length];
-  const hair = HAIR[(h >> 3) % HAIR.length];
+  // a chosen look (an avatar) wins; everyone else gets a look picked from their id
+  const skin = look ? SKIN[look.skin] : SKIN[h % SKIN.length];
+  const hair = look ? HAIR[look.hair] : HAIR[(h >> 3) % HAIR.length];
   const pants = PANTS[(h >> 5) % PANTS.length];
-  const long = (h >> 7) % 3 === 0;
+  const long = look ? look.style === 'long' : (h >> 7) % 3 === 0;
+  const bald = look?.style === 'bald';
   const legL = useRef<THREE.Group>(null), legR = useRef<THREE.Group>(null);
   const armL = useRef<THREE.Group>(null), armR = useRef<THREE.Group>(null);
   const body = useRef<THREE.Group>(null);
@@ -113,7 +115,7 @@ function Person({ id, shirt, scale = 1, mode = 'idle', apron, cap }: { id: strin
         <group position={[0, 0.79, 0]}>
           <mesh castShadow><sphereGeometry args={[0.105, 20, 20]} /><meshStandardMaterial color={skin} /></mesh>
           {/* hair cap (top half, set back a touch) */}
-          <mesh position={[0, 0.012, -0.012]} rotation={[-0.25, 0, 0]}><sphereGeometry args={[0.112, 20, 20, 0, Math.PI * 2, 0, Math.PI * 0.55]} /><meshStandardMaterial color={hair} /></mesh>
+          {!bald && <mesh position={[0, 0.012, -0.012]} rotation={[-0.25, 0, 0]}><sphereGeometry args={[0.112, 20, 20, 0, Math.PI * 2, 0, Math.PI * 0.55]} /><meshStandardMaterial color={hair} /></mesh>}
           {long && <mesh position={[0, -0.06, -0.06]}><capsuleGeometry args={[0.085, 0.1, 4, 10]} /><meshStandardMaterial color={hair} /></mesh>}
           {cap && (
             <group position={[0, 0.045, 0.005]}>
@@ -314,6 +316,37 @@ function Good({ item }: { item: string }) {
           <mesh castShadow><torusGeometry args={[0.07, 0.03, 8, 18]} /><meshStandardMaterial color="#c8782e" metalness={0.8} roughness={0.3} /></mesh>
         </group>
       );
+    case 'fish':
+      return (
+        <group rotation={[0, 0.4, 0]}>
+          <mesh castShadow scale={[1.6, 0.6, 0.5]}><sphereGeometry args={[0.06, 12, 10]} /><meshStandardMaterial color="#8fb3d1" metalness={0.5} roughness={0.35} /></mesh>
+          <mesh position={[-0.11, 0, 0]} rotation={[0, 0, Math.PI / 2]}><coneGeometry args={[0.04, 0.06, 4]} /><meshStandardMaterial color="#6f93b3" /></mesh>
+        </group>
+      );
+    case 'salt':
+      return <mesh castShadow position={[0, 0.03, 0]}><coneGeometry args={[0.08, 0.1, 7]} /><meshStandardMaterial color="#f3f1ea" roughness={0.9} /></mesh>;
+    case 'timber':
+      return (
+        <group rotation={[0, 0, Math.PI / 2]}>
+          {[-0.04, 0.04].map((x) => <mesh key={x} position={[0, x, 0]} castShadow><cylinderGeometry args={[0.035, 0.035, 0.2, 8]} /><meshStandardMaterial color="#a87b4f" /></mesh>)}
+        </group>
+      );
+    case 'gems':
+      return <mesh castShadow position={[0, 0.04, 0]}><octahedronGeometry args={[0.06, 0]} /><meshStandardMaterial color="#7b4de0" metalness={0.3} roughness={0.15} emissive="#2a1a6e" emissiveIntensity={0.3} /></mesh>;
+    case 'wine':
+      return (
+        <group>
+          <mesh castShadow position={[0, 0.06, 0]}><cylinderGeometry args={[0.035, 0.035, 0.12, 10]} /><meshStandardMaterial color="#3d1a26" roughness={0.3} /></mesh>
+          <mesh position={[0, 0.14, 0]}><cylinderGeometry args={[0.012, 0.02, 0.05, 8]} /><meshStandardMaterial color="#3d1a26" /></mesh>
+        </group>
+      );
+    case 'spice':
+      return (
+        <group>
+          <mesh castShadow scale={[1, 1.15, 1]}><sphereGeometry args={[0.07, 10, 10]} /><meshStandardMaterial color="#c8551e" roughness={0.8} /></mesh>
+          <mesh position={[0, 0.075, 0]}><cylinderGeometry args={[0.03, 0.045, 0.03, 8]} /><meshStandardMaterial color="#7a2f0c" /></mesh>
+        </group>
+      );
     default:
       return <mesh castShadow><boxGeometry args={[0.12, 0.12, 0.12]} /><meshStandardMaterial color="#b8946a" /></mesh>;
   }
@@ -417,8 +450,8 @@ function PlotModel({ market, on, onSelect }: { market: MarketId; on: boolean; on
   );
 }
 
-function SourceModel({ item, label: text, detail, on, next, onSelect, lit }: { item: Item; label: string; detail: string; on: boolean; next: boolean; onSelect: () => void; lit?: boolean }) {
-  const p = SOURCE_POS[item];
+function SourceModel({ item, label: text, detail, on, next, onSelect, lit, pos }: { item: Item; label: string; detail: string; on: boolean; next: boolean; onSelect: () => void; lit?: boolean; pos?: [number, number] }) {
+  const p = pos ?? SOURCE_POS[item];
   if (!p) return null;
   const crop = item === 'tomatoes' || item === 'pepper';
   return (
@@ -439,6 +472,50 @@ function SourceModel({ item, label: text, detail, on, next, onSelect, lit }: { i
               ))}
             </group>
           ))}
+        </>
+      ) : item === 'fish' ? (
+        <>
+          {/* the fishing pier: planks on posts, and crates of the catch */}
+          <mesh position={[0, 0.12, 0]} receiveShadow castShadow><boxGeometry args={[2, 0.1, 1.2]} /><meshStandardMaterial color="#a87b4f" /></mesh>
+          {[[-0.9, -0.5], [0.9, -0.5], [-0.9, 0.5], [0.9, 0.5]].map(([x, z]) => <mesh key={`${x}${z}`} position={[x, 0.05, z]}><cylinderGeometry args={[0.06, 0.06, 0.2, 8]} /><meshStandardMaterial color="#6b4a2f" /></mesh>)}
+          {[-0.45, 0.45].map((x) => (
+            <group key={x} position={[x, 0.32, 0]}>
+              <mesh castShadow><boxGeometry args={[0.6, 0.3, 0.5]} /><meshStandardMaterial color="#6b4a2f" /></mesh>
+              {[-0.15, 0.05, 0.2].map((dx) => <group key={dx} position={[dx, 0.2, 0]} scale={1.4}><Good item="fish" /></group>)}
+            </group>
+          ))}
+        </>
+      ) : item === 'salt' ? (
+        <>
+          {/* the salt pans: shallow beds of brine with white heaps */}
+          <mesh position={[0, 0.04, 0]} receiveShadow><boxGeometry args={[2, 0.08, 1.2]} /><meshStandardMaterial color="#cfe3ea" roughness={0.3} /></mesh>
+          {[[-0.55, -0.25], [0.15, -0.3], [-0.2, 0.3], [0.6, 0.25]].map(([x, z], i) => <mesh key={i} position={[x, 0.24, z]} castShadow><coneGeometry args={[0.28, 0.4, 9]} /><meshStandardMaterial color="#f3f1ea" roughness={0.95} /></mesh>)}
+        </>
+      ) : item === 'timber' ? (
+        <>
+          {/* the lumber camp: a stack of logs */}
+          {[[-0.5, 0.18, 0], [0, 0.18, 0], [0.5, 0.18, 0], [-0.25, 0.48, 0], [0.25, 0.48, 0]].map(([x, y, z], i) => (
+            <mesh key={i} position={[x, y, z]} rotation={[Math.PI / 2, 0, 0]} castShadow><cylinderGeometry args={[0.17, 0.17, 1.1, 12]} /><meshStandardMaterial color="#a87b4f" /></mesh>
+          ))}
+        </>
+      ) : item === 'gems' ? (
+        <>
+          {/* the gem seam: a rock face with crystals */}
+          <mesh position={[0, 0.5, 0]} castShadow><dodecahedronGeometry args={[0.85, 0]} /><meshStandardMaterial color="#8e8a96" flatShading roughness={0.85} /></mesh>
+          {[[-0.35, 0.75, 0.55, '#7b4de0'], [0.25, 0.95, 0.5, '#d6336c'], [0.45, 0.5, 0.6, '#0b8f8f']].map(([x, y, z, c], i) => (
+            <mesh key={i} position={[x as number, y as number, z as number]}><octahedronGeometry args={[0.16, 0]} /><meshStandardMaterial color={c as string} emissive={c as string} emissiveIntensity={0.35} roughness={0.1} /></mesh>
+          ))}
+        </>
+      ) : item === 'wine' ? (
+        <>
+          {/* the vineyard: rows of vines and a barrel */}
+          {[-0.4, 0, 0.4].map((z) => (
+            <group key={z}>
+              <mesh position={[-0.2, 0.25, z]} castShadow><boxGeometry args={[1.4, 0.4, 0.14]} /><meshStandardMaterial color="#5a8a3a" /></mesh>
+              {[-0.7, -0.3, 0.1, 0.5].map((x) => <mesh key={x} position={[x, 0.32, z + 0.09]}><sphereGeometry args={[0.06, 8, 8]} /><meshStandardMaterial color="#7a2846" /></mesh>)}
+            </group>
+          ))}
+          <mesh position={[0.8, 0.3, 0]} castShadow><cylinderGeometry args={[0.22, 0.22, 0.55, 14]} /><meshStandardMaterial color="#8a5a32" /></mesh>
         </>
       ) : item === 'cotton' ? (
         <>
@@ -470,6 +547,198 @@ function SourceModel({ item, label: text, detail, on, next, onSelect, lit }: { i
   );
 }
 
+/** A plot of frontier land: a marked-out patch with a sign showing its price, its owner, or both. */
+function LandModel({ plot, pos, on, onSelect }: { plot: Plot; pos: [number, number]; on: boolean; onSelect: () => void }) {
+  const price = plot.owner ? plot.forSale : plot.price;
+  const top = plot.owner ? (plot.owner.mine ? 'Your land' : `${plot.owner.name}'s land`) : 'Land for sale';
+  return (
+    <group position={[wx(pos[0]), 0, wz(pos[1])]} onClick={(e) => { e.stopPropagation(); onSelect(); }}
+      onPointerOver={() => { document.body.style.cursor = 'pointer'; }} onPointerOut={() => { document.body.style.cursor = ''; }}>
+      <mesh position={[0, 0.03, 0]} receiveShadow><boxGeometry args={[3, 0.04, 2]} /><meshStandardMaterial color={plot.owner ? '#efe2c2' : '#e6e0d2'} /></mesh>
+      {[[-1.5, -1], [1.5, -1], [-1.5, 1], [1.5, 1]].map(([x, z]) => <mesh key={`${x}${z}`} position={[x, 0.2, z]} castShadow><cylinderGeometry args={[0.04, 0.04, 0.4, 6]} /><meshStandardMaterial color="#8a5a32" /></mesh>)}
+      <mesh position={[-0.6, 0.5, 0]} castShadow><cylinderGeometry args={[0.04, 0.05, 1, 6]} /><meshStandardMaterial color="#5a4632" /></mesh>
+      <mesh position={[-0.6, 0.95, 0]} castShadow><boxGeometry args={[0.7, 0.3, 0.05]} /><meshStandardMaterial color={plot.owner?.mine ? '#2f8cff' : '#f2b01e'} /></mesh>
+      {on && <mesh position={[0, 0.06, 0]} rotation={[-Math.PI / 2, 0, 0]}><ringGeometry args={[1.7, 1.85, 48]} /><meshBasicMaterial color="#f2b01e" /></mesh>}
+      <Html zIndexRange={[5, 0]} position={[0, 1.5, 0]} center style={{ pointerEvents: 'none' }}>
+        <div style={label}>{top}{price !== null && <div style={{ fontSize: 10, color: '#ffc861' }}>{price.toLocaleString('en-US')} coins</div>}</div>
+      </Html>
+    </group>
+  );
+}
+
+/**
+ * A frontier, in 3D: open ground with the trees, rocks or vines of the place, its source, eight plots of land, and the businesses
+ * players have built on them. No shops until players build them.
+ */
+function FrontierScene({ realm, state, selected, onSelect, popups, animate }: { realm: FrontierId; state: GameState; selected: Selection; onSelect: (s: Selection) => void; popups: Popup[]; animate: boolean }) {
+  const f = FRONTIER[realm];
+  const light = lightAt(state.hour);
+  const focus = state.coach.focus;
+  const night = light.opacity;
+  const dark = Math.min(1, night / 0.5);
+  const rain = state.shocks.some((x) => x.kind === 'rain');
+  const z = FRONTIER_LAYOUT.zone;
+  const plots = state.land?.here ?? [];
+  const sign = ROAD_SIGN[realm];
+  const decor: [number, number, number][] = [[40, 120, 1], [60, 520, 0.9], [975, 60, 0.8], [130, 650, 0.8], [700, 655, 0.7], [400, 650, 0.9], [985, 400, 0.8]];
+  return (
+    <>
+      <color attach="background" args={[mix('#e4ece4', '#080d24', dark)]} />
+      <fog attach="fog" args={[mix('#e4ece4', '#080d24', dark), 24 - dark * 6, 60 - dark * 14]} />
+      <ambientLight intensity={0.95 - dark * 0.68} color={mix('#ffffff', '#7f93ff', dark)} />
+      <directionalLight position={[6, 10, 5]} intensity={1.3 - dark * 0.95} color={mix('#ffffff', '#a9bcff', dark)} castShadow shadow-mapSize={[1024, 1024]}
+        shadow-camera-left={-12} shadow-camera-right={12} shadow-camera-top={9} shadow-camera-bottom={-9} />
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0]} receiveShadow onClick={() => onSelect(null)}>
+        <planeGeometry args={[26, 18]} /><meshStandardMaterial color={mix(f.ground, '#262f52', dark)} />
+      </mesh>
+      <RoundedBox args={[z.w / U, 0.05, z.h / U]} radius={0.03} position={[wx(z.x + z.w / 2), 0.015, wz(z.y + z.h / 2)]} receiveShadow>
+        <meshStandardMaterial color={f.zone} />
+      </RoundedBox>
+      <Html zIndexRange={[5, 0]} position={[wx(z.x + z.w / 2), 4, wz(z.y + 30)]} center style={{ pointerEvents: 'none' }}><div style={{ ...label, background: 'rgba(22,38,74,.55)', font: '700 15px system-ui, sans-serif', letterSpacing: 1.5, padding: '4px 14px', border: '1px solid rgba(255,255,255,.35)' }}>{f.label.toUpperCase()}{state.land?.discovered ? ` · FIRST REACHED BY ${state.land.discovered.by.toUpperCase()}` : ''}</div></Html>
+      {decor.map(([x, y, sc], i) => (
+        f.decor === 'trees' ? <group key={i}><Tree x={x} y={y} s={sc} /><Tree x={x + 30} y={y + 16} s={sc * 0.8} /></group>
+          : f.decor === 'rocks' ? <mesh key={i} position={[wx(x), 0.35 * sc, wz(y)]} castShadow><dodecahedronGeometry args={[0.6 * sc, 0]} /><meshStandardMaterial color="#8e8a96" flatShading /></mesh>
+          : <group key={i} position={[wx(x), 0, wz(y)]}>{[-0.4, 0, 0.4].map((dz) => <mesh key={dz} position={[0, 0.22, dz]} castShadow><boxGeometry args={[1.4, 0.4, 0.12]} /><meshStandardMaterial color="#5a8a3a" /></mesh>)}</group>
+      ))}
+      {plots.filter((x) => !x.business).map((plot) => (
+        <LandModel key={plot.id} plot={plot} pos={FRONTIER_LAYOUT.plots[plot.n]} on={selected?.kind === 'land' && selected.id === plot.id} onSelect={() => onSelect({ kind: 'land', id: plot.id })} />
+      ))}
+      {state.stalls.map((s) => {
+        const plot = plots.find((x) => x.business?.id === s.id);
+        if (!plot) return null;
+        return <StallModel key={s.id} s={s} pos={FRONTIER_LAYOUT.plots[plot.n]} selected={selected?.kind === 'stall' && selected.id === s.id}
+          next={focus?.kind === 'stall' && focus.id === s.id} onSelect={() => onSelect({ kind: 'stall', id: s.id })} />;
+      })}
+      {state.sources.filter((src) => src.item === f.source).map((src) => (
+        <SourceModel key={src.item} pos={FRONTIER_LAYOUT.source} lit={night >= 0.28} item={src.item} label={src.item} detail={`${src.cost} coins each`}
+          on={selected?.kind === 'source' && selected.item === src.item} next={focus?.kind === 'source' && focus.id === src.item}
+          onSelect={() => onSelect({ kind: 'source', item: src.item })} />
+      ))}
+      <RoadSign3D at={sign.at} label={sign.label} on={selected?.kind === 'road'} onSelect={() => onSelect({ kind: 'road', realm: sign.to })} />
+      <YouModel state={state} at={FRONTIER_LAYOUT.you} />
+      {[[200, 600], [920, 600], [200, 20], [920, 20]].map(([x, y], i) => <Lamp key={i} x={wx(x)} z={wz(y)} on={night >= 0.28} />)}
+      {night >= 0.28 && plots.filter((x) => x.business).map((x) => { const [px, py] = FRONTIER_LAYOUT.plots[x.n]; return <pointLight key={x.id} position={[wx(px), 1.2, wz(py) + 0.8]} intensity={9} distance={6} color="#ffc861" />; })}
+      {animate && rain && <Rain />}
+      {popups.map((p) => (
+        <Html zIndexRange={[5, 0]} key={p.id} position={[wx(p.x), 1.6, wz(p.y)]} center style={{ pointerEvents: 'none' }}>
+          <div style={{ ...label, background: p.tone === 'gain' ? '#2f8f4e' : p.tone === 'spend' ? '#d6336c' : '#16264a', fontSize: 14 }}>{p.text}</div>
+        </Html>
+      ))}
+    </>
+  );
+}
+
+/** A signpost: the road out of this realm. Tap it to see the journey. */
+function RoadSign3D({ at, label: text, on, onSelect }: { at: [number, number]; label: string; on: boolean; onSelect: () => void }) {
+  return (
+    <group position={[wx(at[0]), 0, wz(at[1])]} onClick={(e) => { e.stopPropagation(); onSelect(); }}
+      onPointerOver={() => { document.body.style.cursor = 'pointer'; }} onPointerOut={() => { document.body.style.cursor = ''; }}>
+      <mesh position={[0, 0.6, 0]} castShadow><cylinderGeometry args={[0.05, 0.06, 1.2, 8]} /><meshStandardMaterial color="#5a4632" /></mesh>
+      <mesh position={[0.25, 1.05, 0]} castShadow><boxGeometry args={[0.8, 0.26, 0.05]} /><meshStandardMaterial color="#f2b01e" /></mesh>
+      <mesh position={[0.7, 1.05, 0]} rotation={[0, 0, Math.PI / 4]}><boxGeometry args={[0.18, 0.18, 0.05]} /><meshStandardMaterial color="#f2b01e" /></mesh>
+      {on && <mesh position={[0, 0.115, 0]} rotation={[-Math.PI / 2, 0, 0]}><ringGeometry args={[0.55, 0.68, 40]} /><meshBasicMaterial color="#f2b01e" /></mesh>}
+      <Html zIndexRange={[5, 0]} position={[0.2, 1.55, 0]} center style={{ pointerEvents: 'none' }}><div style={{ ...label, background: '#8a5a00' }}>{text} →</div></Html>
+    </group>
+  );
+}
+
+/** You, with your look and your vehicle, standing at `at` (canvas coordinates). */
+function YouModel({ state, at }: { state: GameState; at: [number, number] }) {
+  const look = state.you.avatar ?? DEFAULT_AVATAR;
+  const shirt = SHIRTS[look.shirt];
+  return (
+    <group position={[wx(at[0]), 0, wz(at[1])]}>
+      <Person id="you" shirt={shirt} look={look} cap={look.hat === 'cap' ? mix(shirt, '#000000', 0.45) : undefined} scale={1.45} />
+      <group position={[0.6, 0, 0.1]} rotation={[0, 0.3, 0]}><Vehicle kind={state.you.vehicle} /></group>
+      <Html zIndexRange={[5, 0]} position={[0, 1.55, 0]} center style={{ pointerEvents: 'none' }}><div style={{ ...label, background: shirt }}>You</div></Html>
+    </group>
+  );
+}
+
+/** A boat at its mooring, rocking gently. */
+function Boat({ x, y, r, color }: { x: number; y: number; r: number; color: string }) {
+  const ref = useRef<THREE.Group>(null);
+  useTick((t) => { if (ref.current) { ref.current.rotation.z = Math.sin(t * 0.9 + x) * 0.05; ref.current.position.y = Math.sin(t * 1.1 + y) * 0.03; } });
+  return (
+    <group position={[wx(x), 0, wz(y)]} rotation={[0, r, 0]}>
+      <group ref={ref}>
+        <mesh position={[0, 0.1, 0]} castShadow><boxGeometry args={[2.2, 0.35, 0.8]} /><meshStandardMaterial color={color} /></mesh>
+        <mesh position={[1.15, 0.1, 0]} rotation={[0, Math.PI / 4, 0]} castShadow><boxGeometry args={[0.56, 0.35, 0.56]} /><meshStandardMaterial color={color} /></mesh>
+        <mesh position={[0, 0.3, 0]}><boxGeometry args={[2, 0.05, 0.66]} /><meshStandardMaterial color="#a87b4f" /></mesh>
+        <mesh position={[-0.1, 1.2, 0]} castShadow><cylinderGeometry args={[0.04, 0.05, 1.8, 8]} /><meshStandardMaterial color="#5a4632" /></mesh>
+        <mesh position={[0.3, 1.25, 0]} rotation={[0, Math.PI / 2, 0]}><planeGeometry args={[0.05, 1]} /><meshStandardMaterial color="#f6f2e6" side={DoubleSide} /></mesh>
+        <mesh position={[0.32, 1.25, 0]}><boxGeometry args={[0.75, 1.3, 0.02]} /><meshStandardMaterial color="#f6f2e6" /></mesh>
+      </group>
+    </group>
+  );
+}
+
+/**
+ * Saltmere Harbour, in 3D: a stone quay, the market along the top, the fishing pier and the salt pans on the quay, and the
+ * sea below the shore line with boats at their moorings. Same stalls, sources and people as the town.
+ */
+function HarbourScene({ state, selected, onSelect, popups, animate }: { state: GameState; selected: Selection; onSelect: (s: Selection) => void; popups: Popup[]; animate: boolean }) {
+  const light = lightAt(state.hour);
+  const focus = state.coach.focus;
+  const night = light.opacity;
+  const dark = Math.min(1, night / 0.5);
+  const rain = state.shocks.some((x) => x.kind === 'rain');
+  const z = HARBOUR.zone;
+  const shoreZ = wz(HARBOUR.shore);
+  const sign = ROAD_SIGN.saltmere;
+  return (
+    <>
+      <color attach="background" args={[mix('#dfe9f0', '#080d24', dark)]} />
+      <fog attach="fog" args={[mix('#dfe9f0', '#080d24', dark), 24 - dark * 6, 60 - dark * 14]} />
+      <ambientLight intensity={0.95 - dark * 0.68} color={mix('#ffffff', '#7f93ff', dark)} />
+      <directionalLight position={[6, 10, 5]} intensity={1.3 - dark * 0.95} color={mix('#ffffff', '#a9bcff', dark)} castShadow shadow-mapSize={[1024, 1024]}
+        shadow-camera-left={-12} shadow-camera-right={12} shadow-camera-top={9} shadow-camera-bottom={-9} />
+      {/* the quay, down to the shore */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, (wz(0) + shoreZ) / 2]} receiveShadow onClick={() => onSelect(null)}>
+        <planeGeometry args={[24, shoreZ - wz(0)]} /><meshStandardMaterial color={mix('#d6cfc2', '#2e3450', dark)} />
+      </mesh>
+      <mesh position={[0, 0.06, shoreZ]} receiveShadow><boxGeometry args={[24, 0.2, 0.3]} /><meshStandardMaterial color={mix('#8a7a66', '#2a2d3e', dark)} /></mesh>
+      {/* the sea */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.12, shoreZ + 4]} onClick={() => onSelect(null)}>
+        <planeGeometry args={[30, 8]} /><meshStandardMaterial color={mix('#4f8fb8', '#0e1d3d', dark)} roughness={0.25} metalness={0.2} />
+      </mesh>
+      {/* the jetty out to the boats */}
+      <mesh position={[wx(330), 0.05, shoreZ + 1.1]} castShadow receiveShadow><boxGeometry args={[1.2, 0.12, 2.2]} /><meshStandardMaterial color="#a87b4f" /></mesh>
+      {HARBOUR.boats.map(([x, y, r], i) => <Boat key={i} x={x} y={y} r={r} color={['#c8622e', '#2a6fdb', '#2f9e5f'][i % 3]} />)}
+
+      <RoundedBox args={[z.w / U, 0.06, z.h / U]} radius={0.03} position={[wx(z.x + z.w / 2), 0.02, wz(z.y + z.h / 2)]} receiveShadow>
+        <meshStandardMaterial color={GROUND.harbour} />
+      </RoundedBox>
+      <Html zIndexRange={[5, 0]} position={[wx(z.x + z.w / 2), 4, wz(z.y + 40)]} center style={{ pointerEvents: 'none' }}><div style={{ ...label, background: 'rgba(22,38,74,.55)', font: '700 15px system-ui, sans-serif', letterSpacing: 1.5, padding: '4px 14px', border: '1px solid rgba(255,255,255,.35)' }}>{z.label.toUpperCase()}</div></Html>
+
+      {state.stalls.map((s) => {
+        const pos = REALM_OF[s.market] === 'saltmere' ? HARBOUR.stalls[s.id] : undefined;
+        if (!pos) return null;
+        return <StallModel key={s.id} s={s} pos={pos} selected={selected?.kind === 'stall' && selected.id === s.id}
+          next={focus?.kind === 'stall' && focus.id === s.id} onSelect={() => onSelect({ kind: 'stall', id: s.id })} />;
+      })}
+      {state.sources.map((src) => {
+        const pos = HARBOUR.sources[src.item];
+        return pos ? (
+          <SourceModel key={src.item} pos={pos} lit={night >= 0.28} item={src.item} label={src.item} detail={src.cost > 0 ? `${src.cost} coins each` : `${src.units} free`}
+            on={selected?.kind === 'source' && selected.item === src.item} next={focus?.kind === 'source' && focus.id === src.item}
+            onSelect={() => onSelect({ kind: 'source', item: src.item })} />
+        ) : null;
+      })}
+      <RoadSign3D at={sign.at} label={sign.label} on={selected?.kind === 'road'} onSelect={() => onSelect({ kind: 'road', realm: sign.to })} />
+      <YouModel state={state} at={HARBOUR.you} />
+      {[[150, 330], [500, 330], [850, 330], [150, 470], [850, 470]].map(([x, y], i) => <Lamp key={i} x={wx(x)} z={wz(y)} on={night >= 0.28} />)}
+      {night >= 0.28 && Object.values(HARBOUR.stalls).map(([x, y], i) => <pointLight key={i} position={[wx(x), 1.2, wz(y) + 0.8]} intensity={9} distance={6} color="#ffc861" />)}
+      {animate && rain && <Rain />}
+      {popups.map((p) => (
+        <Html zIndexRange={[5, 0]} key={p.id} position={[wx(p.x), 1.6, wz(p.y)]} center style={{ pointerEvents: 'none' }}>
+          <div style={{ ...label, background: p.tone === 'gain' ? '#2f8f4e' : p.tone === 'spend' ? '#d6336c' : '#16264a', fontSize: 14 }}>{p.text}</div>
+        </Html>
+      ))}
+    </>
+  );
+}
+
 function Rain() {
   const ref = useRef<THREE.Points>(null);
   // Where each drop starts (fixed, so the rain looks the same in every frame of the video), and where it is at time t.
@@ -490,7 +759,15 @@ function Rain() {
   return <points ref={ref}><bufferGeometry><bufferAttribute attach="attributes-position" array={pos} count={600} itemSize={3} /></bufferGeometry><pointsMaterial color="#a8c4f0" size={0.06} /></points>;
 }
 
-function Scene({ state, selected, onSelect, popups, animate }: { state: GameState; selected: Selection; onSelect: (s: Selection) => void; popups: Popup[]; animate: boolean }) {
+function Scene(props: { state: GameState; selected: Selection; onSelect: (s: Selection) => void; popups: Popup[]; animate: boolean }) {
+  // Saltmere Harbour has its own scene; everything below is the town.
+  const here = props.state.realm?.here ?? 'town';
+  if (here === 'saltmere') return <HarbourScene {...props} />;
+  if (isFrontier(here)) return <FrontierScene realm={here} {...props} />;
+  return <TownScene {...props} />;
+}
+
+function TownScene({ state, selected, onSelect, popups, animate }: { state: GameState; selected: Selection; onSelect: (s: Selection) => void; popups: Popup[]; animate: boolean }) {
   const drive = useContext(Drive);
   const light = lightAt(state.hour);
   const focus = state.coach.focus;
@@ -516,7 +793,7 @@ function Scene({ state, selected, onSelect, popups, animate }: { state: GameStat
         <planeGeometry args={[24, 17]} /><meshStandardMaterial color={mix('#dfe5ee', '#262f52', dark)} />
       </mesh>
 
-      {(Object.keys(ZONES) as MarketId[]).map((id) => {
+      {(Object.keys(ZONES) as MarketId[]).filter((id) => REALM_OF[id] === 'town').map((id) => {
         const z = ZONES[id];
         return (
           <group key={id}>
@@ -563,11 +840,8 @@ function Scene({ state, selected, onSelect, popups, animate }: { state: GameStat
         : <Walker key={i} id={`walker${i}`} color={c} stops={stops} speed={0.8 + (i % 3) * 0.12} seed={i * 7919 + 13} />)}
       {animate && <Truck />}
 
-      <group position={[wx(you[0]), 0, wz(you[1])]}>
-        <Person id="you" shirt="#1d63d6" cap="#14253d" scale={1.45} />
-        <group position={[0.6, 0, 0.1]} rotation={[0, 0.3, 0]}><Vehicle kind={state.you.vehicle} /></group>
-        <Html zIndexRange={[5, 0]} position={[0, 1.55, 0]} center style={{ pointerEvents: 'none' }}><div style={{ ...label, background: '#1d63d6' }}>You</div></Html>
-      </group>
+      <YouModel state={state} at={you} />
+      {!drive && <RoadSign3D at={ROAD_SIGN.town.at} label={ROAD_SIGN.town.label} on={selected?.kind === 'road'} onSelect={() => onSelect({ kind: 'road', realm: ROAD_SIGN.town.to })} />}
 
       {state.shocks.some((x) => x.kind === 'festive season') && <Festive />}
       {state.shocks.some((x) => x.kind === 'fuel queue') && <FuelQueue />}

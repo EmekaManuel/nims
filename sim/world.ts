@@ -3,8 +3,10 @@ import type { MerchantPlan } from './plan';
 import { Councils, newCouncils } from './council';
 import { makeRng, Rng } from './rng';
 
-export type Item = 'tomatoes' | 'pepper' | 'flour' | 'cotton' | 'lace' | 'thread' | 'iron' | 'copper wire';
-export type MarketId = 'produce' | 'fabric' | 'scrap';
+export type Item = 'tomatoes' | 'pepper' | 'flour' | 'cotton' | 'lace' | 'thread' | 'iron' | 'copper wire' | 'fish' | 'salt' | 'spice' | 'timber' | 'gems' | 'wine';
+export type MarketId = 'produce' | 'fabric' | 'scrap' | 'harbour' | 'woods' | 'mine' | 'vale';
+/** A place you reach by a journey: the town, the harbour beyond the hills, and three unexplored frontiers. */
+export type RealmId = 'town' | 'saltmere' | 'timberfell' | 'gemhollow' | 'sunvale';
 
 export const BASE_PRICE: Record<Item, number> = {
   tomatoes: 120,
@@ -15,15 +17,57 @@ export const BASE_PRICE: Record<Item, number> = {
   thread: 100,
   iron: 300,
   'copper wire': 600,
+  fish: 90,
+  salt: 160,
+  spice: 1200,
+  timber: 140,
+  gems: 900,
+  wine: 450,
 };
 
-export const MARKETS: Record<MarketId, { name: string; items: Item[] }> = {
-  produce: { name: 'Produce Market', items: ['tomatoes', 'pepper', 'flour'] },
-  fabric: { name: 'Fabric Market', items: ['cotton', 'lace', 'thread'] },
-  scrap: { name: 'Scrap & Hardware', items: ['iron', 'copper wire'] },
+export const MARKETS: Record<MarketId, { name: string; items: Item[]; realm: RealmId }> = {
+  produce: { name: 'Produce Market', items: ['tomatoes', 'pepper', 'flour', 'spice', 'salt', 'wine'], realm: 'town' },
+  fabric: { name: 'Fabric Market', items: ['cotton', 'lace', 'thread'], realm: 'town' },
+  scrap: { name: 'Scrap & Hardware', items: ['iron', 'copper wire', 'timber', 'gems'], realm: 'town' },
+  harbour: { name: 'Saltmere Harbour', items: ['fish', 'salt', 'spice', 'thread', 'iron', 'timber'], realm: 'saltmere' },
+  // The frontiers: no shops until players build them. Their customers want what the place lacks, and the place has one good of its own.
+  woods: { name: 'Timberfell', items: ['timber', 'flour', 'iron', 'salt'], realm: 'timberfell' },
+  mine: { name: 'Gem Hollow', items: ['gems', 'flour', 'iron', 'copper wire'], realm: 'gemhollow' },
+  vale: { name: 'Sunvale', items: ['wine', 'cotton', 'lace', 'spice'], realm: 'sunvale' },
 };
 
-export const PERISHABLE: Item[] = ['tomatoes', 'pepper'];
+/**
+ * Realms: the town, and places further off that take a journey. Getting between realms takes `journeyHours` game hours
+ * (you can't trade on the road) and costs `passage` coins plus freight on what you carry.
+ */
+export const REALMS: Record<RealmId, { name: string; journeyHours: number; passage: number; blurb: string; travel: 'car' | 'plane'; frontier: boolean }> = {
+  town: { name: 'Nims', journeyHours: 6, passage: 120, blurb: 'The market town: three markets and the farms and scrap spots around them.', travel: 'car', frontier: false },
+  saltmere: { name: 'Saltmere Harbour', journeyHours: 6, passage: 120, blurb: 'A fishing harbour beyond the hills. Ships bring spice; ships need thread and iron.', travel: 'car', frontier: false },
+  timberfell: { name: 'Timberfell Woods', journeyHours: 8, passage: 160, blurb: 'Unclaimed forest with a lumber camp. No shops yet: buy land and build the first.', travel: 'car', frontier: true },
+  gemhollow: { name: 'Gem Hollow', journeyHours: 10, passage: 260, blurb: 'A mountain valley with a seam of gems. Miners need food and tools, and nobody sells them yet.', travel: 'plane', frontier: true },
+  sunvale: { name: 'Sunvale', journeyHours: 10, passage: 240, blurb: 'Sunny hills and a vineyard. The people here want cloth and spice, and nobody sells them yet.', travel: 'plane', frontier: true },
+};
+
+/** Which realm a market is in. */
+export const realmOf = (m: MarketId): RealmId => MARKETS[m].realm;
+/** Markets in a realm, in order. */
+export const marketsIn = (r: RealmId) => (Object.keys(MARKETS) as MarketId[]).filter((m) => MARKETS[m].realm === r);
+
+/**
+ * Distance makes goods dear: a realm pays this many times the usual price for goods that come from far away. The
+ * harbour needs thread and iron for its ships; the town has no spice or salt of its own.
+ */
+export const IMPORT_PRICE: Record<RealmId, Partial<Record<Item, number>>> = {
+  town: { spice: 1.6, salt: 1.3, timber: 1.5, gems: 1.6, wine: 1.5 },
+  saltmere: { thread: 1.5, iron: 1.5, timber: 1.6 },
+  timberfell: { flour: 1.5, iron: 1.4, salt: 1.5 },
+  gemhollow: { flour: 1.7, iron: 1.5, 'copper wire': 1.4 },
+  sunvale: { cotton: 1.4, lace: 1.3, spice: 1.4 },
+};
+/** The usual price of a good in a market: the base price, times what distance adds there. */
+export const localBase = (market: MarketId, item: Item) => Math.round(BASE_PRICE[item] * (IMPORT_PRICE[realmOf(market)][item] ?? 1));
+
+export const PERISHABLE: Item[] = ['tomatoes', 'pepper', 'fish'];
 
 export interface MemoryEntry {
   hour: number;
@@ -79,6 +123,8 @@ export interface Player {
   inventory: Partial<Record<Item, number>>;
   /** Market the player last traded in (moving between markets costs a fare). */
   at?: MarketId;
+  /** On the road to another realm: where to, and the game hour they arrive. Nothing can be traded until then. */
+  journey?: { to: MarketId; arrive: number };
   /** When a simulated gatherer last collected (so it knows how long it has been holding goods). */
   lastGatherHour?: number;
   /** Fare you couldn't pay up front. It comes out of your next sale, so you can never be stuck holding goods you can't take to market. */
@@ -91,6 +137,8 @@ export interface Player {
 
 export interface Source {
   item: Item;
+  /** The realm the source is in (the town when absent). */
+  realm?: RealmId;
   label: string;
   units: number;
   max: number;
@@ -108,7 +156,7 @@ export interface Shock {
 
 export interface WorldEvent {
   hour: number;
-  type: 'shock' | 'state' | 'revived' | 'dividend' | 'council' | 'guild' | 'plan';
+  type: 'shock' | 'state' | 'revived' | 'dividend' | 'council' | 'guild' | 'plan' | 'discovery' | 'land';
   text: string;
   /** Merchant this is about (state, revived, dividend). */
   merchant?: string;
@@ -162,6 +210,10 @@ export interface World {
   shocks: Shock[];
   events: WorldEvent[];
   history: Snapshot[];
+  /** Land in the frontiers: who owns each plot, whether it is for sale, and the business built on it. */
+  plots: Plot[];
+  /** Who first reached each frontier, and when. */
+  discovered: Partial<Record<RealmId, { by: string; hour: number }>>;
   ledger: LedgerEntry[];
   /** Per-market rules the shareholders vote on (see council.ts). */
   council: Councils;
@@ -196,12 +248,14 @@ export function createMerchants(): Merchant[] {
   return [
     merchant('mira', "Mira's Greens", 'produce', 'greedy', { tomatoes: 80, pepper: 60 }),
     merchant('tomas', 'Tomas Produce', 'produce', 'cautious', { flour: 100, tomatoes: 60 }),
-    merchant('june', "June's Pantry", 'produce', 'loyal', { pepper: 60, flour: 80 }),
+    // June also buys spice and salt from the harbour: the town has none of its own, so she pays more for them (IMPORT_PRICE).
+    merchant('june', "June's Pantry", 'produce', 'loyal', { pepper: 60, flour: 80, spice: 15, salt: 30, wine: 20 }),
     merchant('lena', "Lena's Textiles", 'fabric', 'loyal', { cotton: 40, thread: 120 }),
     merchant('omar', "Omar's Fabrics", 'fabric', 'cautious', { lace: 25, cotton: 40 }),
-    merchant('anil', 'Anil Metals', 'scrap', 'greedy', { iron: 50, 'copper wire': 30 }),
+    merchant('anil', 'Anil Metals', 'scrap', 'greedy', { iron: 50, 'copper wire': 30, gems: 10 }),
     merchant('ruth', "Ruth's Salvage", 'scrap', 'cautious', { iron: 60 }),
-    merchant('diego', 'Diego Hardware', 'scrap', 'loyal', { 'copper wire': 40, iron: 40 }),
+    merchant('diego', 'Diego Hardware', 'scrap', 'loyal', { 'copper wire': 40, iron: 40, timber: 40 }),
+    ...harbourMerchants(),
   ];
 }
 
@@ -225,6 +279,25 @@ export function createSources(): Source[] {
     { item: 'copper wire', label: 'Scrap spot (copper wire)', units: 60, max: 60, respawnPerHour: 3, cost: wholesale('copper wire') },
     // Wholesaler: fixed price anchor for cloth.
     { item: 'cotton', label: 'Wholesaler (cotton)', units: 1_000_000, max: 1_000_000, respawnPerHour: 0, cost: 680 },
+    ...harbourSources(),
+    ...frontierSources(),
+  ];
+}
+
+/** Saltmere Harbour's merchants: fish and salt, a chandlery that needs thread and iron for the ships, and the spice house. */
+export function harbourMerchants(): Merchant[] {
+  return [
+    merchant('pike', 'Pike & Daughters', 'harbour', 'greedy', { fish: 80, salt: 40 }),
+    merchant('marlow', 'Marlow Chandlery', 'harbour', 'cautious', { thread: 100, iron: 50, timber: 40 }),
+    merchant('zara', "Zara's Spice House", 'harbour', 'loyal', { spice: 25, salt: 40 }),
+  ];
+}
+
+/** Saltmere Harbour's sources: the fishing pier and the salt pans. */
+export function harbourSources(): Source[] {
+  return [
+    { item: 'fish', realm: 'saltmere', label: 'Fishing pier (fish)', units: 160, max: 160, respawnPerHour: 8, cost: wholesale('fish') },
+    { item: 'salt', realm: 'saltmere', label: 'Salt pans (salt)', units: 120, max: 120, respawnPerHour: 6, cost: wholesale('salt') },
   ];
 }
 
@@ -246,6 +319,8 @@ export function createWorld(seed = 1, players: Player[] = []): World {
     history: [],
     ledger: [],
     council: newCouncils(),
+    plots: createPlots(),
+    discovered: {},
   };
   // Genesis: what every account starts with, so the ledger alone explains every balance.
   for (const m of w.merchants) {
@@ -254,4 +329,46 @@ export function createWorld(seed = 1, players: Player[] = []): World {
   }
   for (const p of w.players) if (p.cash > 0) w.ledger.push({ hour: 0, kind: 'mint', to: p.id, item: COINS, units: p.cash });
   return w;
+}
+
+/** The frontiers' own goods: a lumber camp, a gem seam and a vineyard. */
+export function frontierSources(): Source[] {
+  return [
+    { item: 'timber', realm: 'timberfell', label: 'Lumber camp (timber)', units: 140, max: 140, respawnPerHour: 7, cost: wholesale('timber') },
+    { item: 'gems', realm: 'gemhollow', label: 'Gem seam (gems)', units: 40, max: 40, respawnPerHour: 2, cost: wholesale('gems') },
+    { item: 'wine', realm: 'sunvale', label: 'Vineyard (wine)', units: 80, max: 80, respawnPerHour: 4, cost: wholesale('wine') },
+  ];
+}
+
+/**
+ * A plot of land in a frontier. It is bought from the town, can be resold to another player, and a business can be built on
+ * it. `n` is its place in the layout (0 is nearest the source, so the dearest).
+ */
+export interface Plot {
+  id: string;
+  realm: RealmId;
+  market: MarketId;
+  n: number;
+  /** What the town asks for it while nobody owns it. */
+  price: number;
+  owner?: string;
+  ownerName?: string;
+  /** An owner's asking price, when they have put it up for sale. */
+  forSale?: number;
+  /** The merchant id of the business built on it. */
+  business?: string;
+}
+
+/** Plots per frontier, and what the town asks for them: the two nearest the source dearest, the edge cheapest. */
+export const PLOTS_PER_FRONTIER = 8;
+export const PLOT_PRICES = [3_500, 3_500, 2_600, 2_600, 2_600, 2_600, 1_800, 1_800];
+/** What it costs to build a business on land you own. */
+export const BUILD_COST = 4_000;
+const FRONTIER_MARKET: Partial<Record<RealmId, MarketId>> = { timberfell: 'woods', gemhollow: 'mine', sunvale: 'vale' };
+export const frontierMarket = (r: RealmId) => FRONTIER_MARKET[r];
+
+export function createPlots(): Plot[] {
+  return (Object.keys(FRONTIER_MARKET) as RealmId[]).flatMap((realm) =>
+    Array.from({ length: PLOTS_PER_FRONTIER }, (_, n) => ({ id: `${realm}-${n + 1}`, realm, market: FRONTIER_MARKET[realm]!, n, price: PLOT_PRICES[n] })),
+  );
 }

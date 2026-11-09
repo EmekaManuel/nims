@@ -11,7 +11,7 @@
  * ledger-recording helpers as every other trade, so settlement to the chain needs nothing new.
  */
 import { targetOf } from '../../sim/plan';
-import { BASE_PRICE, type Item, type Merchant, type Source, type World } from '../../sim/world';
+import { BASE_PRICE, realmOf, type Item, type Merchant, type Source, type World } from '../../sim/world';
 
 export interface Job {
   id: number;
@@ -64,7 +64,9 @@ export function planBoard(w: World, current: Job[], nextId: () => number): Job[]
   for (const m of w.merchants) {
     if (!open(m)) continue;
     for (const item of Object.keys(m.target) as Item[]) {
-      if (sourceOf(w, item) && shortfall(m, item) >= 2) wants.push({ m, item, short: shortfall(m, item) });
+      const src = sourceOf(w, item);
+      // an odd job stays in one realm: goods from a source a journey away are a trade, not a job
+      if (src && (src.realm ?? 'town') === realmOf(m.market) && shortfall(m, item) >= 2) wants.push({ m, item, short: shortfall(m, item) });
     }
   }
   wants.sort((a, b) => b.short - a.short || (a.m.id + a.item).localeCompare(b.m.id + b.item));

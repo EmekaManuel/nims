@@ -482,6 +482,57 @@ describe('ChainSync under every kind of play', () => {
   });
 });
 
+describe('ChainSync: long-running soak (hunting the production "Not enough balance" reset cascade)', () => {
+  it('runs thousands of hours with heavy trade and a settlement backlog, and the chain never rejects a planned send', async () => {
+    const { game, chain, sync, logs } = setup({ game: new Game(7) });
+    let seed = 777;
+    const rnd = () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
+    const pick = <T,>(xs: T[]) => xs[Math.floor(rnd() * xs.length)];
+    const who = ['a@x.io', 'b@x.io', 'c@x.io', 'd@x.io', 'e@x.io'];
+    const items = ['iron', 'copper wire', 'tomatoes', 'pepper', 'flour', 'cotton', 'lace', 'thread'] as never[];
+    const merchants = () => game.w.merchants.map((m) => m.id);
+    who.forEach((e) => game.state(e));
+    await sync.step(); // epoch 1
+
+    for (let h = 0; h < 5_000; h++) {
+      for (const e of who) {
+        if (h % 4 === 0) transferCoins(game.w, 'town', game.playerFor(e), 3000); // a steady income, so every kind of action gets exercised
+        const r = rnd();
+        const m = pick(merchants());
+        const it = pick(items);
+        if (r < 0.22) game.gather(e, it);
+        else if (r < 0.40) game.sell(e, m, it, 1 + Math.floor(rnd() * 20), rnd() < 0.3);
+        else if (r < 0.50) game.buy(e, m, it, 1 + Math.floor(rnd() * 10), rnd() < 0.3);
+        else if (r < 0.57) game.buyShares(e, m, 1 + Math.floor(rnd() * 3));
+        else if (r < 0.61) game.sellShares(e, m, 1);
+        else if (r < 0.67) game.contribute(e, m, 100 + Math.floor(rnd() * 500));
+        else if (r < 0.70) game.openStall(e, pick(['produce', 'fabric', 'scrap']));
+        else if (r < 0.75) game.stallStock(e, it, 1 + Math.floor(rnd() * 8));
+        else if (r < 0.78) game.stallTake(e, it, 1 + Math.floor(rnd() * 4));
+        else if (r < 0.82) game.stallCash(e, rnd() < 0.5 ? 'deposit' : 'withdraw', 50 + Math.floor(rnd() * 300));
+        else if (r < 0.85) game.upgrade(e, 'pickup');
+        else if (r < 0.90) game.councilPropose(e, pick(['produce', 'fabric', 'scrap']), pick(['rent', 'payout']), pick(['low', 'usual', 'high']));
+        else if (r < 0.95) game.councilVote(e, pick(['produce', 'fabric', 'scrap']), rnd() < 0.5);
+      }
+      game.tickOnce();
+      // Settle rarely and let the backlog run into the thousands, the way the live server does when a deploy
+      // or a slow testnet leaves it behind: windows widen (chainsync.ts's chunkHoursFor) instead of sitting at
+      // zero. The game keeps moving while settlement is in progress, like the real server.
+      if (h % 100 === 99) {
+        if (rnd() < 0.4) game.w.hour += 20; // occasionally let a window close
+        await sync.step();
+      }
+    }
+    await drain(game, sync);
+
+    const rejected = logs.filter((l) => /rejected/.test(l));
+    if (rejected.length) console.log(logs.filter((l) => /^Chain:/.test(l)).join('\n'));
+    expect(rejected).toEqual([]);
+    expect(chain.calls).toBeGreaterThan(50);
+    expect((await sync.verify()).mismatches).toEqual([]);
+  }, 30_000);
+});
+
 describe('planning a chunk', () => {
   const e = (kind: 'mint' | 'transfer', to: string, item: string, units: number, from?: string): LedgerEntry => ({ hour: 0, kind, to, item: item as LedgerEntry['item'], units, ...(from ? { from } : {}) });
 

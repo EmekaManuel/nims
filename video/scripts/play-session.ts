@@ -52,7 +52,7 @@ console.log('lena plan  :', lenaPlan ? `${JSON.stringify(lenaPlan.stock)} ${lena
 // The council vote is only recorded on the DAO when the DAO is configured; otherwise keep the record the video already shows.
 const previousDao = existsSync(out) ? (JSON.parse(readFileSync(out, 'utf8')) as { dao?: unknown }).dao ?? null : null;
 
-type Sel = { kind: 'stall'; id: string } | { kind: 'source'; item: string } | null;
+type Sel = { kind: 'stall'; id: string } | { kind: 'source'; item: string } | { kind: 'player'; id: string } | null;
 interface Shot { id: string; state: unknown; selected: Sel; tab: string | null; toast?: { ok: boolean; text: string; line?: string }; hover?: string; voiceText?: string; audio?: string; gazette?: string[] }
 const shots: Shot[] = [];
 const snap = () => JSON.parse(JSON.stringify(g.state(me)));
@@ -95,7 +95,39 @@ const reaction = firstSentence(reactionFull);
 const hClip = await clip('haggle-reaction', { id: hf.id, personality: hf.personality }, reaction);
 shot('reaction', { kind: 'stall', id: 'lena' }, null, { toast: { ok: true, text: sale.message, line: `${hf.merchant}: “${reaction}”` }, audio: hClip });
 
-// 3b. The town council. Selling to Lena made the player a regular in the Fabric Market, which is a seat on its council: put a rent cut
+// 3a. Multiplayer: a second real player, signed in right now, shopping in the Fabric Market alongside you.
+const kaiEmail = 'kai@nims.game';
+g.setName(kaiEmail, 'Kai');
+const kai = g.playerFor(kaiEmail);
+kai.at = 'fabric';
+const kaiOk = g.setAvatar(kaiEmail, { skin: 3, hair: 2, style: 'short', shirt: 5, hat: 'none' });
+if (!kaiOk.ok) throw new Error(kaiOk.message);
+g.state(kaiEmail); // marks Kai active, so onlinePlayers() shows them to everyone else
+shot('online', { kind: 'player', id: kai.id }, null);
+
+// 3b. Merchants notice when you play them off each other. Sell the same good to two of the three scrap merchants,
+// then check the third one's price: he's heard, and he's holding firmer (merchants/pricing.ts WARY_MAX).
+const you = g.playerFor(me);
+you.inventory.iron = (you.inventory.iron ?? 0) + 2;
+const soldAnil = g.sell(me, 'anil', 'iron', 1);
+if (!soldAnil.ok) throw new Error(soldAnil.message);
+const soldRuth = g.sell(me, 'ruth', 'iron', 1);
+if (!soldRuth.ok) throw new Error(soldRuth.message);
+shot('scrap', null, null);
+const wfacts = g.voiceFacts(me, 'diego', 'iron');
+if (!wfacts) throw new Error('no voice facts for diego/iron');
+const waryReason = wfacts.reasons.find((r) => r.includes('playing us off each other'));
+if (!waryReason) throw new Error('wariness did not trigger as expected');
+// Diego has several true reasons for his price right now (stock, demand, wariness); for this shot we want him
+// talking about the one the scene is about, so he gets just that reason to explain, not the full list.
+const warySaidFull = await voice.say({ ...wfacts, reasons: [waryReason] });
+if (!warySaidFull) throw new Error('NEAR AI gave no usable merchant line for the wary quote');
+const warySaid = firstSentence(warySaidFull);
+const diego = g.w.merchants.find((m) => m.id === 'diego')!;
+const diegoClip = await clip('diego-wary', { id: 'diego', personality: diego.personality }, warySaid);
+shot('wary', { kind: 'stall', id: 'diego' }, null, { hover: 'diego:iron', voiceText: warySaid, audio: diegoClip });
+
+// 3c. The town council. Selling to Lena made the player a regular in the Fabric Market, which is a seat on its council: put a rent cut
 // to a vote (the merchants back a cut), let the day end, and the rule changes. With SPUTNIK_DAO_ID and OUTLAYER_API_KEY set, the vote is
 // also written to the real SputnikDAO by the OutLayer-custodied Town Clerk, exactly as the live server does.
 shot('council', null, 'business');
@@ -157,6 +189,19 @@ for (let i = 0; i < 30; i++) g.tickOnce();
 const heads = await gazette.headlines(g.gazetteFacts());
 if (!heads) throw new Error('NEAR AI gave no usable gazette headlines');
 shot('news', null, 'news', { gazette: heads });
+
+// 6. Beyond the town: two more cities on the map. (Staged: topped up for the fares, same as any other earnings.)
+transferCoins(g.w, 'town', p, 500);
+const toHarbour = g.travel(me, 'saltmere');
+if (!toHarbour.ok) throw new Error(toHarbour.message);
+for (let i = 0; i < 10 && g.playerFor(me).journey; i++) g.tickOnce();
+if (g.playerFor(me).journey) throw new Error('did not arrive at Saltmere Harbour in time');
+shot('harbour', null, null);
+const toFrontier = g.travel(me, 'timberfell');
+if (!toFrontier.ok) throw new Error(toFrontier.message);
+for (let i = 0; i < 12 && g.playerFor(me).journey; i++) g.tickOnce();
+if (g.playerFor(me).journey) throw new Error('did not arrive at Timberfell Woods in time');
+shot('frontier', null, null);
 
 writeFileSync(out, JSON.stringify({ seed, me, shots, dao: dao ?? previousDao }, null, 1));
 const s = (id: string) => shots.find((x) => x.id === id)!.state as { you: { cash: number; carrying: number; netWorth: number } };

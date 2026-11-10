@@ -43,6 +43,8 @@ export function project(map: Rect, cam: Cam, p: V3): { x: number; y: number } {
 export const SPOT = {
   cotton: [wx(890), 0.9, wz(470)] as V3,
   lena: [wx(685), 0.8, wz(140)] as V3,
+  diego: [wx(690), 0.8, wz(522)] as V3,
+  kai: [wx(700), 0.9, wz(384)] as V3,
 };
 
 export const OVERVIEW: CamKey = { t: 0, pos: [0, 9.5, 11], look: [0, 0, -0.5], fov: 38 };

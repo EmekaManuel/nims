@@ -1,7 +1,7 @@
 import session from '../data/session.json';
 import targetsFile from '../data/targets.json';
 
-export type Selection = { kind: 'stall'; id: string } | { kind: 'source'; item: string } | null;
+export type Selection = { kind: 'stall'; id: string } | { kind: 'source'; item: string } | { kind: 'player'; id: string } | null;
 export interface Shot {
   id: string;
   state: unknown;

@@ -55,6 +55,7 @@ const css = (z, cx, cy) => {
 };
 const px = (x) => (x - 500) / 50, pz = (y) => (y - 340) / 50;
 const COTTON = [px(890), 0.9, pz(470)], LENA = [px(685), 0.9, pz(140)], FAB = [px(790), 0.8, pz(140)];
+const KAI = [px(700), 0.9, pz(384)], DIEGO = [px(690), 0.8, pz(522)];
 // aim(position, fov, world point, where it should land on the FINAL picture, given the zoom in force)
 const A = (pos, fov, world, zoomCam, final) => aim(pos, fov, world, css(...zoomCam)(...final));
 const cams = {
@@ -67,5 +68,9 @@ const cams = {
   FABRIC2: A([3.0, 6.0, 7.2], 44, FAB, [1.45, 1550, 420], [620, 560]),
   WIDE_A: aim([-1.2, 9.2, 11.6], 38, [0, 0.3, -0.6], [820, 560]),
   WIDE_B: aim([2.6, 8.8, 11.8], 38, [0, 0.3, -0.6], [800, 560]),
+  KAI1: A([5.6, 5.8, 6.8], 44, KAI, [1, 960, 540], [720, 560]),
+  KAI2: A([4.0, 4.6, 5.4], 40, KAI, [1.3, 1300, 480], [640, 540]),
+  SCRAP: A([2.6, 4.6, 11.4], 42, DIEGO, [1, 960, 540], [820, 600]),
+  SCRAP2: A([1.6, 3.6, 9.0], 42, DIEGO, [1.45, 1550, 500], [560, 600]),
 };
 for (const [k, v] of Object.entries(cams)) console.log(k.padEnd(8), `{ pos: ${JSON.stringify(v.pos)}, look: ${JSON.stringify(v.look)}, fov: ${v.fov} }`, '// lands at', v.check);

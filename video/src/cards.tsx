@@ -8,7 +8,7 @@ import { shot as getShot } from './native/model';
 import { townCamAt, type CamKey } from './native/town';
 
 /** The town at night behind a title card, drifting slowly, under a dark wash so the words stay easy to read. */
-const TownBackdrop: React.FC<{ from: number; scene: string; cam: CamKey[]; wash?: number }> = ({ from, scene: key, cam, wash = 0.5 }) => {
+export const TownBackdrop: React.FC<{ from: number; scene: string; cam: CamKey[]; wash?: number }> = ({ from, scene: key, cam, wash = 0.5 }) => {
   const f = useCurrentFrame();
   const s = scene(key as never);
   if (f < from - 2) return null;
@@ -20,7 +20,7 @@ const TownBackdrop: React.FC<{ from: number; scene: string; cam: CamKey[]; wash?
     </AbsoluteFill>
   );
 };
-const HOOK_CAM: CamKey[] = [
+export const TOWN_CAM: CamKey[] = [
   { t: 0, pos: [-8, 5.0, 12.5], look: [-1, 0.6, -1], fov: 40 },
   { t: 9, pos: [6, 6.2, 12.5], look: [1.5, 0.4, -1], fov: 40 },
 ];
@@ -28,92 +28,6 @@ const OUTRO_CAM: CamKey[] = [
   { t: 0, pos: [5, 6.0, 12.5], look: [1, 0.4, -1], fov: 40 },
   { t: 10, pos: [-3, 6.8, 13], look: [0, 0.4, -0.5], fov: 40 },
 ];
-
-// ---------- 1. Hook: a spreadsheet economy, then a living one ----------
-const MERCHANTS = [
-  { n: 'Mira', shop: 'Greens', c: '#e0527a', base: 91 },
-  { n: 'Lena', shop: 'Textiles', c: '#27b36a', base: 1150 },
-  { n: 'Anil', shop: 'Metals', c: '#2fa3a8', base: 206 },
-  { n: 'Ruth', shop: 'Salvage', c: '#e8873a', base: 372 },
-];
-
-export const Hook: React.FC = () => {
-  const f = useCurrentFrame();
-  const { fps } = useVideoConfig();
-  const s = scene('hook');
-  // Sentence boundaries from letter counts, so the visuals land with the voice.
-  const sentences = s.text.match(/[^.]+\./g)!.map((t) => t.trim());
-  const total = sentences.reduce((n, t) => n + t.length, 0);
-  let acc = 0;
-  const marks = sentences.map((t) => { const at = s.delay + (acc / total) * s.voiceFrames * 0.96; acc += t.length; return at; });
-  const phaseB = marks[3] - 8;
-  const out = interpolate(f, [s.frames - 18, s.frames], [1, 0], { ...clamp });
-
-  const sheet = interpolate(f, [0, 14, phaseB - 6, phaseB + 14], [0, 1, 1, 0], clamp);
-  const line = (i: number, t: string, big = false) => {
-    const a = marks[i], bEnd = i < 2 ? marks[i + 1] : phaseB;
-    const o = interpolate(f, [a, a + 8, bEnd - 8, bEnd], [0, 1, 1, 0], clamp);
-    return <div key={i} style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', opacity: o, transform: `translateY(${(1 - o) * 24}px)` }}>
-      <div style={{ font: `700 ${big ? 92 : 112}px/1.1 ${HEAD}`, color: C.ink, textAlign: 'center', maxWidth: 1500, textShadow: '0 6px 40px rgba(0,0,0,.6)' }}>{t}</div>
-    </div>;
-  };
-  const strike = interpolate(f, [marks[1] + 14, marks[1] + 30], [0, 100], clamp);
-
-  const pop = spring({ frame: f - phaseB, fps, config: { damping: 13, stiffness: 120 } });
-  return (
-    <AbsoluteFill style={{ opacity: out }}>
-      {/* the town arrives as the spreadsheet fades, with "Nims is a town..." */}
-      <TownBackdrop from={phaseB - 14} scene="hook" cam={HOOK_CAM} wash={0.52} />
-      {/* Phase A: a dead spreadsheet */}
-      <AbsoluteFill style={{ opacity: sheet * 0.55, display: 'grid', placeItems: 'center' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 190px)', gap: 0, transform: 'perspective(1800px) rotateX(18deg) scale(1.1)', border: '1px solid rgba(127,176,255,.25)' }}>
-          {Array.from({ length: 56 }, (_, i) => (
-            <div key={i} style={{ height: 74, border: '1px solid rgba(127,176,255,.18)', display: 'grid', alignItems: 'center', padding: '0 14px', font: `500 26px ${MONO}`, color: i < 8 ? C.sky : C.mute, background: i < 8 ? 'rgba(47,107,255,.15)' : 'transparent' }}>
-              {i < 8 ? ['Item', 'Price', 'Stock', 'Demand', 'Cash', 'Trades', 'Mood', 'Change'][i] : [(i % 8 === 0 ? 'Cotton' : i % 8 === 1 ? '100' : i % 8 === 2 ? '∞' : i % 8 === 3 ? 'fixed' : i % 8 === 4 ? '—' : i % 8 === 5 ? '0' : i % 8 === 6 ? '—' : '0%')]}
-            </div>
-          ))}
-        </div>
-      </AbsoluteFill>
-      {line(0, sentences[0])}
-      <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', opacity: interpolate(f, [marks[1], marks[1] + 8, marks[2] - 8, marks[2]], [0, 1, 1, 0], clamp), transform: `translateY(${(1 - interpolate(f, [marks[1], marks[1] + 8], [0, 1], clamp)) * 24}px)` }}>
-        <div style={{ font: `700 112px/1.1 ${HEAD}`, color: C.ink, position: 'relative', textShadow: '0 6px 40px rgba(0,0,0,.6)' }}>
-          {sentences[1].replace('.', '')}
-          <div style={{ position: 'absolute', left: -10, top: '54%', height: 10, width: `${strike}%`, minWidth: 0, background: '#ff5b6e', borderRadius: 6, boxShadow: '0 0 30px #ff5b6e' }} />
-        </div>
-      </div>
-      {line(2, sentences[2])}
-
-      {/* Phase B: Nims, with living merchants */}
-      <AbsoluteFill style={{ alignItems: 'center', justifyContent: 'center', opacity: interpolate(f, [phaseB, phaseB + 10], [0, 1], clamp) }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 34, transform: `scale(${0.72 + pop * 0.28})`, marginBottom: 56 }}>
-          <Mark size={205} />
-          <div style={{ font: `700 190px/1 ${HEAD}`, color: C.ink, letterSpacing: -4 }}>Nims</div>
-        </div>
-        <div style={{ display: 'flex', gap: 28 }}>
-          {MERCHANTS.map((m, i) => {
-            const t = spring({ frame: f - phaseB - 14 - i * 7, fps, config: { damping: 14, stiffness: 110 } });
-            const wob = 1 + Math.sin(f / 11 + i * 1.7) * 0.07 + Math.sin(f / 5 + i) * 0.02;
-            const price = Math.round(m.base * wob);
-            const up = Math.cos(f / 11 + i * 1.7) > 0;
-            return (
-              <div key={m.n} style={{ width: 330, padding: '22px 24px', borderRadius: 22, background: 'rgba(9,18,46,.82)', border: '1.5px solid rgba(127,176,255,.35)', opacity: t, transform: `translateY(${(1 - t) * 50}px)`, boxShadow: '0 20px 50px rgba(0,0,0,.45)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                  <div style={{ width: 54, height: 54, borderRadius: 54, background: m.c, display: 'grid', placeItems: 'center', font: `700 28px ${HEAD}`, color: '#fff' }}>{m.n[0]}</div>
-                  <div><div style={{ font: `700 28px ${BODY}`, color: C.ink }}>{m.n}'s {m.shop}</div><div style={{ font: `600 17px ${BODY}`, color: C.green, letterSpacing: 1.5 }}>● AI AGENT</div></div>
-                </div>
-                <div style={{ marginTop: 16, display: 'flex', alignItems: 'baseline', gap: 10 }}>
-                  <div style={{ font: `700 44px ${MONO}`, color: C.ink }}>{fmt(price)}</div>
-                  <div style={{ font: `600 20px ${BODY}`, color: up ? C.green : '#ff7a8a' }}>{up ? '▲' : '▼'} coins</div>
-                </div>
-                <div style={{ marginTop: 4, font: `500 18px ${BODY}`, color: C.mute }}>its own cash · its own stock</div>
-              </div>
-            );
-          })}
-        </div>
-      </AbsoluteFill>
-    </AbsoluteFill>
-  );
-};
 
 // ---------- 2. Chain: real numbers from the live contract ----------
 const Count: React.FC<{ to: number; at: number; label: string; suffix?: string; decimals?: number }> = ({ to, at, label, suffix = '', decimals = 0 }) => {

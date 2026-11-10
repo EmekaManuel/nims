@@ -1,5 +1,6 @@
 import { Composition } from 'remotion';
 import { Banner } from './Banner';
+import { Banner512 } from './Banner512';
 import { Measure } from './native/Measure';
 import { SHOTS } from './native/model';
 import { Nims } from './native/Nims';
@@ -30,5 +31,6 @@ export const Root: React.FC = () => (
     <Composition id="MeasurePlaces" component={MeasurePlaces} durationInFrames={PLACE_SHOTS.length} fps={FPS} width={1920} height={1080} />
     <Composition id="PlacesTest" component={PlacesTest} durationInFrames={300} fps={FPS} width={1920} height={1080} />
     <Composition id="Banner" component={Banner} durationInFrames={1} fps={FPS} width={1600} height={640} />
+    <Composition id="Banner512" component={Banner512} durationInFrames={1} fps={FPS} width={1600} height={512} />
   </>
 );

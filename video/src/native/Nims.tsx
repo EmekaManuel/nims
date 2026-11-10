@@ -1,6 +1,7 @@
 import { AbsoluteFill, Audio, Sequence, interpolate, staticFile, useCurrentFrame } from 'remotion';
 import { C, clamp, ease } from '../ui';
-import { Chain, Hook, Outro, Record } from '../cards';
+import { Chain, Outro, Record } from '../cards';
+import { SimsIntro } from '../intro';
 import { FPS, SCENES, TOTAL_FRAMES, type Scene } from '../timeline';
 import { Background } from './Background';
 import { centre, shot as getShot, TARGETS, type Shot } from './model';
@@ -40,6 +41,11 @@ const WIDE_A: Look = { pos: [-1.2, 9.2, 11.6], look: [1.814, 3.143, 4.236], fov:
 // The collect scene opens a little further back along the same line as EAST, so the move in is a slow dolly, not a sweep across the town.
 const EAST_START: Look = { pos: [13.47, 6.06, 12.52], look: [8.561, 0.433, 1.27], fov: 38 };
 const WIDE_B: Look = { pos: [2.6, 8.8, 11.8], look: [3.364, 3.034, 3.665], fov: 38 };
+// Kai, another signed-in player, standing in the Fabric Market plaza; and Diego's scrap stall, across town.
+const KAI1: Look = { pos: [5.6, 5.8, 6.8], look: [7.039, -0.872, -0.508], fov: 44 };
+const KAI2: Look = { pos: [4, 4.6, 5.4], look: [5.466, -2.309, -1.679], fov: 40 };
+const SCRAP: Look = { pos: [2.6, 4.6, 11.4], look: [6.48, 0.375, 3.209], fov: 42 };
+const SCRAP2: Look = { pos: [1.6, 3.6, 9], look: [6.113, -0.95, 1.323], fov: 42 };
 
 const WIDE = { x: 960, y: 540, zoom: 1 };
 const cashOf = (id: string) => (getShot(id).state as { you: { cash: number } }).you.cash;
@@ -100,6 +106,29 @@ function script(s: Scene): Script | null {
         sounds: [{ t: 2.35, name: 'ping.wav', volume: 0.5 }],
       };
     }
+    case 'online': {
+      // The camera drifts off Lena's stall to find Kai, another real signed-in player, shopping nearby; click them to see their stats.
+      const town: CamKey[] = [{ t: 0, ...FABRIC }, { t: 1.4, ...KAI1 }, { t: s.frames / FPS - 1.4, ...KAI2 }];
+      const kaiPt = at3d('reaction', town, 1.1, SPOT.kai);
+      return {
+        shots: [{ t: 0, id: 'reaction', haggle: true }, { t: 1.75, id: 'online' }],
+        town,
+        cursor: [{ t: 0, ...C0(1500, 480) }, { t: T(0.95), ...kaiPt }, { t: T(1.15), ...kaiPt, click: true }],
+        camera: [{ t: 0, x: 1550, y: 420, zoom: 1.45 }, { t: 0.3, ...WIDE }, { t: 1.6, x: 1180, y: 460, zoom: 1.22 }],
+      };
+    }
+    case 'wary': {
+      // Across town at the scrap market: two of the three merchants have already been sold to; Diego, the third, has noticed.
+      const town: CamKey[] = [{ t: 0, ...KAI2 }, { t: 1.6, ...SCRAP }, { t: 4.4, ...SCRAP2 }];
+      const diegoPt = at3d('scrap', town, 2.6, SPOT.diego);
+      const price = centre('wary', 'price:diego:iron');
+      return {
+        shots: [{ t: 0, id: 'online' }, { t: 0.6, id: 'scrap' }, { t: 2.9, id: 'wary', hover: true }],
+        town,
+        cursor: [{ t: 0, ...C0(1300, 560) }, { t: T(2.35), ...diegoPt }, { t: T(2.55), ...diegoPt, click: true }, { t: T(2.85), ...price }],
+        camera: [{ t: 0, x: 1180, y: 460, zoom: 1.22 }, { t: 0.4, ...WIDE }, { t: 3.0, x: 1560, y: 520, zoom: 1.45 }],
+      };
+    }
     case 'council': {
       const town: CamKey[] = [{ t: 0, ...FABRIC }, { t: 11.5, ...FABRIC2 }, { t: 14.9, ...WIDE_A }];
       const business = centre('reaction', 'dock:business');
@@ -128,6 +157,17 @@ function script(s: Scene): Script | null {
         sounds: [{ t: 7.25, name: 'ping.wav', volume: 0.5 }],
       };
     }
+    case 'cities': {
+      // A quick travelogue: the real harbour scene, then the real frontier scene, each its own 3D diorama.
+      const split = s.delay + s.voiceFrames * 0.42;
+      const town: CamKey[] = [{ t: 0, pos: [0, 7.6, 8.6], look: [0, 0.4, -4], fov: 40 }, { t: split / FPS, pos: [1.6, 7.2, 10.4], look: [1.2, 0.5, -1], fov: 40 }];
+      return {
+        shots: [{ t: 0, id: 'harbour' }, { t: split / FPS, id: 'frontier' }],
+        town,
+        cursor: [{ t: 0, ...C0(1860, 1020) }],
+        camera: [{ t: 0, ...WIDE }],
+      };
+    }
     case 'news': {
       const news = centre('job-done', 'dock:news');
       return {
@@ -149,22 +189,18 @@ const AppScene: React.FC<{ s: Scene }> = ({ s }) => {
   const fadeOut = interpolate(f, [s.frames - 6, s.frames], [1, 0], clamp);
 
   if (s.key === 'signin') {
-    // The real loading animation, then the real sign-in screen: the cursor points at Google, then the email is typed and sent.
+    // The real loading animation, then the real sign-in screen: the cursor points at Google and clicks it.
     const LOAD = 1.5;
-    const email = 'ada@example.com';
-    const typed = email.slice(0, Math.floor(interpolate(t, [4.4, 5.9], [0, email.length], clamp)));
     const google = centre('login', 'login:google');
-    const field = centre('login', 'login:email');
-    const send = centre('login', 'login:send');
     const camera = cameraAt([{ t: 0, ...WIDE }, { t: LOAD, ...WIDE }, { t: LOAD + 0.2, x: 960, y: 470, zoom: 1.4 }], t);
-    const cursor: CursorKey[] = [{ t: 0, x: 1300, y: 760 }, { t: 2.5, ...google }, { t: 3.9, ...google }, { t: 4.1, ...field, click: true }, { t: 6.4, ...send }, { t: 6.6, ...send, click: true }];
+    const cursor: CursorKey[] = [{ t: 0, x: 1300, y: 760 }, { t: 2.6, ...google }, { t: 2.8, ...google, click: true }];
     const loadOpacity = interpolate(t, [LOAD - 0.1, LOAD + 0.3], [1, 0], clamp);
     const loginOpacity = interpolate(t, [LOAD - 0.1, LOAD + 0.3], [0, 1], clamp);
     return (
       <AbsoluteFill style={{ opacity: fadeIn * fadeOut }}>
         {t < LOAD + 0.4 && <AbsoluteFill style={{ opacity: loadOpacity }}><LoadingScreen t={t} /></AbsoluteFill>}
         <AbsoluteFill style={{ opacity: loginOpacity }}>
-          <LoginScreen email={typed} camera={camera} />
+          <LoginScreen camera={camera} />
           <Cursor keys={cursor} camera={camera} t={t} />
         </AbsoluteFill>
         {t >= LOAD && <Chips s={s} items={['No wallet', 'No seed phrase', 'No gas']} />}
@@ -219,7 +255,7 @@ export const Nims: React.FC<{ voice: boolean }> = ({ voice }) => {
       <Background />
       {SCENES.map((s) => (
         <Sequence key={s.key} from={s.from} durationInFrames={s.frames}>
-          {s.key === 'hook' ? <Hook /> : s.key === 'chain' ? <Chain /> : s.key === 'record' ? <Record /> : s.key === 'outro' ? <Outro /> : s.kind === 'footage' ? <SimScene s={s} /> : <AppScene s={s} />}
+          {s.key === 'simsIntro' ? <SimsIntro /> : s.key === 'chain' ? <Chain /> : s.key === 'record' ? <Record /> : s.key === 'outro' ? <Outro /> : s.kind === 'footage' ? <SimScene s={s} /> : <AppScene s={s} />}
         </Sequence>
       ))}
       <Progress />
@@ -231,7 +267,7 @@ export const Nims: React.FC<{ voice: boolean }> = ({ voice }) => {
       {SCENES.filter((s) => s.clip).map((s) => (
         <Sequence key={'c' + s.key} from={s.from + s.clip!.start} durationInFrames={s.clip!.frames + 20}><Audio src={staticFile(`live/${s.clip!.name}.mp3`)} /></Sequence>
       ))}
-      {voice && SCENES.map((s) => (
+      {voice && SCENES.filter((s) => s.voiceFrames > 0).map((s) => (
         <Sequence key={'v' + s.key} from={s.from + s.delay} durationInFrames={s.voiceFrames + 20}><Audio src={staticFile(`vo/${s.key}.mp3`)} /></Sequence>
       ))}
     </AbsoluteFill>

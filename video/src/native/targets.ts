@@ -14,6 +14,7 @@ export const FINDERS: Record<string, () => HTMLElement | null> = {
   'map:lena': () => document.querySelector<HTMLElement>('.map g.stall[aria-label^="Lena"]'),
   'btn:collect': () => withText('button', (t) => t.startsWith('Collect')),
   'price:lena:cotton': () => document.querySelector<HTMLElement>('[data-demo="lena:cotton"]'),
+  'price:diego:iron': () => document.querySelector<HTMLElement>('[data-demo="diego:iron"]'),
   'check:haggle': () => document.querySelector<HTMLElement>('#haggle'),
   'btn:sell:cotton': () => {
     const row = all('tr').find((r) => /cotton/i.test(r.textContent ?? ''));

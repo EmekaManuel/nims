@@ -104,8 +104,8 @@ const cameraBox = (camera?: Camera) => {
   };
 };
 
-/** The game's real sign-in screen, with the email shown as typed so far. */
-export const LoginScreen: React.FC<{ email: string; camera?: Camera }> = ({ email, camera }) => {
+/** The game's real sign-in screen: Google, or play as a guest. */
+export const LoginScreen: React.FC<{ camera?: Camera }> = ({ camera }) => {
   const { z, tx, ty } = cameraBox(camera);
   return (
     <>

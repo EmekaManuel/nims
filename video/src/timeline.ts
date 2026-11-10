@@ -23,15 +23,18 @@ interface Def {
 }
 
 const DEFS: Def[] = [
-  { key: 'hook', kind: 'cards', chapter: '', delay: 0.5, min: 12.2 },
-  { key: 'signin', kind: 'app', chapter: 'Sign in with Google or an email', delay: 1.9, extra: 1.6 },
+  { key: 'simsIntro', kind: 'cards', chapter: '', delay: 0.5, extra: 2.4 },
+  { key: 'signin', kind: 'app', chapter: 'Sign in with Google, or play as a guest', delay: 1.9, extra: 1.6 },
   { key: 'collect', kind: 'app', chapter: 'Buy low, carry it, sell high', delay: 0.3, extra: 0.6 },
   { key: 'tooltip', kind: 'app', chapter: 'Every price explains itself', delay: 0.3, clip: 'lena-price', clipGap: 0.3 },
   { key: 'plan', kind: 'app', chapter: 'Merchants plan their own day', delay: 0.3, extra: 0.8 },
   { key: 'sale', kind: 'app', chapter: 'Instant settlement', delay: 0.3, clip: 'haggle-reaction', clipGap: 0.35 },
+  { key: 'online', kind: 'app', chapter: 'Live, with other players', delay: 0.3, extra: 1.2 },
+  { key: 'wary', kind: 'app', chapter: 'Merchants talk to each other', delay: 0.3, clip: 'diego-wary', clipGap: 0.3, extra: 0.4 },
   { key: 'council', kind: 'app', chapter: 'Players run the market', delay: 0.3, extra: 1.6 },
   { key: 'broke', kind: 'app', chapter: 'Never stuck', delay: 0.3, extra: 2.6 },
   { key: 'news', kind: 'app', chapter: 'The Nims Gazette', delay: 0.3, min: 5.2 },
+  { key: 'cities', kind: 'app', chapter: 'A world beyond the town', delay: 0.3, extra: 1.4 },
   { key: 'sim', kind: 'footage', chapter: 'A week in seconds', delay: 0.3, min: 10.5 },
   { key: 'chain', kind: 'cards', chapter: 'Settled on NEAR testnet', delay: 0.4, min: 9.6 },
   { key: 'record', kind: 'cards', chapter: 'Recorded on a DAO', delay: 0.4, min: 11.4 },

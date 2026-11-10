@@ -6,7 +6,7 @@
 
 **A market town where every trader is an AI agent with its own money, its own stock and its own pricing.**
 
-[Play it live](https://nims-app.up.railway.app) · [Demo video (143 s)](docs/nims-demo.mp4) · [New places (47 s)](docs/nims-new-places.mp4) · [Judge walk-through](docs/DEMO.md) · Contract: `oja-items.testnet`
+[Play it live](https://nims-app.up.railway.app) · [Demo video (3:09)](docs/nims-demo.mp4) · [New places (47 s)](docs/nims-new-places.mp4) · [Judge walk-through](docs/DEMO.md) · Contract: `oja-items.testnet`
 
 ![NEAR testnet](https://img.shields.io/badge/NEAR-testnet-00ec97) ![NEP-245](https://img.shields.io/badge/items-NEP--245-blue) ![tests](https://img.shields.io/badge/tests-581%20passing-brightgreen) ![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)
 
@@ -36,6 +36,8 @@ Game economies are usually scripts: prices follow a table, NPCs trade nothing, a
 - **Delivery orders.** State the goods and the lowest price you will take; the town's carriers (a solver run by the game) sell for you when the price allows.
 
 The chain is invisible: continue with Google or play as a guest in one press, no wallet, no seed phrase, no gas prompt.
+
+**Why this matters beyond one game.** The hard part of giving an AI agent money isn't the AI, it's trusting it with the money. Nims' answer is structural, not a prompt: the planner maps every merchant decision to a small, fixed step (stock target ×1.3 or ×0.75, margin ±3 points, kept within 5–25%; see [`sim/plan.ts`](sim/plan.ts)), so a model can steer a real business, holding a real NEAR account and real stock, without ever being able to move money or break the economy outside what the code allows. The wariness mechanic (merchants independently noticing a player shopping them off each other) and the live multiplayer presence (every signed-in player visible and clickable, no backend of their own to build) are both the same idea applied twice: behaviour that emerges from shared, inspectable state instead of being scripted per-feature. That shape, an agent that reasons freely but acts inside a narrow, auditable contract, fits anywhere money and autonomy need to meet, not just a town of 8 NPCs.
 
 <table>
 <tr>
@@ -310,6 +312,8 @@ With credentials in `.env`, `npm run server` streams the running game to the cha
 One container serves the pages and the API ([`Dockerfile`](Dockerfile)). Steps for Railway and Render, and what to set, are in [docs/DEPLOY.md](docs/DEPLOY.md).
 
 ## What's next
+
+**Staying up.** The hosted demo stays live at least through 2026-11-25, past judging, so there's always a working link to try, not just a video. The project keeps being built on `main` after the hackathon ends. The items below are the next concrete steps, not a wishlist:
 
 - **Native NEAR Intents:** route delivery orders through the Intents solver network instead of the in-game carriers.
 - **OutLayer for the merchants:** custody the merchants' own accounts the way the Town Clerk is, which means reworking how settlement epochs reuse accounts.

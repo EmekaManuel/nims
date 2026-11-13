@@ -8,3 +8,4 @@ web/dist
 *.log
 video/capture/.session.json
 video/public/clips/
+video/public/music/

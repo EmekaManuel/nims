@@ -330,6 +330,19 @@ describe('ChainSync', () => {
     expect(logs.some((l) => l.includes('Too many restarts'))).toBe(true);
   });
 
+  it('finishes minting the same epoch after a transient error while minting, instead of settling onto an unminted one', async () => {
+    const { game, chain, sync } = setup();
+    play(game, 6);
+    // A just-created account's key has not reached the node yet: the first opening mint is refused, then it clears.
+    chain.faults.push({ op: 'mint', nth: 1, error: new Error('Access key ed25519:abc does not exist at block height 277520295') });
+    expect(await sync.step()).toBe('retry');
+    for (let i = 0; i < 12; i++) await sync.step();
+    expect(sync.status().epoch).toBe(1); // no fresh epoch, no reset spiral
+    expect(sync.status().paused).toBe(false);
+    expect(sync.status().error).toBeNull();
+    expect((await sync.verify()).mismatches).toEqual([]);
+  });
+
   it('starts a new epoch rather than guess if the process died while minting opening balances', async () => {
     const a = setup();
     play(a.game, 6);

@@ -135,6 +135,8 @@ export class ChainSync {
   private wallets: Wallets | null = null;
   private totalCalls = 0;
   private resets: number[] = [];
+  /** The opening balances of the epoch being minted, and how many chunks of them have landed. Kept in memory only: after a crash the epoch is abandoned (see load()). */
+  private opening: { mints: MintCall[]; done: number } | null = null;
   private lastSettledAt: Date | null = null;
   private lastError = '';
   /** A plain description of the call in flight, kept so a rejection can say what it was. */
@@ -260,20 +262,34 @@ export class ChainSync {
       this.wallets = this.o.walletsFor(nsAccount);
       this.save();
       this.log(`Chain: epoch ${epoch} (${nsAccount}). Minting ${mints.length} opening balances.`);
-      for (let i = 0; i < mints.length; i += MINT_CHUNK) {
-        const seq = this.state.mintSeq + 1;
-        await this.o.ops.batchMint(mints.slice(i, i + MINT_CHUNK), seq);
-        this.totalCalls++;
-        this.state.mintSeq = seq;
-        this.save();
-      }
-      this.state.stage = 'live';
-      this.save();
-      this.o.game.markSettled(cursor);
+      this.opening = { mints, done: 0 };
+      await this.finishGenesis();
       this.lastError = '';
       return;
     }
     throw new Error('Could not find a free namespace');
+  }
+
+  /**
+   * Mint the rest of the opening balances, then go live. Safe to call again after a failure: each chunk keeps its sequence number
+   * (the contract ignores one it already applied), and a chunk that landed is not sent again.
+   */
+  private async finishGenesis(): Promise<void> {
+    const st = this.state!;
+    const o = this.opening!;
+    while (o.done * MINT_CHUNK < o.mints.length) {
+      const seq = st.mintSeq + 1;
+      await this.o.ops.batchMint(o.mints.slice(o.done * MINT_CHUNK, (o.done + 1) * MINT_CHUNK), seq);
+      this.totalCalls++;
+      st.mintSeq = seq;
+      o.done++;
+      this.save();
+    }
+    st.stage = 'live';
+    this.save();
+    this.o.game.markSettled(st.cursor);
+    this.opening = null;
+    this.lastError = '';
   }
 
   // ---- settling ------------------------------------------------------------------------------
@@ -302,6 +318,12 @@ export class ChainSync {
     if (this.paused) return 'paused';
     try {
       if (!this.state) { await this.startEpoch(); return this.paused ? 'paused' : 'reset'; }
+      if (this.state.stage === 'genesis') {
+        // A transient error interrupted the opening mints. Carry on with this same epoch: settling onto balances that were never minted would be rejected.
+        if (!this.opening) { this.state = null; rmSync(this.o.stateFile, { force: true }); return 'reset'; }
+        await this.finishGenesis();
+        return 'settled';
+      }
       const g = this.o.game;
       const st = this.state;
       const end = Math.min(g.ledgerEnd(), this.o.durableEnd?.() ?? Infinity);

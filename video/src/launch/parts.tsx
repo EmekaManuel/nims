@@ -132,13 +132,15 @@ export const StatCounter: React.FC<{ value: number; label: string; at: number; f
 
 /** The brand background: the game's navy on a quiet grid. */
 export const GridBackground: React.FC = () => (
-  <AbsoluteFill style={{ background: C.bg }}>
-    <AbsoluteFill style={{ opacity: 0.07, backgroundImage: `linear-gradient(${C.text} 1px, transparent 1px), linear-gradient(90deg, ${C.text} 1px, transparent 1px)`, backgroundSize: `${sp(6)}px ${sp(6)}px` }} />
+  <AbsoluteFill style={{ background: C.bgGradient }}>
+    <AbsoluteFill style={{ opacity: 0.14, backgroundImage: `linear-gradient(${C.text} 1px, transparent 1px), linear-gradient(90deg, ${C.text} 1px, transparent 1px)`, backgroundSize: `${sp(6)}px ${sp(6)}px` }} />
   </AbsoluteFill>
 );
 
 /** A sequence of short shots, hard-cut. Each is real footage with a label saying what it is. */
 export interface Shot { src: string; startSec: number; dur: number; hold?: number; keys?: { t: number; rect: Rect }[]; tag: { kind: 'LIVE' | 'SIMULATED' | 'CHAIN'; text: string } }
+/** Open on the whole screen, then push in on the thing that matters (only for shots long enough to carry both moves). */
+const wideThenIn = (s: Shot) => (s.keys && s.dur >= 2 ? [{ t: 0, rect: FULL }, ...s.keys.map((k) => ({ t: k.t + 0.8, rect: k.rect }))] : s.keys);
 export const Montage: React.FC<{ shots: Shot[]; at?: number }> = ({ shots, at = 0 }) => {
   let cursor = at * FPS;
   return (
@@ -147,7 +149,7 @@ export const Montage: React.FC<{ shots: Shot[]; at?: number }> = ({ shots, at = 
         const from = Math.round(cursor); const len = Math.round(s.dur * FPS); cursor += len;
         return (
           <Sequence key={i} from={from} durationInFrames={len} layout="none">
-            <AbsoluteFill><Footage src={s.src} startSec={s.startSec} keys={s.keys} holdAtSec={s.hold} /><Tag kind={s.tag.kind} text={s.tag.text} at={0.05} /></AbsoluteFill>
+            <AbsoluteFill><Footage src={s.src} startSec={s.startSec} keys={wideThenIn(s)} holdAtSec={s.hold} /><Tag kind={s.tag.kind} text={s.tag.text} at={0.05} /></AbsoluteFill>
           </Sequence>
         );
       })}

@@ -20,7 +20,7 @@ const B1: React.FC = () => {
   const b = beat(1);
   return (
     <AbsoluteFill>
-      <Footage src="clips/take1.mp4" startSec={29.6} keys={[{ t: 0, rect: rect16(950, 60, 960) }]} />
+      <Footage src="clips/take1.mp4" startSec={29.6} keys={[{ t: 0, rect: FULL }, { t: 1.0, rect: rect16(950, 60, 960) }]} />
       <div style={{ position: 'absolute', left: GRID.margin, top: GRID.margin + sp(7), padding: `${sp(1.5)}px ${sp(2.5)}px`, borderRadius: RADIUS, background: C.terminal, border: `${STROKE}px solid ${C.line}`, fontFamily: FONT.mono, fontSize: T.small, color: C.text, ...useEnter(4.4) }}>
         <div style={{ color: C.gold, fontWeight: WEIGHT.bold }}>RUTH · iron buy price {sale.ruthIronBuyPrice[0]} → {sale.ruthIronBuyPrice[1]}</div>
         <div style={{ color: C.muted }}>my cash {fmt(sale.youCash[0])} → {fmt(sale.youCash[1])}</div>
@@ -47,7 +47,7 @@ const B2: React.FC = () => {
 // ---- beat 3: meet Nims, no wallet ------------------------------------------------------------------------------
 const B3: React.FC = () => (
   <AbsoluteFill>
-    <Footage src="clips/login.mp4" startSec={2.0} keys={[{ t: 0, rect: rect16(560, 250, 800) }, { t: 4.6, rect: FULL }]} />
+    <Footage src="clips/login.mp4" startSec={2.0} keys={[{ t: 0, rect: FULL }, { t: 1.0, rect: rect16(560, 250, 800) }, { t: 4.6, rect: FULL }]} />
     <Captions beat={beat(3)} />
   </AbsoluteFill>
 );
@@ -57,12 +57,12 @@ const B4: React.FC = () => {
   const b = beat(4);
   const left: Rect = { x: GRID.margin, y: GRID.margin, w: 1056, h: 792 };
   const right: Rect = { x: GRID.margin + 1056 + GRID.gutter, y: GRID.margin, w: W - 2 * GRID.margin - 1056 - GRID.gutter, h: 792 };
-  const rp = rectAspect(1196, 90, 704, 1056 / 792), rplan = rectAspect(1380, 150, 528, 1056 / 792);
+  const wide = rectAspect(480, 0, 1440, 1056 / 792), rp = rectAspect(1196, 90, 704, 1056 / 792), rplan = rectAspect(1380, 150, 528, 1056 / 792);
   const tx = sale.chain!;
   return (
     <AbsoluteFill>
       <GridBackground />
-      <Footage src="clips/take1.mp4" startSec={32.0} box={left} radius={RADIUS} framed holdAtSec={6.3} keys={[{ t: 0, rect: rp }, { t: b.sentences[1].start + 0.6, rect: rplan }, { t: b.sentences[3].start, rect: rp }]} />
+      <Footage src="clips/take1.mp4" startSec={32.0} box={left} radius={RADIUS} framed holdAtSec={6.3} keys={[{ t: 0, rect: wide }, { t: 1.2, rect: rp }, { t: b.sentences[1].start + 0.6, rect: rplan }, { t: b.sentences[3].start, rect: rp }]} />
       <div style={{ position: 'absolute', left: left.x, top: left.y - sp(4), fontFamily: FONT.mono, fontSize: T.small, fontWeight: WEIGHT.bold, color: C.muted, letterSpacing: 2 }}>WHAT THE PLAYER SEES</div>
       <div style={{ position: 'absolute', left: left.x, width: left.w, top: left.y - sp(4), textAlign: 'right', fontFamily: FONT.mono, fontSize: T.small, fontWeight: WEIGHT.bold, color: C.gold, ...useEnter(6.3) }}>held on the result</div>
       <TruthPanel box={right} rows={[

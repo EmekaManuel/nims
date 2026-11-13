@@ -15,9 +15,10 @@ export const sp = (n: number) => n * 8;
 
 /** Colour: neutrals, plus two accents (blue and gold). */
 export const C = {
-  bg: '#0b1636', panel: '#101e45', terminal: '#060d24', line: 'rgba(255,255,255,0.16)',
-  text: '#ffffff', muted: '#a9bff0',
-  blue: '#2a6fdb', gold: '#ffc21a',
+  // Nims blue: the mascot's body (#3b9dff) and its outline (#1f6fd6). The deeper one sits where the text is, for contrast.
+  bg: '#1f6fd6', bgGradient: 'linear-gradient(115deg, #1f6fd6 0%, #2a7fe8 50%, #3b9dff 100%)', panel: '#1a5fc0', terminal: '#06122e', line: 'rgba(255,255,255,0.24)',
+  text: '#ffffff', muted: '#eaf3ff',
+  blue: '#3b9dff', gold: '#ffc21a',
   scrim: 'rgba(6,13,36,0.82)',
 } as const;
 

@@ -20,7 +20,7 @@ const B1: React.FC = () => {
   const b = beat(1);
   return (
     <AbsoluteFill>
-      <Footage src="clips/take1.mp4" startSec={29.6} keys={[{ t: 0, rect: FULL }, { t: 3.2, rect: rect16(950, 60, 960) }]} />
+      <Footage src="clips/take1.mp4" startSec={29.6} keys={[{ t: 0, rect: rect16(950, 60, 960) }]} />
       <div style={{ position: 'absolute', left: GRID.margin, top: GRID.margin + sp(7), padding: `${sp(1.5)}px ${sp(2.5)}px`, borderRadius: RADIUS, background: C.terminal, border: `${STROKE}px solid ${C.line}`, fontFamily: FONT.mono, fontSize: T.small, color: C.text, ...useEnter(4.4) }}>
         <div style={{ color: C.gold, fontWeight: WEIGHT.bold }}>RUTH · iron buy price {sale.ruthIronBuyPrice[0]} → {sale.ruthIronBuyPrice[1]}</div>
         <div style={{ color: C.muted }}>my cash {fmt(sale.youCash[0])} → {fmt(sale.youCash[1])}</div>
@@ -47,7 +47,7 @@ const B2: React.FC = () => {
 // ---- beat 3: meet Nims, no wallet ------------------------------------------------------------------------------
 const B3: React.FC = () => (
   <AbsoluteFill>
-    <Footage src="clips/login.mp4" startSec={2.0} keys={[{ t: 0, rect: rect16(480, 80, 960) }, { t: 4.6, rect: FULL }]} />
+    <Footage src="clips/login.mp4" startSec={2.0} keys={[{ t: 0, rect: rect16(560, 250, 800) }, { t: 4.6, rect: FULL }]} />
     <Captions beat={beat(3)} />
   </AbsoluteFill>
 );
@@ -64,7 +64,7 @@ const B4: React.FC = () => {
       <GridBackground />
       <Footage src="clips/take1.mp4" startSec={32.0} box={left} radius={RADIUS} framed holdAtSec={6.3} keys={[{ t: 0, rect: rp }, { t: b.sentences[1].start + 0.6, rect: rplan }, { t: b.sentences[3].start, rect: rp }]} />
       <div style={{ position: 'absolute', left: left.x, top: left.y - sp(4), fontFamily: FONT.mono, fontSize: T.small, fontWeight: WEIGHT.bold, color: C.muted, letterSpacing: 2 }}>WHAT THE PLAYER SEES</div>
-      <div style={{ position: 'absolute', left: left.x + sp(2), bottom: H - (left.y + left.h) + sp(2), padding: `${sp(0.75)}px ${sp(1.5)}px`, borderRadius: RADIUS, background: C.scrim, fontFamily: FONT.mono, fontSize: T.small, fontWeight: WEIGHT.bold, color: C.gold, ...useEnter(6.3) }}>LIVE · held on the result while the chain catches up</div>
+      <div style={{ position: 'absolute', left: left.x, width: left.w, top: left.y - sp(4), textAlign: 'right', fontFamily: FONT.mono, fontSize: T.small, fontWeight: WEIGHT.bold, color: C.gold, ...useEnter(6.3) }}>held on the result</div>
       <TruthPanel box={right} rows={[
         { at: b.sentences[1].start, title: "RUTH · TODAY'S PLAN", lines: [{ k: 'iron  ', v: `${plan.stock.iron}  → target ${STEP.stockMult[plan.stock.iron]}`, hi: true }, { k: 'margin', v: `${plan.margin}  → ${STEP.margin[plan.margin]} (kept 5–25%)`, hi: true }, { v: `"${clip(plan.reason, 84)}"` }] },
         { at: 1.9, title: 'THE SALE', lines: [{ k: 'my cash', v: `${fmt(sale.youCash[0])} → ${fmt(sale.youCash[1])}` }, { k: 'Ruth pays for iron', v: `${sale.ruthIronBuyPrice[0]} → ${sale.ruthIronBuyPrice[1]}` }] },
@@ -157,12 +157,12 @@ const B8: React.FC = () => {
       <div style={{ position: 'absolute', left: col(4, 0).x, top: 260, width: col(4, 0).w }}><StatCounter value={p.playersExcludingCaptureGuests} label="people have played" at={0.3} foot={`excludes ${p.captureGuests} capture accounts`} /></div>
       <div style={{ position: 'absolute', left: col(4, 4).x, top: 260, width: col(4, 4).w }}><StatCounter value={p.statsAtRead.councilVotesPassed} label="rules voted in" at={0.6} /></div>
       <div style={{ position: 'absolute', left: col(4, 8).x, top: 260, width: col(4, 8).w }}><StatCounter value={Number(p.dao.proposals)} label="DAO proposals recorded" at={0.9} /></div>
-      <div style={{ position: 'absolute', left: GRID.margin, right: GRID.margin, top: 600, fontFamily: FONT.mono, fontSize: T.small, color: C.text, lineHeight: 1.6, ...useEnter(1.6) }}>
+      <div style={{ position: 'absolute', left: GRID.margin, right: GRID.margin, top: 600, fontFamily: FONT.mono, fontSize: T.body, color: C.text, lineHeight: 1.6, ...useEnter(1.6) }}>
         <div><span style={{ color: C.gold, fontWeight: WEIGHT.bold }}>oja-items.testnet</span> · NEP-245 goods and coins</div>
         <div><span style={{ color: C.gold, fontWeight: WEIGHT.bold }}>nims-council.sputnikv2.testnet</span> · the council record</div>
-        <div style={{ color: C.muted }}>settling now · last settled {at(p.chain.lastSettledAt)}</div>
+        <div style={{ color: C.text }}>settling now · last settled {at(p.chain.lastSettledAt)}</div>
       </div>
-      <div style={{ position: 'absolute', left: GRID.margin, bottom: GRID.margin + sp(12), fontFamily: FONT.mono, fontSize: T.small, color: C.muted, ...useEnter(2.0) }}>Read from /stats and /chain/status on {at(demo.readAt)}</div>
+      <div style={{ position: 'absolute', left: GRID.margin, bottom: GRID.margin + sp(12), fontFamily: FONT.mono, fontSize: T.small, color: C.text, ...useEnter(2.0) }}>Read from /stats and /chain/status on {at(demo.readAt)}</div>
       <Captions beat={beat(8)} />
     </AbsoluteFill>
   );
@@ -180,7 +180,7 @@ const B9: React.FC = () => (
         <div><span style={{ color: C.muted }}>code </span><span style={{ color: C.gold, fontWeight: WEIGHT.bold }}>github.com/EmekaManuel/nims</span></div>
       </div>
     </div>
-    <div style={{ position: 'absolute', left: GRID.margin, bottom: GRID.margin, fontFamily: FONT.mono, fontSize: T.small, color: C.muted, ...useEnter(1.4) }}>Built at NEAR HACKATHON · @NEARProtocol · #NEARHackathon · testnet only</div>
+    <div style={{ position: 'absolute', left: GRID.margin, bottom: GRID.margin, fontFamily: FONT.mono, fontSize: T.body, color: C.text, ...useEnter(1.4) }}>Built at NEAR HACKATHON · @NEARProtocol · #NEARHackathon · testnet only</div>
   </AbsoluteFill>
 );
 

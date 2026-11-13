@@ -58,7 +58,12 @@ export const Captions: React.FC<{ beat: Beat; hidden?: boolean }> = ({ beat, hid
   const t = useCurrentFrame() / FPS;
   const words = beat.sentences.flatMap((s: Sent) => s.words.map((w) => ({ text: w.text, start: s.start + w.start, end: s.start + w.end })));
   const phrases: typeof words[] = []; let cur: typeof words = [];
-  words.forEach((w, i) => { cur.push(w); const stop = /[.,:;?]$/.test(w.text); if (cur.length >= CAPTION.maxWords || (stop && cur.length >= 3) || i === words.length - 1) { phrases.push(cur); cur = []; } });
+  const JOIN = /^(and|or|as|so|but|to|with|in|on|of|by|that|which)$/i; // start a new caption before these, never in the middle of a phrase
+  words.forEach((w, i) => {
+    cur.push(w); const next = words[i + 1];
+    const stop = /[.,:;?]$/.test(w.text);
+    if (!next || cur.length >= CAPTION.maxWords || (stop && cur.length >= 3) || (cur.length >= 5 && JOIN.test(next.text.replace(/[^a-z]/gi, '')))) { phrases.push(cur); cur = []; }
+  });
   const live = phrases.find((p) => t >= p[0].start - 0.08 && t <= p[p.length - 1].end + 0.35);
   if (hidden || !live) return null;
   const p = interpolate(t, [live[0].start - 0.08, live[0].start - 0.08 + MS.base / 1000], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: EASE });
@@ -102,7 +107,7 @@ export const CodeReveal: React.FC<{ file: string; lines: CodeLine[]; lit: (l: Co
       const on = lit(l); const res = results.find((r) => r.match(l));
       return (
         <div key={l.n}>
-          <div style={{ display: 'flex', gap: sp(2), alignItems: 'baseline', whiteSpace: 'pre', lineHeight: 1.5, ...useEnter(startSec + i * perLine), background: on ? 'rgba(255,194,26,0.14)' : undefined, borderLeft: `${sp(0.5)}px solid ${on ? C.gold : 'transparent'}`, paddingLeft: sp(1) }}>
+          <div style={{ display: 'flex', gap: sp(2), alignItems: 'baseline', whiteSpace: 'pre', lineHeight: 1.5, letterSpacing: -0.7, ...useEnter(startSec + i * perLine), background: on ? 'rgba(255,194,26,0.14)' : undefined, borderLeft: `${sp(0.5)}px solid ${on ? C.gold : 'transparent'}`, paddingLeft: sp(1) }}>
             <span style={{ color: C.muted, width: sp(6), textAlign: 'right' }}>{l.n}</span>
             <span style={{ color: on ? C.text : C.muted, fontWeight: on ? WEIGHT.bold : WEIGHT.regular }}>{l.text.trim()}</span>
           </div>

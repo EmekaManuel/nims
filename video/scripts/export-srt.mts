@@ -9,7 +9,8 @@ for (const b of BEATS) {
   const words = b.sentences.flatMap((s) => s.words.map((w) => ({ text: w.text, start: s.start + w.start, end: s.start + w.end })));
   let cur: typeof words = [];
   const flush = () => { if (!cur.length) return; const a = b.from / FPS + cur[0].start - 0.08, z = b.from / FPS + cur[cur.length - 1].end + 0.35; out += `${n++}\n${ts(Math.max(0, a))} --> ${ts(z)}\n${cur.map((w) => w.text).join(' ')}\n\n`; cur = []; };
-  words.forEach((w, i) => { cur.push(w); if (cur.length >= 8 || (/[.,:;?]$/.test(w.text) && cur.length >= 3) || i === words.length - 1) flush(); });
+  const JOIN = /^(and|or|as|so|but|to|with|in|on|of|by|that|which)$/i;
+  words.forEach((w, i) => { cur.push(w); const next = words[i + 1]; if (!next || cur.length >= 8 || (/[.,:;?]$/.test(w.text) && cur.length >= 3) || (cur.length >= 5 && JOIN.test(next.text.replace(/[^a-z]/gi, '')))) flush(); });
 }
 writeFileSync(new URL('../out/nims-demo-captions.srt', import.meta.url), out);
 console.log(`${n - 1} caption cues`);

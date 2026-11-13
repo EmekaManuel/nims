@@ -232,6 +232,7 @@ describe('public stats', () => {
     expect(s.last24h.players).toBeGreaterThanOrEqual(1);
     expect(s.shops.total).toBe(11);
     expect(s.leaders[0].name).toBe('A.'); // a one-word username may hold a surname: initial only
+    expect(s.leaders24h[0].name).toBe('A.'); // they just played, so they are on the last-24-hours table too
     expect(body).not.toMatch(/@|example\.com/);
     expect(body).not.toMatch(WALLET_WORDS);
   });

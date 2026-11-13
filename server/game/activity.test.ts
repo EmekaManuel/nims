@@ -10,6 +10,7 @@ describe('activity counts (real time)', () => {
     const a = new Activity(() => t);
     a.trade('p1'); a.trade('p1'); a.seen('p2'); a.vote('p2');
     expect(a.summary().last24h).toEqual({ players: 2, trades: 2, votes: 1 });
+    expect([...a.recentPlayers()].sort()).toEqual(['p1', 'p2']);
     t += 25 * HOUR;
     a.seen('p3');
     expect(a.summary().last24h).toEqual({ players: 1, trades: 0, votes: 0 });

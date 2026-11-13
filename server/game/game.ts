@@ -1387,17 +1387,16 @@ export class Game {
   publicStats() {
     const open = this.w.merchants.filter((m) => !m.owner && m.state !== 'closed').length;
     // Only people who have done something: a trade, a share, a stall. Shown by the same first name other players already see.
-    const leaders = [...this.humans.values()]
-      .map((p) => {
-        const shares = this.w.merchants.reduce((n, m) => n + (m.shares[p.id] ?? 0), 0);
-        const stall = this.w.merchants.some((m) => m.owner === p.id);
-        const traded = Object.values(p.reputation).some((r) => (r ?? 0) > 0);
-        return { name: this.names.get(p.id) ?? 'A trader', avatar: this.avatars.get(p.id) ?? null, worth: this.netWorth(p), shares, stall, vehicle: p.vehicle, active: traded || shares > 0 || stall };
-      })
-      .filter((x) => x.active)
-      .sort((a, b) => b.worth - a.worth)
-      .slice(0, 10)
-      .map(({ active: _, ...x }) => x);
+    const rows = [...this.humans.values()].map((p) => {
+      const shares = this.w.merchants.reduce((n, m) => n + (m.shares[p.id] ?? 0), 0);
+      const stall = this.w.merchants.some((m) => m.owner === p.id);
+      const traded = Object.values(p.reputation).some((r) => (r ?? 0) > 0);
+      return { id: p.id, name: this.names.get(p.id) ?? 'A trader', avatar: this.avatars.get(p.id) ?? null, worth: this.netWorth(p), shares, stall, vehicle: p.vehicle, active: traded || shares > 0 || stall };
+    });
+    const top = (list: typeof rows) => list.filter((x) => x.active).sort((a, b) => b.worth - a.worth).slice(0, 10).map(({ active: _a, id: _i, ...x }) => x);
+    const recent = this.activity.recentPlayers();
+    const leaders = top(rows);
+    const leaders24h = top(rows.filter((x) => recent.has(x.id))); // the same table, for the people who played in the last 24 real hours
     const decisions = this.w.events
       .filter((e) => e.type === 'council' && e.decision)
       .slice(-5)
@@ -1412,6 +1411,7 @@ export class Game {
       day: Math.floor(this.w.hour / 24) + 1,
       shops: { open, total: this.w.merchants.filter((m) => !m.owner).length, playerStalls: this.w.merchants.filter((m) => m.owner).length },
       leaders,
+      leaders24h,
       decisions,
     };
   }

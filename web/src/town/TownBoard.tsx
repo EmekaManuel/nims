@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api, coins, type TownStats } from '../api';
+import { api, coins, type Leader, type TownStats } from '../api';
 import { Mascot } from '../art/Mascot';
 import { VehicleIcon } from '../art/icons';
 import { rankOf } from '../lib/rank';
@@ -28,6 +28,7 @@ function useTownStats(): TownStats | null | false {
  */
 export function TownBoard() {
   const s = useTownStats();
+  const [range, setRange] = useState<'all' | 'day'>('all');
   return (
     <main className="town" aria-busy={s === null}>
       <header className="town-head">
@@ -61,32 +62,17 @@ export function TownBoard() {
 
           <div className="town-cols">
             <section className="panel town-leaders" aria-labelledby="leaders-h">
-              <h2 id="leaders-h">Richest traders</h2>
-              <p className="muted small">By net worth: cash, goods carried, vehicle, shares and stall.</p>
-              {s.leaders.length === 0 ? (
-                <p className="town-empty">No one has traded yet. <a href="/">Be the first on the board.</a></p>
-              ) : (
-                <ol className="leaders">
-                  {s.leaders.map((l, i) => (
-                    <li key={i} className={i < 3 ? `top top-${i + 1}` : undefined}>
-                      <span className="place" aria-label={`Number ${i + 1}`}>{i + 1}</span>
-                      <span className="who">
-                        <AvatarFigure a={l.avatar ?? DEFAULT_AVATAR} size={36} />
-                        <span className="who-t">
-                          <b>{l.name}</b>
-                          <span className="muted small">{rankOf(l.worth).title}</span>
-                        </span>
-                      </span>
-                      <span className="holds" aria-label="What they hold">
-                        <VehicleIcon vehicle={l.vehicle} size={26} />
-                        {l.shares > 0 && <span className="chip">{n(l.shares)} {l.shares === 1 ? 'share' : 'shares'}</span>}
-                        {l.stall && <span className="chip">own stall</span>}
-                      </span>
-                      <span className="worth">{coins(l.worth)}</span>
-                    </li>
-                  ))}
-                </ol>
-              )}
+              <div className="leaders-head">
+                <h2 id="leaders-h">Richest traders</h2>
+                <div className="seg" role="group" aria-label="Which players">
+                  <button type="button" aria-pressed={range === 'all'} onClick={() => setRange('all')}>All time</button>
+                  <button type="button" aria-pressed={range === 'day'} onClick={() => setRange('day')}>Last 24 hours</button>
+                </div>
+              </div>
+              <p className="muted small">
+                {range === 'all' ? 'Everyone who has played, by net worth: cash, goods carried, vehicle, shares and stall.' : 'Only people who played in the last 24 real hours, by net worth.'}
+              </p>
+              <Leaders list={range === 'all' ? s.leaders : (s.leaders24h ?? [])} empty={range === 'all' ? 'No one has traded yet.' : 'No one has played in the last 24 hours.'} />
             </section>
 
             <section className="panel town-council" aria-labelledby="council-h">
@@ -126,5 +112,31 @@ function Tile({ value, label }: { value: string; label: string }) {
       <b>{value}</b>
       <span>{label}</span>
     </div>
+  );
+}
+
+function Leaders({ list, empty }: { list: Leader[]; empty: string }) {
+  if (list.length === 0) return <p className="town-empty">{empty} <a href="/">Be the first on the board.</a></p>;
+  return (
+    <ol className="leaders">
+      {list.map((l, i) => (
+        <li key={i} className={i < 3 ? `top top-${i + 1}` : undefined}>
+          <span className="place" aria-label={`Number ${i + 1}`}>{i + 1}</span>
+          <span className="who">
+            <AvatarFigure a={l.avatar ?? DEFAULT_AVATAR} size={36} />
+            <span className="who-t">
+              <b>{l.name}</b>
+              <span className="muted small">{rankOf(l.worth).title}</span>
+            </span>
+          </span>
+          <span className="holds" aria-label="What they hold">
+            <VehicleIcon vehicle={l.vehicle} size={26} />
+            {l.shares > 0 && <span className="chip">{n(l.shares)} {l.shares === 1 ? 'share' : 'shares'}</span>}
+            {l.stall && <span className="chip">own stall</span>}
+          </span>
+          <span className="worth">{coins(l.worth)}</span>
+        </li>
+      ))}
+    </ol>
   );
 }

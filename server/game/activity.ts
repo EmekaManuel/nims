@@ -72,6 +72,12 @@ export class Activity {
     if (passed) this.totals.passed++;
   }
 
+  /** Opaque ids of everyone seen in the last 24 real hours. */
+  recentPlayers(): Set<string> {
+    const hour = Math.floor(this.now() / HOUR);
+    return new Set(this.buckets.filter((b) => b.hour > hour - KEEP_HOURS).flatMap((b) => b.players));
+  }
+
   /** The last 24 real hours, and the totals since counting began. */
   summary() {
     const hour = Math.floor(this.now() / HOUR);

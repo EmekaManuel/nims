@@ -224,6 +224,7 @@ export interface VoiceReply { text: string | null; audio: string | null }
 export interface ChainProof { account: string; explorer: string; behind: number }
 
 /** Public numbers about the town (GET /stats). Activity is in real time; `day` is the town's own day count. */
+export interface Leader { name: string; avatar?: Avatar | null; worth: number; shares: number; stall: boolean; vehicle: 'wheelbarrow' | 'pickup' | 'van' }
 export interface TownStats {
   day: number;
   players: number;
@@ -231,7 +232,9 @@ export interface TownStats {
   total: { trades: number; votes: number; decisions: number; passed: number };
   shops: { open: number; total: number; playerStalls: number };
   /** The ten richest people who have played, by the first name others see in the game. */
-  leaders: { name: string; avatar?: Avatar | null; worth: number; shares: number; stall: boolean; vehicle: 'wheelbarrow' | 'pickup' | 'van' }[];
+  leaders: Leader[];
+  /** The same table for the people who played in the last 24 real hours. Absent from a server that predates it. */
+  leaders24h?: Leader[];
   /** The latest town-council decisions, newest first. */
   decisions: { day: number; market: string; lever: string; to: string; passed: boolean; yes: number; no: number; daoId: number | null }[];
 }

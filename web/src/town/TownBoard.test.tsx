@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { api, type TownStats } from '../api';
 import { TownBoard } from './TownBoard';
 
@@ -32,6 +32,27 @@ describe('town board', () => {
     const council = screen.getByRole('region', { name: /Town council decisions/ });
     expect(council.textContent).toMatch(/Passed.*Produce Market: set stall rent to low.*day 1,478.*30 for, 24 against.*proposal #4/);
     expect(screen.getByText(/day 1,479/)).toBeTruthy();
+  });
+
+  it('switches the table between everyone who has played and the last 24 hours', async () => {
+    vi.spyOn(api, 'stats').mockResolvedValue({ ...full, leaders24h: [{ name: 'Bo', worth: 9_800, shares: 0, stall: false, vehicle: 'pickup' }] });
+    render(<TownBoard />);
+    const region = await screen.findByRole('region', { name: /Richest traders/ });
+    expect(within(region).getAllByRole('listitem')).toHaveLength(2);
+    expect(within(region).getByRole('button', { name: 'All time' }).getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(within(region).getByRole('button', { name: 'Last 24 hours' }));
+    const rows = within(region).getAllByRole('listitem');
+    expect(rows).toHaveLength(1);
+    expect(rows[0].textContent).toMatch(/Bo/);
+    expect(region.textContent).toMatch(/played in the last 24 real hours/);
+  });
+
+  it('says nobody played in the last 24 hours when the server has none, or predates the table', async () => {
+    vi.spyOn(api, 'stats').mockResolvedValue(full); // no leaders24h
+    render(<TownBoard />);
+    const region = await screen.findByRole('region', { name: /Richest traders/ });
+    fireEvent.click(within(region).getByRole('button', { name: 'Last 24 hours' }));
+    expect(within(region).getByText(/No one has played in the last 24 hours/)).toBeTruthy();
   });
 
   it('invites people in when nobody has played or voted yet', async () => {

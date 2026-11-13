@@ -442,7 +442,7 @@ describe('shocks on the map', () => {
     const both = render(<DistrictMap state={withShocks('festive season', 'fuel queue')} selected={null} onSelect={() => {}} />);
     expect(both.container.querySelectorAll('.festive circle').length).toBeGreaterThan(10);
     expect(both.container.querySelectorAll('.fuelq use')).toHaveLength(4);
-    expect(both.container.textContent).toContain('QUEUE');
+    expect(both.container.textContent).not.toContain('QUEUE'); // the HUD banner says it; the map just shows the trucks
   });
 
   it('keeps the weather out of the way of play: decoration is hidden from assistive tech and cannot be clicked', () => {

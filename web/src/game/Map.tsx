@@ -483,11 +483,6 @@ function ShockLayer({ kinds }: { kinds: string[] }) {
       {fuel && (
         <g className="fuelq">
           {[0, 1, 2, 3].map((i) => <use key={i} href="#v-pickup" x={868} y={338 + i * 22} width={44} height={28} />)}
-          <g transform="translate(922 352)">
-            <rect width="62" height="34" rx="5" fill="#16264a" stroke="#26364a" strokeWidth="1.6" />
-            <text x="31" y="14" textAnchor="middle" className="fuel-sign">FUEL</text>
-            <text x="31" y="27" textAnchor="middle" className="fuel-sign">QUEUE</text>
-          </g>
         </g>
       )}
     </g>

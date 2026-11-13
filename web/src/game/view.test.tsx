@@ -41,7 +41,7 @@ describe('which map a player starts in', () => {
   });
 
   it('says whether the game chose the view (so it may check the speed) or the player did (so it never second-guesses)', () => {
-    vi.stubGlobal('matchMedia', (q: string) => ({ matches: !q.includes('reduce'), media: q }));
+    vi.stubGlobal('matchMedia', (q: string) => ({ matches: !q.includes('reduce') && !q.includes('max-width'), media: q }));
     const canvas = { getContext: () => ({ getExtension: () => null }) };
     const real = document.createElement.bind(document);
     vi.spyOn(document, 'createElement').mockImplementation((tag: string) => (tag === 'canvas' ? (canvas as unknown as HTMLElement) : real(tag)));
@@ -57,6 +57,14 @@ describe('which map a player starts in', () => {
     localStorage.setItem('nims-3d', '0');
     vi.stubGlobal('matchMedia', (q: string) => ({ matches: true, media: q }));
     expect(readView()).toBe(false); // wide, mouse, no reduced motion would say 3D, but they chose 2D
+  });
+
+  it('always starts a phone in 2D, even if 3D was chosen before', () => {
+    expect(chooseView({ ...desktop, phone: true })).toBe(false);
+    expect(chooseView({ ...desktop, phone: true, stored: '1' })).toBe(false);
+    localStorage.setItem('nims-3d', '1');
+    vi.stubGlobal('matchMedia', (q: string) => ({ matches: q.includes('max-width: 700px'), media: q }));
+    expect(readViewChoice().view3d).toBe(false);
   });
 });
 

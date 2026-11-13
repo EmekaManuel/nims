@@ -14,9 +14,12 @@ export interface ViewEnv {
   webgl: boolean;
   /** An earlier visit found the 3D town running slowly here, so the default is 2D (a choice of their own still wins). */
   slow?: boolean;
+  /** A phone-sized screen (700 px or narrower): always the flat map, whatever was chosen before; the 3D town is too heavy and too small to play there. */
+  phone?: boolean;
 }
 
 export function chooseView(e: ViewEnv): boolean {
+  if (e.phone) return false;
   if (e.stored === '0') return false;
   if (e.stored === '1') return e.webgl; // they asked for 3D, but without WebGL it cannot be shown
   if (e.slow) return false;
@@ -47,12 +50,13 @@ export function readViewChoice(): { view3d: boolean; auto: boolean } {
   let slow = false;
   try { stored = localStorage.getItem('nims-3d'); slow = localStorage.getItem(SLOW_KEY) === '1'; } catch { /* storage blocked: no stored choice */ }
   const media = (q: string) => typeof matchMedia === 'function' && matchMedia(q).matches;
+  const phone = media('(max-width: 700px)');
   const wide = media('(min-width: 1000px)');
   const finePointer = media('(pointer: fine)');
   const reducedMotion = media('(prefers-reduced-motion: reduce)');
   // only ask for WebGL when the answer can matter
-  const needsGl = stored === '1' || (stored !== '0' && !slow && wide && finePointer && !reducedMotion);
-  return { view3d: chooseView({ stored, wide, finePointer, reducedMotion, slow, webgl: needsGl ? webglAvailable() : false }), auto: stored === null };
+  const needsGl = !phone && (stored === '1' || (stored !== '0' && !slow && wide && finePointer && !reducedMotion));
+  return { view3d: chooseView({ phone, stored, wide, finePointer, reducedMotion, slow, webgl: needsGl ? webglAvailable() : false }), auto: stored === null };
 }
 
 /** The view to start in, from this browser. */

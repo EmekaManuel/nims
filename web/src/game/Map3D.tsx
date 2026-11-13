@@ -272,7 +272,6 @@ function FuelQueue() {
       {[0, 1, 2, 3].map((i) => <group key={i} position={[i * 0.95, 0, 0]} rotation={[0, Math.PI / 2, 0]} scale={0.6}><Vehicle kind="pickup" color={['#c8622e', '#2a6fdb', '#2f9e5f', '#7b4de0'][i]} /></group>)}
       <group position={[4.1, 0, 0]}>
         <mesh position={[0, 0.4, 0]} castShadow><boxGeometry args={[0.35, 0.8, 0.35]} /><meshStandardMaterial color="#d6336c" /></mesh>
-        <Html zIndexRange={[5, 0]} position={[0, 1.1, 0]} center style={{ pointerEvents: 'none' }}><div style={label}>FUEL QUEUE</div></Html>
       </group>
     </group>
   );

@@ -86,9 +86,9 @@ button.link { background: none; border: 0; padding: 0; color: var(--accent-stron
 .wordmark { display: inline-flex; gap: .4rem; align-items: center; font: 700 1.55rem var(--display); letter-spacing: .01em; color: #fff; text-shadow: 0 2px 0 rgba(0, 0, 0, .25); }
 .daypill { display: inline-flex; gap: .35rem; align-items: center; font: 600 .74rem var(--font); color: #b9ccf5; }
 .pills { display: flex; flex-wrap: wrap; gap: .45rem; align-items: center; }
-.pill { display: flex; gap: .5rem; align-items: center; background: rgba(255, 255, 255, .1); border: 1px solid rgba(255, 255, 255, .18); border-radius: 14px; padding: .25rem .8rem .25rem .6rem; }
+.pill { display: flex; gap: .5rem; align-items: center; background: rgba(255, 255, 255, .08); border: 1px solid rgba(255, 255, 255, .16); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .1); border-radius: 14px; padding: .25rem .8rem .25rem .6rem; }
 .pill.coin { background: linear-gradient(rgba(255, 194, 26, .3), rgba(255, 194, 26, .12)); border-color: rgba(255, 194, 26, .55); }
-.pill b { display: block; font: 600 1.15rem var(--display); line-height: 1.1; }
+.pill b { display: block; font-variant-numeric: tabular-nums; font: 600 1.15rem var(--display); line-height: 1.1; }
 .k { display: block; font: 700 .66rem var(--font); text-transform: uppercase; letter-spacing: .08em; color: var(--ink-3); }
 .hud .k { color: #a9bff0; }
 .loadrow { display: flex; gap: .5rem; align-items: center; }
@@ -99,7 +99,7 @@ button.link { background: none; border: 0; padding: 0; color: var(--accent-stron
 .hud .chip { background: rgba(255, 255, 255, .14); border-color: rgba(255, 255, 255, .2); color: #fff; }
 .hud .chip.owe { background: var(--gold-soft); border-color: #f0d58a; color: var(--warn); padding-left: .65rem; }
 .hud .empty { color: #a9bff0; font-size: .88rem; }
-.hud-right { margin-left: auto; display: flex; flex-wrap: nowrap; gap: .5rem .7rem; align-items: center; }
+.hud-right { margin-left: auto; padding-left: .9rem; border-left: 1px solid rgba(255, 255, 255, .14); display: flex; flex-wrap: nowrap; gap: .5rem .7rem; align-items: center; }
 .rank { display: flex; gap: .45rem; align-items: center; }
 .rank svg { flex: none; } .rank .ring-bg { fill: rgba(255, 255, 255, .08); stroke: rgba(255, 255, 255, .22); stroke-width: 4; } .rank .ring-fg { fill: none; stroke: var(--gold); stroke-width: 4; stroke-linecap: round; transition: stroke-dasharray .5s; }
 .rank .ring-level { font: 700 15px var(--display); fill: #fff; }
@@ -107,11 +107,14 @@ button.link { background: none; border: 0; padding: 0; color: var(--accent-stron
 .hud button { padding: .3rem .8rem .25rem; }
 .hud .helpbtn, .hud .iconbtn { background: rgba(255, 255, 255, .1); border-color: rgba(255, 255, 255, .28); color: #fff; }
 .iconbtn, .helpbtn { min-width: 2.4rem; padding-inline: .5rem; }
-.hudlink { color: #bcd3ff; font-weight: 700; text-decoration: none; font-size: .92rem; }
-.hudlink:hover { text-decoration: underline; }
-.shockrow { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: .4rem; }
-.shock { background: var(--gold-soft); color: var(--warn); border: 1px solid #f0d58a; border-radius: 999px; padding: .2rem .8rem; font-weight: 700; font-size: .85rem; }
+.hudlink { color: #d6e4ff; font-weight: 700; text-decoration: none; font-size: .88rem; padding: .3rem .75rem; border: 1px solid rgba(255, 255, 255, .22); border-radius: 999px; background: rgba(255, 255, 255, .06); white-space: nowrap; }
+.hudlink:hover { background: rgba(255, 255, 255, .16); }
+.hud button.gold:disabled { opacity: .55; filter: saturate(.6); }
+.shockrow { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: .4rem; padding-top: .4rem; border-top: 1px solid rgba(255, 255, 255, .12); }
+.shock { display: inline-flex; align-items: center; gap: .45rem; background: rgba(255, 194, 26, .16); color: #ffe39a; border: 1px solid rgba(255, 194, 26, .45); border-radius: 999px; padding: .18rem .8rem .18rem .6rem; font-weight: 700; font-size: .82rem; }
+.shock::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 0 3px rgba(255, 194, 26, .25); flex: none; }
 .shock .short { display: none; }
+.shock.offline::before { display: none; }
 .shock.offline { position: fixed; z-index: 50; top: 8px; left: 50%; transform: translateX(-50%); background: var(--bad-soft); color: var(--bad); border-color: #f4c3c3; }
 
 /* ---- quest tracker and guide, floating over the map ---- */
@@ -140,7 +143,19 @@ button.link { background: none; border: 0; padding: 0; color: var(--accent-stron
 .drawer th, .drawer td { padding: .4rem .25rem; }
 .drawer .offers .btns button { padding: .2rem .5rem .15rem; font-size: .82rem; }
 .drawer h2 { padding-right: 2.6rem; }
-@media (max-width: 999px) { .drawer { position: fixed; left: 8px; right: 8px; width: auto; top: auto; bottom: 78px; max-height: 68dvh; } }
+/* phones and small tablets: the drawer is a bottom sheet that sits right on the dock, with a grab bar, a dimmed map behind it and room for a thumb */
+@media (max-width: 999px) {
+  .drawer { position: fixed; left: 0; right: 0; width: auto; top: auto; bottom: calc(68px + env(safe-area-inset-bottom, 0px)); max-height: min(72dvh, 640px); border-radius: 22px 22px 0 0; box-shadow: 0 -8px 28px rgba(13, 27, 61, .28), 0 0 0 100vmax rgba(13, 27, 61, .32); animation: sheetup .24s ease-out; }
+  .drawer::before { content: ''; flex: none; width: 42px; height: 5px; border-radius: 3px; background: var(--line-strong); margin: 8px auto 0; }
+  .drawer-close { top: 8px; right: 10px; width: 2.4rem; height: 2.4rem; }
+  .drawer-body { padding: 4px 14px 18px; gap: 10px; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+  .drawer h2 { font-size: 1.2rem; margin-top: .2rem; }
+  .drawer table { font-size: .86rem; }
+  .drawer button { min-height: 40px; }
+  .drawer .offers .btns button { padding: .3rem .65rem .25rem; font-size: .86rem; }
+}
+@keyframes sheetup { from { transform: translateY(28px); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (max-width: 700px) { .view-toggle { display: none; } }
 @keyframes slidein { from { transform: translateX(24px); opacity: 0; } to { transform: none; opacity: 1; } }
 
 /* ---- the dock ---- */
@@ -245,7 +260,6 @@ th { font-size: .7rem; letter-spacing: .06em; text-transform: uppercase; color: 
 .map .plot-label { font: 600 14px var(--font); fill: var(--ink-2); }
 .map .plot:hover .plot-box, .map .plot.on .plot-box, .map .plot:focus-visible .plot-box { stroke: var(--accent); fill: rgba(255,255,255,.85); }
 .map .rain-streaks line { stroke: #e3eeff; stroke-width: 1.6; stroke-linecap: round; opacity: .55; }
-.map .fuel-sign { font: 800 10.5px var(--font); fill: var(--gold); letter-spacing: .06em; }
 .map .festive circle { opacity: .85; }
 @media (prefers-reduced-motion: no-preference) {
   .map .pulse { animation: pulse 1.4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
@@ -407,11 +421,13 @@ th { font-size: .7rem; letter-spacing: .06em; text-transform: uppercase; color: 
   .pill { padding: .15rem .55rem .15rem .45rem; gap: .35rem; } .pill .k { display: none; } .pill b { font-size: .98rem; }
   .pill .icon { width: 22px; height: 22px; }
   .inv { display: none; }
-  .hud-right { flex-wrap: wrap; margin-left: 0; width: 100%; justify-content: space-between; gap: .35rem; }
+  .hud-right { flex-wrap: wrap; margin-left: 0; padding-left: 0; border-left: 0; width: 100%; justify-content: space-between; gap: .35rem; }
+  .pills { flex: 1 1 100%; } .pill.load { flex: 1 1 auto; }
+  .shockrow { padding-top: .3rem; }
   .hudlink, .rank-text small { display: none; }
   .rank svg { width: 36px; height: 36px; } .rank-text b { font-size: .85rem; }
   .hud button.gold { font-size: .85rem; padding: .25rem .6rem .2rem; }
-  .shock .long { display: none; } .shock .short { display: inline; } .shock { font-size: .78rem; padding: .12rem .6rem; }
+  .shock .long { display: none; } .shock .short { display: inline; } .shock { font-size: .76rem; padding: .1rem .6rem .1rem .5rem; }
   .dock { gap: .35rem; padding: .4rem 8px calc(.4rem + env(safe-area-inset-bottom, 0px)); }
   .dockbtn { flex: 1; flex-direction: column; gap: .1rem; padding: .3rem .2rem .25rem; font-size: .72rem; min-width: 0; text-align: center; line-height: 1.1; }
   .dockbtn svg { width: 22px; height: 22px; }

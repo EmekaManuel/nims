@@ -7,7 +7,7 @@
  *   npm run balance
  */
 import { Game } from '../server/game/game';
-import { BASE_PRICE, Item } from './world';
+import { BASE_PRICE, Item, realmOf } from './world';
 
 function play(seed: number, rate: number, hours: number, actionsPerHour: number) {
   const g = new Game(seed);
@@ -19,28 +19,32 @@ function play(seed: number, rate: number, hours: number, actionsPerHour: number)
   const worth: number[] = [];
   const hit: Record<number, number> = {};
   let waited = 0;
+  const unreachable = new Set<string>();
+  const noSale = new Set<string>(); // stalls in another place that refused a sale
+ // sources in another place (the harbour, the frontiers): the bot plays the home town only
   for (let h = 0; h < hours; h++) {
     for (let a = 0; a < actionsPerHour; a++) {
       const s = g.state(me);
+      const home = s.stalls.filter((st) => realmOf(st.market) === 'town'); // the bot plays the home town: the harbour and the frontiers take a journey
       // the fare for the whole load, spread over the units, for a stall in another market
       const net = (st: (typeof s.stalls)[number], price: number) => price - (st.market !== s.you.at ? s.fares[st.market] / Math.max(1, s.you.carrying) : 0);
       const carry = s.you.inventory[0];
       if (carry) {
         // sell in lots of 8 to the stall with the best price AFTER the fare; hold if that would lose money, unless we've waited long
-        const best = s.stalls.flatMap((st) => st.offers.filter((o) => o.item === carry.item && o.willBuy).map((o) => ({ st, o, n: net(st, o.buyPrice) }))).sort((x, y) => y.n - x.n)[0];
+        const best = home.filter((st) => !noSale.has(st.id)).flatMap((st) => st.offers.filter((o) => o.item === carry.item && o.willBuy).map((o) => ({ st, o, n: net(st, o.buyPrice) }))).sort((x, y) => y.n - x.n)[0];
         const basis = costOf[carry.item] ?? 0;
-        if (best && (best.n >= basis * 1.0 || waited > 8)) { g.sell(me, best.st.id, carry.item as Item, Math.min(8, carry.units)); waited = 0; }
+        if (best && (best.n >= basis * 1.0 || waited > 8)) { if (g.sell(me, best.st.id, carry.item as Item, Math.min(8, carry.units)).ok) waited = 0; else noSale.add(best.st.id); }
         else waited++;
       } else {
         // pick the source whose goods sell best after the fare, relative to what they cost
-        const picks = s.sources.filter((src) => src.units >= 5 && src.item !== 'cotton').map((src) => {
-          const best = s.stalls.flatMap((st) => st.offers.filter((o) => o.item === src.item && o.willBuy).map((o) => net(st, o.buyPrice))).sort((x, y) => y - x)[0] ?? 0;
+        const picks = s.sources.filter((src) => src.units >= 5 && src.item !== 'cotton' && !unreachable.has(src.item)).map((src) => {
+          const best = home.flatMap((st) => st.offers.filter((o) => o.item === src.item && o.willBuy).map((o) => net(st, o.buyPrice))).sort((x, y) => y - x)[0] ?? 0;
           return { src, ratio: (best - src.cost) / Math.max(1, src.cost) };
         }).sort((x, y) => y.ratio - x.ratio);
         const top = picks[0];
         if (top && top.ratio >= 0.1) {
           const afford = Math.min(s.you.capacity, Math.floor(s.you.cash / top.src.cost));
-          if (afford >= 3) { costOf[top.src.item] = top.src.cost; g.gather(me, top.src.item as Item); }
+          if (afford >= 3) { costOf[top.src.item] = top.src.cost; if (!g.gather(me, top.src.item as Item).ok) unreachable.add(top.src.item); }
         }
       }
       const u = g.state(me);

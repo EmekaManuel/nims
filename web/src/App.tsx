@@ -23,22 +23,30 @@ try {
   if (code && /^[0-9a-z]{4,16}$/i.test(code)) localStorage.setItem(INVITE_KEY, code);
 } catch { /* private mode: the invite is simply not remembered */ }
 
-function useHash() {
-  const [hash, setHash] = useState(() => location.hash);
+/** Pages that live at their own address. Old "#town" and "#sim" links are sent to them. */
+const PAGE_PATHS = { '#town': '/town', '#sim': '/week' } as const;
+const pageOf = () => location.pathname.replace(/\/$/, '');
+
+function usePath() {
+  const [path, setPath] = useState(() => {
+    const legacy = PAGE_PATHS[location.hash as keyof typeof PAGE_PATHS];
+    if (legacy) history.replaceState(null, '', legacy);
+    return pageOf();
+  });
   useEffect(() => {
-    const on = () => setHash(location.hash);
-    window.addEventListener('hashchange', on);
-    return () => window.removeEventListener('hashchange', on);
+    const on = () => setPath(pageOf());
+    window.addEventListener('popstate', on);
+    return () => window.removeEventListener('popstate', on);
   }, []);
-  return hash;
+  return path;
 }
 
 export function App() {
-  const hash = useHash();
+  const path = usePath();
   return (
     <>
       <IconSprite />
-      {hash === '#sim' ? <FastForwardPage /> : hash === '#town' ? <TownBoard /> : <Game />}
+      {path === '/week' ? <FastForwardPage /> : path === '/town' ? <TownBoard /> : <Game />}
     </>
   );
 }

@@ -69,6 +69,9 @@ function staticFile(dir: string, pathname: string): string | null {
   return null;
 }
 
+/** Pages of the web app that live at their own address. The server answers each with the app, which then shows the right page. */
+const PAGES = new Set(['/town', '/week']);
+
 const MERCHANTS = new Set(createMerchants().map((m) => m.id));
 export const SESSION_COOKIE = 'nims_session';
 const COOKIE = SESSION_COOKIE;
@@ -180,7 +183,7 @@ export function createApp(d: AppDeps) {
     }
 
     if (req.method === 'GET' && d.staticDir) {
-      const file = staticFile(d.staticDir, url.pathname);
+      const file = staticFile(d.staticDir, PAGES.has(url.pathname.replace(/\/$/, '')) ? '/' : url.pathname);
       if (file) {
         res.writeHead(200, { 'content-type': MIME[extname(file)] ?? 'application/octet-stream', 'cache-control': file.includes('/assets/') ? 'public, max-age=31536000, immutable' : 'no-cache' });
         return void res.end(readFileSync(file));

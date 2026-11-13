@@ -35,8 +35,8 @@ describe('login', () => {
   it('points to the town board and the simulated week, and keeps the sign-in form clean', async () => {
     vi.spyOn(api, 'providers').mockResolvedValue({ google: false });
     render(<Login onIn={() => {}} />);
-    expect(screen.getByRole('link', { name: /town board/ }).getAttribute('href')).toBe('#town');
-    expect(screen.getByRole('link', { name: /week of the market/ }).getAttribute('href')).toBe('#sim');
+    expect(screen.getByRole('link', { name: /town board/ }).getAttribute('href')).toBe('/town');
+    expect(screen.getByRole('link', { name: /week of the market/ }).getAttribute('href')).toBe('/week');
     expect(screen.queryByRole('region', { name: /The town right now/ })).toBeNull();
   });
 

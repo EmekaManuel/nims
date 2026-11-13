@@ -8,7 +8,7 @@ A 3:09, 1080p narrated video made with Remotion (source in [../video](../video))
 
 ## 0. The town right now (30 seconds)
 
-Open the **town board**: **See who's playing** on the sign-in screen, or `#town` on the address. No login.
+Open the **town board**: **See who's playing** on the sign-in screen, or `/town` on the address. No login.
 
 - How many people have played, trades and players in the last 24 real hours, council votes passed, and shops open.
 - **Richest traders:** the top ten by net worth, with their rank, vehicle, shares and stall.
@@ -18,7 +18,7 @@ It counts only signed-in people and never shows an email: players appear by a fi
 
 ## 1. The economy on its own (60 seconds)
 
-Open the **Fast-forward a week** link on the login screen (or add `#sim` to the address). No login.
+Open the **Fast-forward a week** link on the login screen (or go to `/week`). No login.
 
 - A week plays back over about 12 seconds. **Pause** or drag the slider, and **hover any chart**: one tooltip lists every series, and the crosshair follows across all of them.
 - **Prices against the usual price** (top row). In the Scrap & Hardware chart, iron falls to about 30% of its usual price on day 1 and stays there. That's the market flooder dumping goods on the merchants.

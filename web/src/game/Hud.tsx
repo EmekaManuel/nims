@@ -77,7 +77,7 @@ export function Hud({ state, act, onHelp, sound, onSound, peakWorth }: { state: 
           </button>
         )}
         {onSound && <button className="iconbtn" onClick={onSound} aria-pressed={sound} aria-label={sound ? 'Sound on. Press to mute' : 'Sound off. Press to turn on'} title={sound ? 'Sound on' : 'Sound off'}>{sound ? '♪' : '✕'}</button>}
-        <a className="hudlink" href="#sim" title="Watch the whole economy run for a week">Fast-forward</a>
+        <a className="hudlink" href="/week" title="Watch the whole economy run for a week">Fast-forward</a>
         {onHelp && <button className="helpbtn" onClick={onHelp} aria-label="How to play" title="How to play">?</button>}
       </div>
 

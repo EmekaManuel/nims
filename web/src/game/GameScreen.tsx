@@ -102,7 +102,7 @@ export function GameScreen(p: GameScreenProps) {
 
   return (
     <div className="shell">
-      {p.offline && <div className="shock offline" role="alert">Lost touch with the game server. Reconnecting…</div>}
+      {p.offline && <div className="shock offline" role="status"><span className="live-dot connecting" aria-hidden="true" />Lost touch with the game server. Reconnecting…</div>}
       <Hud state={state} act={act} onHelp={p.onHelp} sound={p.sound} onSound={p.onSound} peakWorth={p.peakWorth} />
       <main className="stage">
         <div className="viewport">

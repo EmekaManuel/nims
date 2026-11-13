@@ -21,6 +21,7 @@ export function FastForwardPage({ replay }: { replay?: { data: FastForward; curs
   const [liveData, setData] = useState<FastForward | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [reconnecting, setReconnecting] = useState(false);
   const [liveCursor, setCursor] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
@@ -34,17 +35,27 @@ export function FastForwardPage({ replay }: { replay?: { data: FastForward; curs
     setError('');
     try {
       const d = await fastForward(p);
+      setReconnecting(false);
       setData(d);
       pos.current = 0;
       setHover(null);
       if (reducedMotion()) { setCursor(d.hours - 1); setPlaying(false); }
       else { setCursor(0); setPlaying(true); }
     } catch (e) {
+      if ((e as { transient?: boolean }).transient) {
+        // The server is briefly unreachable (a redeploy, a slow moment): keep what is on screen and try again.
+        setReconnecting(true);
+        retry.current = window.setTimeout(() => void run(p), 3000);
+        return;
+      }
+      setReconnecting(false);
       setError((e as Error).message);
     } finally {
       setLoading(false);
     }
   }, []);
+  const retry = useRef(0);
+  useEffect(() => () => window.clearTimeout(retry.current), []);
 
   // The page opens already running, so it is never an empty shell.
   useEffect(() => { if (!replay) void run(DEFAULTS); }, [run, replay]);
@@ -95,6 +106,7 @@ export function FastForwardPage({ replay }: { replay?: { data: FastForward; curs
         <button onClick={() => { const next = { ...params, seed: Math.floor(Math.random() * 100000) }; setParams(next); void run(next); }} disabled={loading} title="A different random run of the same town">New town</button>
       </section>
       {error && <p className="note warn" role="alert">{error}</p>}
+      {reconnecting && <p className="muted small" role="status"><span className="live-dot connecting" aria-hidden="true" />Connecting to the market… still trying.</p>}
 
       {data && sync && (
         <div className="ffbody" style={{ opacity: loading ? 0.55 : 1 }}>
@@ -124,7 +136,7 @@ export function FastForwardPage({ replay }: { replay?: { data: FastForward; curs
           <p className="muted small">Prices are the average of the merchants in each market. Press Show table under any chart to read the numbers.</p>
         </div>
       )}
-      {!data && !error && <p className="muted">Starting the market…</p>}
+      {!data && !error && !reconnecting && <p className="muted">Starting the market…</p>}
     </main>
   );
 }

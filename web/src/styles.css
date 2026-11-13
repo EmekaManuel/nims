@@ -115,7 +115,8 @@ button.link { background: none; border: 0; padding: 0; color: var(--accent-stron
 .shock::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 0 3px rgba(255, 194, 26, .25); flex: none; }
 .shock .short { display: none; }
 .shock.offline::before { display: none; }
-.shock.offline { position: fixed; z-index: 50; top: 8px; left: 50%; transform: translateX(-50%); background: var(--bad-soft); color: var(--bad); border-color: #f4c3c3; }
+.shock.offline { position: fixed; z-index: 50; top: 8px; left: 50%; transform: translateX(-50%); background: rgba(255, 194, 26, .16); color: #7a5a00; border-color: rgba(255, 194, 26, .55); backdrop-filter: blur(6px); }
+.shock.offline .live-dot { margin: 0; width: 8px; height: 8px; }
 
 /* ---- quest tracker and guide, floating over the map ---- */
 .quest { position: absolute; left: 14px; top: 14px; z-index: 3; width: min(320px, calc(100% - 28px)); display: grid; gap: 10px; }
@@ -548,13 +549,16 @@ th { font-size: .7rem; letter-spacing: .06em; text-transform: uppercase; color: 
 /* Sign-in: the two public pages */
 .login-links { display: grid; gap: .3rem; margin: 0; }
 
-/* The town board (#town): public numbers, the richest traders, council decisions */
+/* The town board (/town): public numbers, the richest traders, council decisions */
 .town { max-width: 1120px; margin: 0 auto; padding: 24px max(16px, env(safe-area-inset-left, 0px)) 48px; }
 .town-head { display: flex; flex-wrap: wrap; gap: 1rem 2rem; justify-content: space-between; align-items: center; }
 .town-title { display: flex; gap: .9rem; align-items: center; }
 .town h1 { font-size: 2.2rem; margin: 0; }
 .town .lede { margin: .2rem 0 0; color: var(--ink-2); }
 .live-dot { display: inline-block; width: 9px; height: 9px; margin: 0 .55rem .1rem .2rem; border-radius: 50%; background: var(--good); box-shadow: 0 0 0 4px var(--good-soft); vertical-align: middle; }
+.live-dot.connecting { background: var(--warn, #e0a030); box-shadow: 0 0 0 4px rgba(224,160,48,.2); animation: dot-pulse 1.2s ease-in-out infinite; }
+@keyframes dot-pulse { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .live-dot.connecting { animation: none; } }
 .town-nav { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; font-weight: 600; }
 .town-nav .button { display: inline-flex; align-items: center; min-height: 42px; padding: 0 18px; border-radius: 12px; border: 1px solid var(--accent-strong); border-bottom-color: var(--accent-deep); background: linear-gradient(#58b4ff, #2f8cff); color: #fff; text-decoration: none; text-shadow: 0 1px 0 rgba(0, 0, 0, .18); }
 .town-tiles { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin-top: 1.4rem; }

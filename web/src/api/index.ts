@@ -380,8 +380,13 @@ export interface FastForward {
 }
 
 export async function fastForward(params: Partial<FastForwardParams>): Promise<FastForward> {
-  const r = await fetch('/sim/fastforward', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(params) });
+  let r: Response;
+  try {
+    r = await fetch('/sim/fastforward', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(params) });
+  } catch {
+    throw Object.assign(new Error('Lost touch with the game server.'), { transient: true });
+  }
   const body = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error((body as { error?: string }).error ?? 'Could not run the simulation.');
+  if (!r.ok) throw Object.assign(new Error((body as { error?: string }).error ?? 'Could not run the simulation.'), { transient: r.status >= 500 });
   return body as FastForward;
 }

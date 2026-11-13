@@ -32,10 +32,10 @@ await clip('tour-game', {}, async (page, mark) => {
 
 // (b) the public pages, no sign-in
 await clip('tour-public', { reuse: false }, async (page, mark) => {
-  await page.goto(SITE + '#town', { waitUntil: 'networkidle' });
+  await page.goto(SITE + 'town', { waitUntil: 'networkidle' });
   await page.waitForTimeout(2500); mark('board');
   await glide(page, 1100, 330, 800); await page.waitForTimeout(2500);
-  await page.goto(SITE + '#sim', { waitUntil: 'networkidle' });
+  await page.goto(SITE + 'week', { waitUntil: 'networkidle' });
   await page.waitForTimeout(2000); mark('sim');
   const play = page.getByRole('button', { name: /Fast-forward a week|Play/ }).first();
   if (await play.count()) { const b = await play.boundingBox(); await clickAt(page, b.x + b.width / 2, b.y + b.height / 2, 700); }

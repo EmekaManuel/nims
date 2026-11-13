@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { api, type TownStats } from '../api';
 import { TownBoard } from './TownBoard';
 
@@ -93,9 +93,24 @@ describe('town board', () => {
     expect(screen.queryByText(/No council vote has closed yet/)).toBeNull();
   });
 
-  it('says so when the board cannot be reached', async () => {
+  it('says it is connecting, not that the board is gone, when it cannot be reached yet', async () => {
     vi.spyOn(api, 'stats').mockResolvedValue(null);
     render(<TownBoard />);
-    expect(await screen.findByText(/can't be reached right now/)).toBeTruthy();
+    expect(await screen.findByText(/Connecting to the town/)).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'The town board' })).toBeTruthy();
+    expect(screen.queryByText(/can't be reached/)).toBeNull();
+  });
+
+  it('keeps the last numbers on screen and says it is reconnecting when a refresh fails', async () => {
+    vi.useFakeTimers();
+    const stats = vi.spyOn(api, 'stats').mockResolvedValueOnce(full).mockResolvedValue(null);
+    render(<TownBoard />);
+    await act(async () => { await vi.advanceTimersByTimeAsync(10); });
+    expect(screen.getByRole('region', { name: /The town in numbers/ })).toBeTruthy();
+    await act(async () => { await vi.advanceTimersByTimeAsync(15_100); });
+    expect(stats.mock.calls.length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByRole('region', { name: /The town in numbers/ })).toBeTruthy();
+    expect(document.body.textContent).toMatch(/Reconnecting to Nims/);
+    vi.useRealTimers();
   });
 });

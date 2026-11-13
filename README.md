@@ -6,7 +6,7 @@
 
 **A market town where every trader is an AI agent with its own money, its own stock and its own pricing.**
 
-[Play it live](https://nims-app.up.railway.app) · [Who is playing: the town board](https://nims-app.up.railway.app/#town) · [Demo video (3:09)](docs/nims-demo.mp4) · [New places (47 s)](docs/nims-new-places.mp4) · [Judge walk-through](docs/DEMO.md) · Contract: `oja-items.testnet`
+[Play it live](https://nims-app.up.railway.app) · [Who is playing: the town board](https://nims-app.up.railway.app/town) · [Demo video (3:09)](docs/nims-demo.mp4) · [New places (47 s)](docs/nims-new-places.mp4) · [Judge walk-through](docs/DEMO.md) · Contract: `oja-items.testnet`
 
 ![NEAR testnet](https://img.shields.io/badge/NEAR-testnet-00ec97) ![NEP-245](https://img.shields.io/badge/items-NEP--245-blue) ![tests](https://img.shields.io/badge/tests-593%20passing-brightgreen) ![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)
 
@@ -22,7 +22,7 @@
 1. Press **Play as a guest** (or **Continue with Google**). You see the town and a goal card. No wallet, popup or gas prompt appears.
 2. Collect goods at the tomato field, open **Mira's Greens** and sell some. Your cash rises at once. The stall panel shows **Today's plan**, in the merchant's own words, and hovering a price tells you why it is what it is.
 3. Open the **News** tab and press **See them on the public ledger** ([`NewsFeed.tsx#L18`](web/src/game/NewsFeed.tsx#L18)): your goods and coins are NEP-245 balances on testnet. Open `/chain/status` to see settlement running (`lastSettledAt` keeps moving).
-4. Open the [town board](https://nims-app.up.railway.app/#town) (no login) to see who is playing: people who have played, trades and players in the last 24 hours, the richest traders (all time or the last 24 hours), the council decisions with their SputnikDAO proposal numbers, and a short "What this shows" summary. The same numbers are JSON at [`/stats`](https://nims-app.up.railway.app/stats).
+4. Open the [town board](https://nims-app.up.railway.app/town) (no login) to see who is playing: people who have played, trades and players in the last 24 hours, the richest traders (all time or the last 24 hours), the council decisions with their SputnikDAO proposal numbers, and a short "What this shows" summary. The same numbers are JSON at [`/stats`](https://nims-app.up.railway.app/stats).
 
 **NEAR, concretely.**
 - **NEP-245 items:** every good and the `coins` token live in one contract, `oja-items.testnet` ([`contracts/items/src/lib.rs#L5-L7`](contracts/items/src/lib.rs#L5-L7)). Calls carry sequence numbers, so a retry can never apply twice.
@@ -71,7 +71,7 @@ The chain is invisible: continue with Google or play as a guest in one press, no
 </tr>
 <tr>
 <td width="50%"><img src="docs/img/plan.jpg" alt="A stall showing the merchant's own plan for the day, written through NEAR AI Cloud" /><br /><sub><b>Today's plan.</b> Each morning the merchant reads its own books and decides, through NEAR AI Cloud, what to stock up on or run down and how hard to price. A real reply, from a local test game.</sub></td>
-<td width="50%"><img src="docs/img/board.jpg" alt="The public town board: players, trades, richest traders and council decisions" /><br /><sub><b>The town board.</b> Public, no login (<code>#town</code>): who is playing, the richest traders and every council decision. Shown here from a local test game with six test players.</sub></td>
+<td width="50%"><img src="docs/img/board.jpg" alt="The public town board: players, trades, richest traders and council decisions" /><br /><sub><b>The town board.</b> Public, no login (<code>/town</code>): who is playing, the richest traders and every council decision. Shown here from a local test game with six test players.</sub></td>
 </tr>
 <tr>
 <td width="50%"><img src="docs/img/council.jpg" alt="A town council vote on cutting a market's rent" /><br /><sub><b>The town council.</b> Trade in a market and you get a seat. A vote to cut the rent, with the merchants' stance. It passes at the end of the day, with no dev patch.</sub></td>
@@ -125,9 +125,9 @@ NEAR **testnet only**. No mainnet or real funds are used.
 5. In the stall panel, place a **delivery order** (goods and a lowest price). See the carriers sell the load and your cash rise when the price allows.
 6. Run low on coins with nothing to sell, then open **Deals** and its **Odd jobs** tab. See the scrap heap and merchants offering to pay you to fetch what they lack.
 7. Open the **News** tab. See the town gazette and the plain list of events.
-8. Open **Fast-forward** (or add `#sim` to the address, no login). See a simulated week as price and shop-cash charts, driven by the same pricing code as the live game.
+8. Open **Fast-forward** (or go to `/week`, no login). See a simulated week as price and shop-cash charts, driven by the same pricing code as the live game.
 9. Open `/chain/status` on the live address. See the contract, the settlement namespace, and how far settlement has got. `behind` counts game ledger entries not yet on chain. Settlement works through the game in windows of 6 game hours (one real minute), widening up to 96 when it falls behind ([`chainsync.ts`](server/chain/chainsync.ts)), so `behind` rises and falls with each window instead of sitting at zero; `lastSettledAt` moving shows it is keeping up.
-10. Open the **[town board](https://nims-app.up.railway.app/#town)** (`#town` on the live address, or **See who's playing** on the sign-in screen; no login). See how many people have played, trades and players in the last 24 real hours, council votes passed, shops open, the ten richest traders (all time, or only those who played in the last 24 hours) and the latest council decisions, then a short "What this shows" summary built from the same live numbers. It counts only signed-in people and never shows an email: players appear, here and in the game, by the name they chose in **My business**, or else by a first name from their email, or only an initial when the email's username is one word and may hold a surname ([`web/src/town/TownBoard.tsx`](web/src/town/TownBoard.tsx), [`server/game/activity.ts`](server/game/activity.ts)); the same numbers are JSON at `/stats`.
+10. Open the **[town board](https://nims-app.up.railway.app/town)** (`/town` on the live address, or **See who's playing** on the sign-in screen; no login). See how many people have played, trades and players in the last 24 real hours, council votes passed, shops open, the ten richest traders (all time, or only those who played in the last 24 hours) and the latest council decisions, then a short "What this shows" summary built from the same live numbers. It counts only signed-in people and never shows an email: players appear, here and in the game, by the name they chose in **My business**, or else by a first name from their email, or only an initial when the email's username is one word and may hold a surname ([`web/src/town/TownBoard.tsx`](web/src/town/TownBoard.tsx), [`server/game/activity.ts`](server/game/activity.ts)); the same numbers are JSON at `/stats`.
 
 **Locally:**
 

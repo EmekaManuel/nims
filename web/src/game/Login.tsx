@@ -40,8 +40,8 @@ export function Login({ onIn, showGoogle }: { onIn: () => void; showGoogle?: boo
       {msg && <p role="status" className="note">{msg}</p>}
       <p className="muted small">Buy low, carry it, sell high. No password, no wallet.{google ? ' Sign in with Google to keep your trader on any device; a guest trader lives in this browser.' : ' Your trader lives in this browser.'}</p>
       <p className="login-links">
-        <a className="simlink" href="#town">See who's playing: the town board →</a>
-        <a className="simlink" href="#sim">Or watch a week of the market unfold →</a>
+        <a className="simlink" href="/town">See who's playing: the town board →</a>
+        <a className="simlink" href="/week">Or watch a week of the market unfold →</a>
       </p>
     </main>
   );
@@ -57,5 +57,3 @@ function GoogleMark() {
     </svg>
   );
 }
-
-/** Tiny hash router: "#sim" is the open fast-forward dashboard; anything else is the game. */

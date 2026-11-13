@@ -322,3 +322,27 @@ describe('selling when you cannot afford the fare (over HTTP)', () => {
     expect(body.state.you.at).toBe('scrap');
   });
 });
+
+describe('page addresses', () => {
+  it('serves the web app at /town and /week, so those links work when opened directly', async () => {
+    const { mkdirSync, writeFileSync } = await import('node:fs');
+    const staticDir = mkdtempSync(join(tmpdir(), 'oja-static-'));
+    mkdirSync(staticDir, { recursive: true });
+    writeFileSync(join(staticDir, 'index.html'), '<html>app</html>');
+    server.close();
+    server = await createApp({
+      auth,
+      store: new AccountStore(join(mkdtempSync(join(tmpdir(), 'oja-pages-')), 'a.json'), 'oja.testnet', randomHex(32)),
+      chain: { createPlayerAccount: async () => {}, transferItem: async () => {}, itemBalance: async () => 0 },
+      baseUrl: 'http://localhost:0',
+      merchantParent: 'run.oja.testnet',
+      staticDir,
+    }).listen(0);
+    const b = `http://localhost:${(server.address() as { port: number }).port}`;
+    for (const path of ['/town', '/town/', '/week']) {
+      const r = await fetch(b + path);
+      expect(r.status, path).toBe(200);
+      expect(await r.text(), path).toContain('app');
+    }
+  });
+});

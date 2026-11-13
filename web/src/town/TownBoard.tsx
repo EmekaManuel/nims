@@ -6,29 +6,41 @@ import { rankOf } from '../lib/rank';
 import { AvatarFigure, DEFAULT_AVATAR } from '../art/avatar';
 
 const REFRESH_MS = 15_000;
+const RETRY_MS = 3_000;
 const n = (x: number) => x.toLocaleString('en-US');
 const EXPLORER = 'https://testnet.nearblocks.io/address/';
 const LEVER: Record<string, string> = { rent: 'stall rent', payout: 'the profit payout' };
 
-/** Keeps the town's public numbers fresh while the page is open. `null` while loading, `false` if the server can't say. */
-function useTownStats(): TownStats | null | false {
-  const [s, setS] = useState<TownStats | null | false>(null);
+/**
+ * Keeps the town's public numbers fresh while the page is open. A failed refresh never removes what is already on screen:
+ * the last good numbers stay and `connected` goes false so the page can say it is reconnecting. Retries quickly until it answers.
+ */
+function useTownStats(): { s: TownStats | null; connected: boolean } {
+  const [s, setS] = useState<TownStats | null>(null);
+  const [connected, setConnected] = useState(true);
   useEffect(() => {
     let live = true;
-    const load = () => void api.stats().then((x) => live && setS(x ?? false));
+    let id = 0;
+    const load = () => {
+      void api.stats().then((x) => {
+        if (!live) return;
+        if (x) setS(x);
+        setConnected(!!x);
+        id = window.setTimeout(load, x ? REFRESH_MS : RETRY_MS);
+      });
+    };
     load();
-    const id = window.setInterval(load, REFRESH_MS);
-    return () => { live = false; window.clearInterval(id); };
+    return () => { live = false; window.clearTimeout(id); };
   }, []);
-  return s;
+  return { s, connected };
 }
 
 /**
- * The town board (#town): public, no sign-in. What real people are doing in Nims right now, who is richest, and what the
+ * The town board (/town): public, no sign-in. What real people are doing in Nims right now, who is richest, and what the
  * town councils have decided. Counts only signed-in people; names are the first names players already see in the game.
  */
 export function TownBoard() {
-  const s = useTownStats();
+  const { s, connected } = useTownStats();
   const [range, setRange] = useState<'all' | 'day'>('all');
   return (
     <main className="town" aria-busy={s === null}>
@@ -38,19 +50,19 @@ export function TownBoard() {
           <div>
             <h1>The town board</h1>
             <p className="lede">
-              <span className="live-dot" aria-hidden="true" />
-              Live from Nims{s ? <>, day {n(s.day)}</> : null}. Real people, real trades, and the rules they voted for.
+              <span className={`live-dot${connected ? '' : ' connecting'}`} aria-hidden="true" />
+              {connected ? 'Live from Nims' : 'Reconnecting to Nims'}{s ? <>, day {n(s.day)}</> : null}. Real people, real trades, and the rules they voted for.
             </p>
           </div>
         </div>
         <nav className="town-nav">
           <a className="button primary" href="/">Play now</a>
-          <a href="#sim">Watch a simulated week →</a>
+          <a href="/week">Watch a simulated week →</a>
         </nav>
       </header>
 
-      {s === false && <p className="panel town-empty">The town board can't be reached right now. Try again in a minute.</p>}
-      {s === null && <p className="muted town-loading">Reading the town board…</p>}
+      {s === null && <p className="muted town-loading" role="status">{connected ? 'Reading the town board…' : 'Connecting to the town… still trying.'}</p>}
+      {s && !connected && <p className="muted small town-loading" role="status">Connection lost. Showing the last numbers we got; retrying.</p>}
       {s && (
         <>
           <section className="town-tiles" aria-label="The town in numbers">

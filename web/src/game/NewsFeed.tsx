@@ -16,7 +16,7 @@ export function NewsFeed({ state }: { state: GameState }) {
         <ul>{state.events.map((e, i) => <li key={i}><span className="muted">Day {Math.floor(e.hour / 24) + 1}, {String(e.hour % 24).padStart(2, '0')}:00</span> {e.text}</li>)}</ul>
       )}
       {proof && <p className="small muted">Your goods and coins are real. <a href={proof.explorer} target="_blank" rel="noreferrer">See them on the public ledger →</a></p>}
-      <p className="small"><a href="#sim">Watch a whole week of the market unfold →</a></p>
+      <p className="small"><a href="/week">Watch a whole week of the market unfold →</a></p>
     </section>
   );
 }

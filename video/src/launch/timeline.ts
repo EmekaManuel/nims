@@ -8,7 +8,7 @@ export interface Sent { file: string; start: number; duration: number; reveal: b
 export interface Beat { n: number; from: number; frames: number; sentences: Sent[]; voiceEnd: number }
 
 /** The shortest each beat may be, in seconds: some beats are carried by their pictures, not the voice. */
-export const MIN: Record<number, number> = { 1: 8.5, 2: 7.5, 3: 11, 4: 0, 5: 17, 6: 21.5, 7: 11.5, 8: 11, 9: 6.5 };
+export const MIN: Record<number, number> = { 1: 8.5, 2: 7.5, 3: 11, 4: 0, 5: 17, 6: 21.5, 7: 19.9, 8: 11, 9: 6.5 };
 const LEAD = 0.35;
 const TAIL = 0.6;
 

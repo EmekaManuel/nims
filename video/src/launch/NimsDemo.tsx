@@ -141,7 +141,11 @@ const B7: React.FC = () => (
       { src: 'clips/features.mp4', startSec: 10.4, dur: 3.55, hold: 2.6, keys: drawer(60), tag: { kind: 'LIVE', text: 'Quests and a daily reward' } },
       { src: 'clips/features.mp4', startSec: 24.2, dur: 2.35, keys: drawer(380), tag: { kind: 'LIVE', text: 'Shares and delivery orders' } },
       { src: 'clips/features.mp4', startSec: 36.6, dur: 1.3, keys: drawer(90), tag: { kind: 'LIVE', text: 'Your own stall' } },
-      { src: 'clips/features.mp4', startSec: 30.0, dur: 4.2, hold: 2.8, keys: drawer(90), tag: { kind: 'LIVE', text: 'A harbour and three frontiers' } },
+      { src: 'clips/trip-saltmere-go.mp4', startSec: 1.2, dur: 2.0, keys: drawer(90), tag: { kind: 'LIVE', text: 'A harbour and three frontiers' } },
+      { src: 'clips/trip-saltmere-arrive.mp4', startSec: 1.4, dur: 3.4, tag: { kind: 'LIVE', text: 'Saltmere Harbour · about a minute by road' } },
+      { src: 'clips/trip-timberfell-arrive.mp4', startSec: 6.0, dur: 2.4, tag: { kind: 'LIVE', text: 'Timberfell Woods · an unclaimed frontier' } },
+      { src: 'clips/trip-gemhollow-arrive.mp4', startSec: 11.0, dur: 2.4, tag: { kind: 'LIVE', text: 'Gem Hollow · a flight away' } },
+      { src: 'clips/trip-sunvale-arrive.mp4', startSec: 1.2, dur: 2.4, tag: { kind: 'LIVE', text: 'Sunvale · a vineyard, no shops yet' } },
     ]} />
     <Captions beat={beat(7)} />
   </AbsoluteFill>

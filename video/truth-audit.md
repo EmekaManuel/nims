@@ -15,7 +15,8 @@ Footage is real recordings of the live game (https://nims-app.up.railway.app) as
 | 5 | the code lines and the passing test output | read from the real files at build time (`scripts/extract-code.mjs` → `public/clips/code.json`, `planner-test.txt`) |
 | 6 | "Mira's Greens has closed", price board, festive-season shock, #sim week, council board | live recordings; the #sim shot is tagged SIMULATED on screen |
 | 6 | DAO proposal 11, **Approved**, its description | RPC `get_proposal(11)` on `nims-council.sputnikv2.testnet`, `proof.dao.proposal11` |
-| 7 | quests, daily reward (100 coins), shares, delivery orders, "Open your own stall · 6,000 coins", the harbour and three frontiers | the live UI, nothing bought or changed (`features.mp4`); `server/game/quests.ts`, `sim/engine.ts#L468`, `sim/world.ts#L43-L48` |
+| 7 | quests, daily reward (100 coins), shares, delivery orders, "Open your own stall · 6,000 coins" | the live UI, nothing bought or changed (`features.mp4`); `server/game/quests.ts`, `sim/engine.ts#L468`, `sim/world.ts#L43-L48` |
+| 7 | Saltmere Harbour, Timberfell Woods, Gem Hollow, Sunvale: the Travel panel (fares 120 / 160 / 260 / 240, "about 1 minute" by road, 2 minutes by plane) and the real arrival at each | live recordings by the capture guest "Nims Demo" (`capture/take4.mjs`, `take5.mjs`, `take6.mjs`; `public/clips/take4.trips.json`). Fares and hours: `sim/world.ts#L43-L48`; journeys: `server/game/game.ts#L665-L690`. The game's own news records "Nims Demo was the first to reach" Timberfell Woods, Gem Hollow and Sunvale. |
 | 8 | **54** people have played | `/stats` `players` (61) minus the **7** guests created by this capture, `proof.playersExcludingCaptureGuests` |
 | 8 | **3** rules voted in; **16** DAO proposals; last settled time; epoch | `/stats` `total.passed`, RPC `get_last_proposal_id`, `/chain/status`, read 2026-11-13 19:00 UTC |
 | 8 | contract and DAO account ids | `oja-items.testnet`, `nims-council.sputnikv2.testnet` |
@@ -40,6 +41,11 @@ Not shown on purpose: the trade count. The capture added several trades (the exa
 | 7 | quests and a daily reward, shares, delivery orders, your own stall, a harbour, three frontiers | the live UI shown in the same shots |
 | 8 | these numbers are live, from the game's own board; contract and DAO are public on testnet | `/stats`, `/chain/status`, RPC |
 | 9 | a market town run by AI merchants; built at the NEAR hackathon | README first screen |
+
+## The frontier trips (beat 7)
+- The capture guest travelled for real: Saltmere (120 coins), Timberfell (160), Gem Hollow (260), Sunvale (240), a second Timberfell visit to record its arrival (160), and the two trips home (120 each): **1,180 coins** of play money in total. The guest was renamed "Nims Demo" first, and the game's news credits it as the first to reach the three frontiers (permanent in the live game).
+- The first seconds of the Timberfell arrival clip show a brief "Lost touch with the game server" banner from a network blip; those frames are not used.
+- Only the departures and arrivals are shown. The roads themselves (about a minute each by car, two by plane) are waited out and not shown, and the shots are labelled with the place, not with a duration they don't show.
 
 ## Known limits of the video
 - The clips show no mouse pointer (Chrome's screen capture omits it), so clicks are implied by the game's response.

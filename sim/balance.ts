@@ -14,6 +14,8 @@ function play(seed: number, rate: number, hours: number, actionsPerHour: number)
   const me = 'bot@example.com';
   g.state(me);
   g.chooseGoal(me, 'fortune');
+  // BALANCE_WIDER=1: every merchant plans the widest margin the model can ask for, the worst case for a player (see sim/plan.ts)
+  if (process.env.BALANCE_WIDER) for (const m of g.w.merchants) if (!m.owner) m.plan = { day: 1e9, stock: {}, margin: 'wider', reason: 'worst case' };
   for (const s of g.w.sources) if (s.item !== 'cotton') s.cost = Math.round(BASE_PRICE[s.item as Item] * rate);
   const costOf: Record<string, number> = {};
   const worth: number[] = [];

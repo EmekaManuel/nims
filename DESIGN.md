@@ -208,7 +208,7 @@ Each in-game day every town merchant plans its own business through NEAR AI Clou
 
 Words, not numbers, so the model cannot set a price: `pricing.ts` is unchanged and simply given the chosen target and margin. A reply that does not parse, names an unknown choice or misses the margin is ignored, and the merchant keeps its plan. The fast-forward sim never calls the model, so it stays deterministic; a server without NEAR AI (or with `MERCHANT_AGENTS=0`) behaves exactly as before. One merchant plans every 15 real seconds, so all eight plan within a game day.
 
-Checked: with all eight town merchants on wider margins (the worst case for players), `npm run balance`'s trader still reaches the 10,000 goal in every seeded run. In a live run against NEAR AI Cloud all eight replies parsed; most reasons passed the number check in the merchant's own words and the rest fell back to the plain sentence.
+Checked: with every merchant on the widest margin the model can ask for (the worst case for players: `BALANCE_WIDER=1 npm run balance`), 12 of the 16 seeded runs of `npm run balance`'s trader still reach the 10,000 goal (14 of 16 with normal margins), the slowest after about 33 real minutes. In a live run against NEAR AI Cloud all eight replies parsed; most reasons passed the number check in the merchant's own words and the rest fell back to the plain sentence.
 
 ## 13. Beyond the town: realms, quests and new-player incentives
 

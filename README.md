@@ -12,15 +12,33 @@
 
 </div>
 
-Track: **Games With Real Economies** (NEAR HACKATHON). The economy is the gameplay, and the player never sees the chain.
+**What it is.** Nims is a market town where eleven AI merchants (eight in town, three in Saltmere Harbour), each with its own NEAR account, stock, cash and prices, plan their days and trade with real people. Track: **Games With Real Economies** (`games`); the bounded-agent design also fits `security`. Players never see the chain.
 
-**What is real on NEAR (testnet):** each of the eleven merchants (eight in town, three in Saltmere Harbour) holds its own NEAR account and signs its own transfers; every good and the `coins` token is an NEP-245 item on `oja-items.testnet`; each merchant's daily plan is decided by NEAR AI Cloud; every council vote is recorded on a SputnikDAO (`nims-council.sputnikv2.testnet`) by a Town Clerk agent whose key is custodied by OutLayer. In-game coins are a game currency and are never cashed out. Nothing uses mainnet or real funds. What is not on NEAR yet is listed under [What is real, and what is not](#what-is-real-and-what-is-not).
+**The problem.** Game economies are usually scripts: prices follow a table, NPCs hold no money, and nothing changes until the next dev patch. And handing an AI agent real money is unsafe, because a model can be talked into anything.
 
-## The problem and the product
+**The idea: a model steers, code bounds.** Each morning every merchant asks NEAR AI Cloud for a plan, and the game turns it into one fixed step: stock target x1.3, x0.75 or unchanged, and margin +3 or -3 points, kept between 5% and 25% ([`sim/plan.ts#L29-L32`](sim/plan.ts#L29-L32)). A reply that is not a valid plan is ignored, and a reason that invents a number is replaced by the game's own words ([`server/agents/planner.ts#L11`](server/agents/planner.ts#L11), tested in [`planner.test.ts#L24-L37`](server/agents/planner.test.ts#L24-L37)). The merchant is told nothing about any player ([`planner.test.ts#L41`](server/agents/planner.test.ts#L41)), and no player-typed text reaches any prompt: the plan, the price explanation, the gazette and the haggle reply are all built from the game's own facts ([`planner.ts#L13`](server/agents/planner.ts#L13), [`voice.ts#L12`](server/voice/voice.ts#L12), [`gazette.ts#L8`](server/voice/gazette.ts#L8), [`haggle.ts#L11-L25`](server/voice/haggle.ts#L11-L25)). So an agent can run a real business on a real account without being able to break the economy. The same shape fits anywhere an agent needs a budget.
 
-Game economies are usually scripts: prices follow a table, NPCs trade nothing, and a player cannot move a market. Nims replaces the script with agents.
+**Try it (3 steps).** Live: <https://nims-app.up.railway.app>
+1. Press **Play as a guest** (or **Continue with Google**). You see the town and a goal card. No wallet, popup or gas prompt appears.
+2. Collect goods at the tomato field, open **Mira's Greens** and sell some. Your cash rises at once. The stall panel shows **Today's plan**, in the merchant's own words, and hovering a price tells you why it is what it is.
+3. Open the **News** tab and press **See them on the public ledger** ([`NewsFeed.tsx#L18`](web/src/game/NewsFeed.tsx#L18)): your goods and coins are NEP-245 balances on testnet. Open `/chain/status` to see settlement running (`lastSettledAt` keeps moving).
 
-**The idea, and why it matters beyond one game.** The hard part of giving an AI agent money isn't the AI, it's trusting it with the money. Nims' answer is structural, not a prompt: the planner maps every merchant decision to a small, fixed step (stock target ×1.3 or ×0.75, margin ±3 points, kept within 5–25%; see [`sim/plan.ts`](sim/plan.ts)), so a model can steer a real business, holding a real NEAR account and real stock, without ever being able to move money or break the economy outside what the code allows. The wariness mechanic (merchants independently noticing a player shopping them off each other) and the live multiplayer presence (every signed-in player visible and clickable, no backend of their own to build) are both the same idea applied twice: behaviour that emerges from shared, inspectable state instead of being scripted per-feature. That shape, an agent that reasons freely but acts inside a narrow, auditable contract, fits anywhere money and autonomy need to meet, not just a town of 8 NPCs.
+**NEAR, concretely.**
+- **NEP-245 items:** every good and the `coins` token live in one contract, `oja-items.testnet` ([`contracts/items/src/lib.rs#L5-L7`](contracts/items/src/lib.rs#L5-L7)). Calls carry sequence numbers, so a retry can never apply twice.
+- **Players never sign:** the server signs a NEP-366 delegate action with the player's key and a relayer pays the gas ([`server/chain/agent-chain.ts#L37-L48`](server/chain/agent-chain.ts#L37-L48), [`relay.ts#L22-L26`](server/chain/relay.ts#L22-L26)).
+- **Council record:** every town-council vote is written to a SputnikDAO, `nims-council.sputnikv2.testnet` ([`server/chain/dao.ts#L37-L80`](server/chain/dao.ts#L37-L80)).
+- **OutLayer:** the Town Clerk that signs that record has a key custodied by OutLayer, with a policy that allows only calls to the DAO within spending caps. The policy is set in the OutLayer dashboard, and `npm run chain:outlayer -- check` prints the live one ([`server/chain/outlayer.ts`](server/chain/outlayer.ts)).
+
+**Honest limits.**
+- Merchant and player keys are held by the server (encrypted), not by the merchants themselves. Only the Town Clerk is OutLayer-custodied.
+- NEAR Intents is partial: delivery orders take its shape but run inside the game.
+- The DAO is a record. Votes are counted in the game.
+- Settlement mirrors the game to testnet in the background and never blocks play. After a deploy, or if NEAR rejects a call, it starts a fresh epoch (a new namespace on the same contract), so the epoch number in `/chain/status` can change. Run only one server per contract.
+- Testnet only. Coins are the game's own currency and are never cashed out. Details: [What is real, and what is not](#what-is-real-and-what-is-not).
+
+**Built at NEAR HACKATHON.** The first commit is dated 2026-11-04, with no earlier baseline. MIT license. Main libraries: near-api-js, near-sdk (Rust), React, React Three Fiber, Vite, Radix UI, Vitest, Remotion. The code was written with Claude Code (Anthropic) under the author's direction; NEAR AI Cloud and ElevenLabs run inside the game.
+
+## What is in the game
 
 - **Eleven merchant agents** (eight in town, three in Saltmere Harbour) each hold their own goods and coins, and set their own prices from their stock, their cash and what was traded recently. **Each morning every merchant plans its own day through NEAR AI Cloud:** told its real books and the town around it, it decides which goods to stock up on or run down and whether to price keener or wider, and says why (from a live run: *"I am stocking up on 49 pepper while the price is low at 147 coins to prepare for the festive season crowds."*). The game turns those choices into small, bounded adjustments, so a merchant steers its business but can never break the economy.
 - **Prices explain themselves, out loud.** Hover a price and the merchant says why, in their own voice: *"It is the festive season and everyone wants fabric right now."* The words come from **NEAR AI Cloud**, checked against the game's real numbers, and are spoken with ElevenLabs.
@@ -214,7 +232,7 @@ Below its cash floor a merchant stops buying; at zero cash with nothing to sell 
 
 - One pricing file, one economy: fast-forward calls the same engine as the live game.
 - Gameplay never waits on the chain. If the chain rejects a call, the settler starts a fresh epoch minted from the game state instead of patching.
-- A redeploy tries not to cost a new epoch: the settler never sends anything the saved game does not contain, and on a stop signal it finishes the call in flight and saves before exiting. **On the hosted demo it often still starts a fresh epoch after a deploy** (a new namespace `gN-….oja-items.testnet` on the same contract, so `/chain/status` shows a lower epoch number and a backlog to catch up), and it can start one on its own when a call is rejected. Each epoch is an exact mirror of the game from its start, and a transient network error (for example a just-created account's key not being visible yet) is retried inside the same epoch. If more than three fresh epochs start within ten minutes, settlement pauses until the server restarts; gameplay is never affected.
+- A redeploy tries not to cost a new epoch: the settler never sends anything the saved game does not contain, and on a stop signal it finishes the call in flight and saves before exiting. **On the hosted demo it often still starts a fresh epoch after a deploy** (a new namespace `gN-….oja-items.testnet` on the same contract, so `/chain/status` shows a lower epoch number and a backlog to catch up), and it starts one when NEAR rejects a call. Each epoch is an exact mirror of the game from its start, and a transient network error (for example a just-created account's key not being visible yet) is retried inside the same epoch. If more than three fresh epochs start within ten minutes, settlement pauses until the server restarts; gameplay is never affected.
 - Testnet only: the chain client refuses any other network. Secrets live in `.env`; only `.env.example` is committed.
 
 ```
@@ -286,7 +304,7 @@ Games With Real Economies asks for *"NPCs with wallets, player-owned markets and
 
 - **The DAO is a record, not the counter.** Votes are counted in the game, weighted by seats and shares. The DAO shows how each vote ended. It does not decide anything.
 - **Only the Town Clerk is OutLayer-custodied.** The merchants' own accounts, and player accounts, are still signed with keys the server holds (encrypted).
-- **Settlement is best-effort and restarts often on the demo.** The chain mirrors the game, and when it ever disagrees the settler starts a fresh epoch rather than patching (see Design rules). Expect the epoch number on `/chain/status` to change, and `behind` to be non-zero. `lastSettledAt` moving is the sign it is working. The game never waits on it.
+- **Settlement is background work that can start a fresh epoch.** The chain mirrors the game, and when it ever disagrees the settler starts a fresh epoch rather than patching (see Design rules). After a deploy the epoch number on `/chain/status` changes, and `behind` is non-zero while it catches up. `lastSettledAt` moving is the sign it is working. The game never waits on it. Run only one server per contract: while a second server with the same keys was also running, the demo's epoch changed every few minutes and settlement paused; once it was stopped the epoch held for 30 minutes.
 - **Delivery orders do not use NEAR Intents.** They follow its shape (state the outcome and a limit price, a solver fills it) but run inside the game, not on the Intents network.
 - **Shares, council tallies and funds live in the game server,** not in a contract. Item and coin balances settle to the NEP-245 contract.
 - **Testnet only.** Nothing here uses mainnet or real funds.

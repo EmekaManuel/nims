@@ -11,6 +11,8 @@ One container serves the pages and the API ([`Dockerfile`](../Dockerfile)); any 
 3. Open the address. Anyone can press **Play as a guest**. For **Continue with Google**, create a Google OAuth client (Credentials, OAuth client ID, Web), add `<PUBLIC_URL>/auth/google/callback` as an authorised redirect URI, and set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`. Publish the consent screen ("In production") so anyone can sign in, not only listed test users.
 4. Keep it awake during judging with a free pinger (for example UptimeRobot hitting the address every 5 minutes).
 
+**One server per contract.** Never run a second server with the same `NEAR_PRIVATE_KEY` and `CONTRACT_ID` while the hosted one is up (for example `npm run dev` on a laptop with the same `.env`): the contract's mint sequence is shared, so the two fight, the epoch changes every few minutes and settlement pauses. Run local copies with `CHAIN_SYNC=0`, or give them their own contract.
+
 **Know the limits of a free plan:** Render's free tier sleeps when idle and wipes its disk on restart or redeploy, so players and saves reset. Anything that should last needs a persistent volume at `/data` (it holds accounts, wallets, chain progress and the game save).
 
 Always: run **one** copy only (the game world and the settler live in that process), and keep the settlement account funded. If it runs out of testnet NEAR, the status page says so and settlement pauses while gameplay continues. Never commit `.env`.

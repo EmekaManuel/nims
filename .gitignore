@@ -9,3 +9,4 @@ web/dist
 video/capture/.session.json
 video/public/clips/
 video/public/music/
+video/public/vo-launch/*.mp3

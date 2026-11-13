@@ -20,7 +20,7 @@
     {
       "n": 4,
       "caption": "I sell Ruth six iron. Her plan, in her own words, picked only two things: sell less iron, and price wider. I never sign anything. My account sends those six iron to hers, as an NEP-245 transfer. A couple of minutes later, it's on NEAR testnet.",
-      "tts": "I sell Ruth six iron. Her plan, in her own words, picked only two things: sell less iron, and price wider. I never sign anything. My account sends those six iron to hers, as an N E P two forty-five transfer. A couple of minutes later, it's on NEAR test net."
+      "tts": "I sell Ruth six iron. Her plan, in her own words, picked only two things: sell less iron, and price wider. I never sign anything. My account sends those six iron to hers, as an Nep two forty-five transfer. A couple of minutes later, it's on NEAR test net."
     },
     {
       "n": 5,
@@ -30,7 +30,7 @@
     {
       "n": 6,
       "caption": "Nothing here is patched by hand. Shocks roll in, shops close, and a community fund reopens them. This is a simulated week, on the same engine. Players vote on the rules, and each vote is recorded on a SputnikDAO by an agent whose key OutLayer holds.",
-      "tts": "Nothing here is patched by hand. Shocks roll in, shops close, and a community fund reopens them. This is a simulated week, on the same engine. Players vote on the rules, and each vote is recorded on a Sputnik D A O by an agent whose key Out Layer holds."
+      "tts": "Nothing here is patched by hand. Shocks roll in, shops close, and a community fund reopens them. This is a simulated week, on the same engine. Players vote on the rules, and each vote is recorded on a Sputnik Dow by an agent whose key Out Layer holds."
     },
     {
       "n": 7,
@@ -40,12 +40,19 @@
     {
       "n": 8,
       "caption": "These numbers are live, from the game's own board. The contract and the DAO are public on testnet.",
-      "tts": "These numbers are live, from the game's own board. The contract and the D A O are public on test net."
+      "tts": "These numbers are live, from the game's own board. The contract and the Dow are public on test net."
     },
     {
       "n": 9,
       "caption": "Nims. A market town run by AI merchants. Built at the NEAR hackathon.",
       "tts": "Nims. A market town run by AI merchants. Built at the NEAR hackathon."
     }
-  ]
+  ],
+  "settings": {
+    "stability": 0.6,
+    "similarity_boost": 1,
+    "style": 0.15,
+    "use_speaker_boost": true,
+    "speed": 0.9
+  }
 }

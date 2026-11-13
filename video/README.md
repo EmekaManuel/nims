@@ -1,6 +1,6 @@
 # Nims demo video (Remotion)
 
-1080p, about 143 s, narrated in a cloned ElevenLabs voice, set **at night in the 3D town**. It is **not a screen recording**: Remotion draws the game's real React screen (`web/src/game/GameScreen`) and its real 3D town (`Map3D`, React Three Fiber) from states produced by the real game engine, with a scripted cursor and cameras. Every frame is drawn from the time of the frame alone (walkers, the truck, rain and limb swing are pure functions of time), so frames can render in any order, in parallel.
+1080p, 3 min 9 s (189 s), narrated in a cloned ElevenLabs voice, set **at night in the 3D town**. It is **not a screen recording**: Remotion draws the game's real React screen (`web/src/game/GameScreen`) and its real 3D town (`Map3D`, React Three Fiber) from states produced by the real game engine, with a scripted cursor and cameras. Every frame is drawn from the time of the frame alone (walkers, the truck, rain and limb swing are pure functions of time), so frames can render in any order, in parallel.
 
 What is real in it:
 
@@ -16,6 +16,10 @@ What is real in it:
 **It renders one browser tab at a time, on purpose** (`Config.setConcurrency(1)` in `remotion.config.ts`). With several tabs the 3D town glitches, because they share one GPU: a frame comes out with the wrong camera, or with no town at all. One tab is just as fast, since the tabs were slowing each other down. After any render, check it: `node scripts/check-video.mjs out/nims-demo.mp4 0 387 718 954 1303 1697 2063 2511 2843 2999 3314 3609 3957` (the numbers are the frames where a scene is expected to cut) looks for a frame that differs a lot from both its neighbours, which are alike, and exits non-zero if it finds one.
 
 - `npm install`, then `npm run studio` to preview; `npm run render` (voiced) or `npm run render:silent` (no narration, for your own voice).
+
+## A cut for X
+
+X accepts 2 min 20 s from a standard account, and the demo is 3 min 9 s. `node scripts/make-short.mjs` cuts the finished `../docs/nims-demo.mp4` (nothing is re-rendered, no API key is needed; it needs `ffmpeg` and Chrome) into `out/nims-demo-x.mp4`, about 2 min 19 s: the sign-in, price, plan, sale, merchants-talk, council, fast-forward, chain and DAO scenes, with a caption over the first seconds ("Drawn from the real game's engine and screen. Not a screen recording.") and a 4 s end card with the live URL, the repo and the hashtags (`scripts/short/*.html`). It drops the multiplayer, broke, news and cities scenes and the long outro. The scene times are written in the script; it stops if the source video's length changes, so update them from `src/timeline.ts` after a re-render.
 
 ## Rebuild it from scratch
 Needs `NEAR_AI_API_KEY` and `ELEVENLABS_API_KEY` in `../.env` (and `SPUTNIK_DAO_ID`, `OUTLAYER_API_KEY` and the testnet account to record the council vote on the DAO; without them the vote is still played, just not recorded).

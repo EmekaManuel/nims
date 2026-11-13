@@ -231,6 +231,10 @@ export interface TownStats {
   last24h: { players: number; trades: number; votes: number };
   total: { trades: number; votes: number; decisions: number; passed: number };
   shops: { open: number; total: number; playerStalls: number };
+  /** When counting began (ISO). */
+  since?: string;
+  /** The settlement to NEAR testnet, when it is on. */
+  chain?: { contract?: string; lastSettledAt?: string | null } | null;
   /** The ten richest people who have played, by the first name others see in the game. */
   leaders: Leader[];
   /** The same table for the people who played in the last 24 real hours. Absent from a server that predates it. */

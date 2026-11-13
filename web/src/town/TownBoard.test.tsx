@@ -11,6 +11,8 @@ const full: TownStats = {
   last24h: { players: 12, trades: 340, votes: 9 },
   total: { trades: 5120, votes: 61, decisions: 14, passed: 9 },
   shops: { open: 7, total: 8, playerStalls: 2 },
+  since: '2026-11-08T12:03:07.163Z',
+  chain: { contract: 'oja-items.testnet', lastSettledAt: null },
   leaders: [
     { name: 'Ada', worth: 41_200, shares: 12, stall: true, vehicle: 'van' },
     { name: 'Bo', worth: 9_800, shares: 0, stall: false, vehicle: 'pickup' },
@@ -53,6 +55,27 @@ describe('town board', () => {
     const region = await screen.findByRole('region', { name: /Richest traders/ });
     fireEvent.click(within(region).getByRole('button', { name: 'Last 24 hours' }));
     expect(within(region).getByText(/No one has played in the last 24 hours/)).toBeTruthy();
+  });
+
+  it('shows impact from the live numbers, and links the contract', async () => {
+    vi.spyOn(api, 'stats').mockResolvedValue(full);
+    render(<TownBoard />);
+    const impact = await screen.findByRole('region', { name: /What this shows/ });
+    expect(impact.textContent).toMatch(/37 people, 5,120 trades/);
+    expect(impact.textContent).toMatch(/7 of 8 merchant shops are open/);
+    expect(impact.textContent).toMatch(/9 rules voted in/);
+    expect(impact.textContent).toMatch(/proposal #4/);
+    expect(within(impact).getByRole('link', { name: 'oja-items.testnet' }).getAttribute('href')).toBe('https://testnet.nearblocks.io/address/oja-items.testnet');
+    expect(impact.textContent).toMatch(/testnet only/i);
+  });
+
+  it('leaves out the claims it cannot back: no vote yet, chain off', async () => {
+    vi.spyOn(api, 'stats').mockResolvedValue({ ...full, chain: null, decisions: [], total: { ...full.total, passed: 0 } });
+    render(<TownBoard />);
+    const impact = await screen.findByRole('region', { name: /What this shows/ });
+    expect(impact.textContent).toMatch(/Rules the players set/);
+    expect(impact.textContent).not.toMatch(/proposal #/);
+    expect(within(impact).queryByRole('link')).toBeNull();
   });
 
   it('invites people in when nobody has played or voted yet', async () => {

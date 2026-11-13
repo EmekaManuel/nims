@@ -7,6 +7,7 @@ import { AvatarFigure, DEFAULT_AVATAR } from '../art/avatar';
 
 const REFRESH_MS = 15_000;
 const n = (x: number) => x.toLocaleString('en-US');
+const EXPLORER = 'https://testnet.nearblocks.io/address/';
 const LEVER: Record<string, string> = { rent: 'stall rent', payout: 'the profit payout' };
 
 /** Keeps the town's public numbers fresh while the page is open. `null` while loading, `false` if the server can't say. */
@@ -96,6 +97,8 @@ export function TownBoard() {
             </section>
           </div>
 
+          <Impact s={s} />
+
           <p className="muted small town-foot">
             Counts only people signed in to the game, never the simulated traders. Names are the ones players chose, or a first name or initial;
             never an email. Updates every 15 seconds.
@@ -138,5 +141,55 @@ function Leaders({ list, empty }: { list: Leader[]; empty: string }) {
         </li>
       ))}
     </ol>
+  );
+}
+
+/** "3 minutes ago", for the last settlement. Empty when the time is unknown or in the future. */
+function ago(iso: string | null | undefined, now = Date.now()): string {
+  const t = iso ? Date.parse(iso) : NaN;
+  if (!Number.isFinite(t) || t > now) return '';
+  const m = Math.round((now - t) / 60_000);
+  if (m < 1) return 'just now';
+  if (m < 60) return `${m} minute${m === 1 ? '' : 's'} ago`;
+  const h = Math.round(m / 60);
+  return h < 48 ? `${h} hour${h === 1 ? '' : 's'} ago` : `${Math.round(h / 24)} days ago`;
+}
+
+/**
+ * What the town has shown so far, in the town's own live numbers (nothing here is typed in by hand). Plain about the limits:
+ * testnet, and coins are play money.
+ */
+function Impact({ s }: { s: TownStats }) {
+  const contract = s.chain?.contract;
+  const settled = ago(s.chain?.lastSettledAt);
+  const since = s.since ? new Date(s.since).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : null;
+  const dao = s.decisions.find((d) => d.daoId !== null);
+  return (
+    <section className="panel town-impact" aria-labelledby="impact-h">
+      <h2 id="impact-h">What this shows</h2>
+      <p className="lede">An economy where the traders are AI agents with their own money, played by real people{since ? <>, counted since {since}</> : null}.</p>
+      <div className="impact-grid">
+        <div className="impact">
+          <b>{n(s.players)} {s.players === 1 ? 'person' : 'people'}, {n(s.total.trades)} {s.total.trades === 1 ? 'trade' : 'trades'}</b>
+          <p>Real people moved a market that no one scripts: {n(s.shops.open)} of {n(s.shops.total)} merchant shops are open, each priced by an agent from its own stock and cash. {n(s.last24h.players)} played in the last 24 hours.</p>
+        </div>
+        <div className="impact">
+          <b>On NEAR, out of sight</b>
+          <p>
+            Every good and coin settles to the NEP-245 contract{contract ? <> <a href={`${EXPLORER}${contract}`} target="_blank" rel="noreferrer">{contract}</a></> : null} on NEAR testnet.
+            {settled ? <> Last settled {settled}.</> : null} Players sign in with Google or as a guest and never see a wallet.
+          </p>
+        </div>
+        <div className="impact">
+          <b>{s.total.passed > 0 ? `${n(s.total.passed)} ${s.total.passed === 1 ? 'rule' : 'rules'} voted in` : 'Rules the players set'}</b>
+          <p>
+            Shareholders vote on each market's rent and payout, and a passing vote changes how the economy runs from the next day.
+            {dao ? <> Each decision is recorded on a SputnikDAO by an agent whose key is custodied by OutLayer (latest: proposal #{dao.daoId}).</> : <> Each decision is recorded on a SputnikDAO by an agent whose key is custodied by OutLayer.</>}
+          </p>
+        </div>
+      </div>
+      <p className="why"><b>Why it matters.</b> Trusting an AI agent with money is a trust problem, not an intelligence one. In Nims every merchant decision becomes a small, fixed step, so an agent can run a real business on a real account without being able to break the economy. The same shape fits anywhere agents need a budget.</p>
+      <p className="muted small">NEAR testnet only. Coins are the game's own currency and are never cashed out.</p>
+    </section>
   );
 }

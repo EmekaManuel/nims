@@ -591,8 +591,16 @@ th { font-size: .7rem; letter-spacing: .06em; text-transform: uppercase; color: 
 .verdict { font-size: .75rem; font-weight: 800; padding: .15rem .55rem; border-radius: 999px; white-space: nowrap; }
 .verdict.yes { background: var(--good-soft); color: var(--good); }
 .verdict.no { background: var(--bad-soft); color: var(--bad); }
+.town-impact { margin-top: 16px; }
+.town-impact h2 { margin: 0; }
+.impact-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: .9rem; }
+.impact { background: var(--surface-2); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; }
+.impact b { display: block; font-family: var(--display); font-size: 1.25rem; line-height: 1.2; margin-bottom: .35rem; }
+.impact p { margin: 0; font-size: .92rem; color: var(--ink-2); }
+.impact a { font-weight: 700; word-break: break-all; }
+.town-impact .why { margin: 1rem 0 .4rem; max-width: 60rem; }
 .town-foot { margin-top: 1.2rem; max-width: 60rem; }
-@media (max-width: 900px) { .town-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } .town-tiles .tile:last-child { grid-column: 1 / -1; } .town-cols { grid-template-columns: 1fr; } }
+@media (max-width: 900px) { .town-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } .town-tiles .tile:last-child { grid-column: 1 / -1; } .town-cols { grid-template-columns: 1fr; } .impact-grid { grid-template-columns: 1fr; } }
 @media (max-width: 480px) { .town h1 { font-size: 1.8rem; } .leaders li { grid-template-columns: 2rem minmax(0, 1fr) auto; } .leaders .holds { display: none; } }
 
 /* A merchant's own plan for the day, in its stall panel */

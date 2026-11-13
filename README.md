@@ -38,6 +38,8 @@
 
 **Built at NEAR HACKATHON.** The first commit is dated 2026-11-04, with no earlier baseline. MIT license. Main libraries: near-api-js, near-sdk (Rust), React, React Three Fiber, Vite, Radix UI, Vitest, Remotion. The code was written with Claude Code (Anthropic) under the author's direction; NEAR AI Cloud and ElevenLabs run inside the game.
 
+**Another project in this hackathon.** The same author also has a separate project in this hackathon: [NearQuery](https://github.com/EmekaManuel/nearquery), a data-backed, re-runnable thesis on NEAR Intents. It is a different repository and a different entry, and is not part of Nims.
+
 ## What is in the game
 
 - **Eleven merchant agents** (eight in town, three in Saltmere Harbour) each hold their own goods and coins, and set their own prices from their stock, their cash and what was traded recently. **Each morning every merchant plans its own day through NEAR AI Cloud:** told its real books and the town around it, it decides which goods to stock up on or run down and whether to price keener or wider, and says why (from a live run: *"I am stocking up on 49 pepper while the price is low at 147 coins to prepare for the festive season crowds."*). The game turns those choices into small, bounded adjustments, so a merchant steers its business but can never break the economy.
@@ -351,4 +353,5 @@ One container serves the pages and the API ([`Dockerfile`](Dockerfile)). Steps f
 - **AI assistance:** the code was written with Claude Code (Anthropic) under the author's direction. The demo narration is a cloned voice made with ElevenLabs, and the demo video is built with Remotion.
 - **Main libraries:** near-api-js, near-sdk (Rust), React, React Three Fiber (three.js), Vite, Radix UI, Vitest, Remotion. SputnikDAO v2 and OutLayer agent custody for the council record.
 - **Setting:** a fictional market town with a fictional currency, so no real-world place is needed to follow the game.
+- **Other project:** the same author also has [NearQuery](https://github.com/EmekaManuel/nearquery) in this hackathon, a separate project (a thesis on NEAR Intents) in its own repository.
 - **License:** MIT, see [LICENSE](LICENSE).

@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/img/banner.png" alt="Nims: a market town run by AI merchants. The economy is the game." width="100%" />
+<img src="docs/img/banner.png" alt="Nims: AI merchants with real NEAR accounts, bounded by code. Eleven AI agents set prices and answer to a player-run council." width="100%" />
 
 # Nims
 

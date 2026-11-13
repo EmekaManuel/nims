@@ -1,0 +1,122 @@
+{
+  "readAt": "2026-11-13T18:23:06.074Z",
+  "beat1_and_4": {
+    "note": "One real trade on the live game by a guest named Demo. Values are the game's own state (/game/state) read at the moment named; chain values are decoded from the transactions on testnet.",
+    "sale1": {
+      "what": "sold iron to Ruth's Salvage",
+      "gameTime": "2026-11-13T18:15:53.296Z",
+      "youCash": [
+        1047,
+        1904
+      ],
+      "ruthIronBuyPrice": [
+        160,
+        140
+      ],
+      "ruthTill": [
+        50996,
+        50085
+      ],
+      "ruthPlan": {
+        "day": 3370,
+        "reason": "I have 62 iron, which is above my usual 60, so I will sell at a higher margin to protect my 47252 coins.",
+        "stock": {
+          "iron": "less"
+        },
+        "margin": "wider"
+      },
+      "source": "take1.events.json (ruth-before-sale, ruth-after-sale), from /game/state",
+      "chain": {
+        "hash": "67D5HX7UhgP1GB4cHrjq8BS84hAxfBj2jaJbdmPNwKib",
+        "at": "2026-11-13T18:17:33.680Z",
+        "legs": [
+          {
+            "to": "ruth",
+            "token": "iron",
+            "amount": 6
+          }
+        ],
+        "explorer": "https://testnet.nearblocks.io/txns/67D5HX7UhgP1GB4cHrjq8BS84hAxfBj2jaJbdmPNwKib",
+        "settledSecondsAfterSale": 100
+      }
+    },
+    "sale2": {
+      "what": "sold tomatoes to Tomas Produce, with a haggle",
+      "gameTime": "2026-11-13T18:16:13.980Z",
+      "youCash": [
+        704,
+        1567
+      ],
+      "tomasPlan": {
+        "day": 3371,
+        "reason": "I have 47327 coins so I will stock up to reach my usual levels of 100 flour and 60 tomatoes to ensure steady trade.",
+        "stock": {
+          "flour": "more",
+          "tomatoes": "more"
+        },
+        "margin": "narrower"
+      },
+      "chain": {
+        "hash": "BK25ofGTMx7Co5x6sQa9YjwrXrWs1eA1poynHcdnrZ13",
+        "at": "2026-11-13T18:18:48.445Z",
+        "legs": [
+          {
+            "to": "town",
+            "token": "coins",
+            "amount": 80
+          },
+          {
+            "to": "tomas",
+            "token": "tomatoes",
+            "amount": 20
+          }
+        ],
+        "explorer": "https://testnet.nearblocks.io/txns/BK25ofGTMx7Co5x6sQa9YjwrXrWs1eA1poynHcdnrZ13",
+        "settledSecondsAfterSale": 154
+      }
+    },
+    "playerAccount": "h-4d469c4a9b.g1-mwf4uyou.oja-items.testnet",
+    "explorerAccount": "https://testnet.nearblocks.io/address/h-4d469c4a9b.g1-mwf4uyou.oja-items.testnet"
+  },
+  "proof": {
+    "statsAtRead": {
+      "players": 61,
+      "tradesTotal": 43,
+      "last24h": {
+        "players": 27,
+        "trades": 14,
+        "votes": 24
+      },
+      "councilVotesPassed": 3,
+      "decisions": 9,
+      "shops": {
+        "open": 10,
+        "total": 11,
+        "playerStalls": 0
+      }
+    },
+    "captureGuests": 7,
+    "playersExcludingCaptureGuests": 54,
+    "note": "Players is /stats \"players\" minus the guests this capture created. Trades are not adjusted (about 6 were the capture player, so the real count is a little lower).",
+    "chain": {
+      "contract": "oja-items.testnet",
+      "epoch": 1,
+      "lastSettledAt": "2026-11-13T18:22:50.883Z",
+      "paused": false
+    },
+    "dao": {
+      "account": "nims-council.sputnikv2.testnet",
+      "proposals": 16,
+      "proposal11": {
+        "status": "Approved",
+        "description": "Nims Produce Market council: set stall rent to low. A shareholder vote, counted in the gam"
+      }
+    }
+  },
+  "sources": [
+    "https://nims-app.up.railway.app/stats",
+    "https://nims-app.up.railway.app/chain/status",
+    "https://api-testnet.nearblocks.io (transactions)",
+    "https://test.rpc.fastnear.com (EXPERIMENTAL_tx_status, call_function)"
+  ]
+}

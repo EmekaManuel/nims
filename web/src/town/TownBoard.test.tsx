@@ -79,11 +79,18 @@ describe('town board', () => {
   });
 
   it('invites people in when nobody has played or voted yet', async () => {
-    vi.spyOn(api, 'stats').mockResolvedValue({ ...full, players: 1, leaders: [], decisions: [], total: { ...full.total, passed: 1 } });
+    vi.spyOn(api, 'stats').mockResolvedValue({ ...full, players: 1, leaders: [], decisions: [], total: { ...full.total, decisions: 0, passed: 1 } });
     render(<TownBoard />);
     expect(await screen.findByText(/No one has traded yet/)).toBeTruthy();
     expect(screen.getByText(/No council vote has closed yet/)).toBeTruthy();
     expect(screen.getByRole('region', { name: /The town in numbers/ }).textContent).toMatch(/1person has played.*1council vote passed/);
+  });
+
+  it('does not say no vote has closed when the server counts closed votes it can no longer list', async () => {
+    vi.spyOn(api, 'stats').mockResolvedValue({ ...full, decisions: [], total: { ...full.total, decisions: 4, passed: 0 } });
+    render(<TownBoard />);
+    expect(await screen.findByText(/4 council votes have closed so far, none passed/)).toBeTruthy();
+    expect(screen.queryByText(/No council vote has closed yet/)).toBeNull();
   });
 
   it('says so when the board cannot be reached', async () => {

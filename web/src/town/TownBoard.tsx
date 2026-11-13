@@ -80,7 +80,11 @@ export function TownBoard() {
               <h2 id="council-h">Town council decisions</h2>
               <p className="muted small">Players with a seat vote on each market's rules. The merchants vote too.</p>
               {s.decisions.length === 0 ? (
-                <p className="town-empty">No council vote has closed yet. Trade in a market to get a seat, then propose a change.</p>
+                <p className="town-empty">
+                  {s.total.decisions > 0
+                    ? <>{n(s.total.decisions)} council {s.total.decisions === 1 ? 'vote has' : 'votes have'} closed so far, {s.total.passed === 0 ? 'none' : n(s.total.passed)} passed. Trade in a market to get a seat, then propose a change.</>
+                    : <>No council vote has closed yet. Trade in a market to get a seat, then propose a change.</>}
+                </p>
               ) : (
                 <ul className="decisions">
                   {s.decisions.map((d, i) => (

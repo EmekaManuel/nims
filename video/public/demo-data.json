@@ -1,5 +1,5 @@
 {
-  "readAt": "2026-11-13T18:23:06.074Z",
+  "readAt": "2026-11-13T19:00:21.856Z",
   "beat1_and_4": {
     "note": "One real trade on the live game by a guest named Demo. Values are the game's own state (/game/state) read at the moment named; chain values are decoded from the transactions on testnet.",
     "sale1": {
@@ -83,7 +83,7 @@
       "players": 61,
       "tradesTotal": 43,
       "last24h": {
-        "players": 27,
+        "players": 26,
         "trades": 14,
         "votes": 24
       },
@@ -101,7 +101,7 @@
     "chain": {
       "contract": "oja-items.testnet",
       "epoch": 1,
-      "lastSettledAt": "2026-11-13T18:22:50.883Z",
+      "lastSettledAt": "2026-11-13T19:00:07.026Z",
       "paused": false
     },
     "dao": {

@@ -8,7 +8,9 @@
     "render:silent": "remotion render src/index.ts NimsSilent out/nims-demo-silent.mp4",
     "session": "cd .. && npx tsx --env-file=.env video/scripts/play-session.ts",
     "ffrun": "cd .. && npx tsx video/scripts/make-ffrun.ts",
-    "measure": "node scripts/measure-targets.mjs"
+    "measure": "node scripts/measure-targets.mjs",
+    "render:launch": "remotion render src/index.ts NimsDemo out/nims-demo-launch.mp4 --codec=h264 --x264-preset=veryfast --crf=18",
+    "vo": "node --env-file=../.env scripts/vo.mjs"
   },
   "dependencies": {
     "@remotion/bundler": "^4.0.290",

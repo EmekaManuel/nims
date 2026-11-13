@@ -1,4 +1,6 @@
 import { Composition } from 'remotion';
+import { NimsDemo } from './launch/NimsDemo';
+import { TOTAL_FRAMES as LAUNCH_FRAMES } from './launch/timeline';
 import { Banner } from './Banner';
 import { Banner512 } from './Banner512';
 import { Measure } from './native/Measure';
@@ -16,6 +18,7 @@ import { FPS, TOTAL_FRAMES } from './timeline';
 
 export const Root: React.FC = () => (
   <>
+    <Composition id="NimsDemo" component={NimsDemo} durationInFrames={LAUNCH_FRAMES} fps={30} width={1920} height={1080} defaultProps={{ music: true }} />
     <Composition id="Nims" component={Nims} durationInFrames={TOTAL_FRAMES} fps={FPS} width={1920} height={1080} defaultProps={{ voice: true }} />
     {/* Same picture, no narration track: for laying your own voice over. */}
     <Composition id="NimsSilent" component={Nims} durationInFrames={TOTAL_FRAMES} fps={FPS} width={1920} height={1080} defaultProps={{ voice: false }} />

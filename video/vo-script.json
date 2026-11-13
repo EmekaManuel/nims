@@ -49,10 +49,14 @@
     }
   ],
   "settings": {
-    "stability": 0.6,
+    "stability": 0.5,
     "similarity_boost": 1,
-    "style": 0.15,
+    "style": 0,
     "use_speaker_boost": true,
-    "speed": 0.9
+    "speed": 0.96
+  },
+  "gaps": {
+    "sentence": 0.4,
+    "reveal": 0.95
   }
 }

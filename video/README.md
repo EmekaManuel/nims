@@ -17,6 +17,16 @@ What is real in it:
 
 - `npm install`, then `npm run studio` to preview; `npm run render` (voiced) or `npm run render:silent` (no narration, for your own voice).
 
+## The launch video (live footage)
+
+`NimsDemo` is a ~112 s launch video made from **real footage of the live game** (recorded with Playwright and Chrome's screencast), real code and test output, and real data read from the game and the testnet. Nothing in it is a recreation of the UI. Start with `storyboard.md`, `script.md`, `truth-audit.md` (every number and claim with its source) and `x-post.md`.
+
+- **Capture:** `capture/take1.mjs`, `take2.mjs`, `take3.mjs` drive https://nims-app.up.railway.app as one saved guest (`capture/make-session.mjs`; the session file is git-ignored). Each run is a real player on the live game, so run them sparingly. `capture/make-data.mjs` reads the live numbers into `public/demo-data.json`; run it just before a render.
+- **Voice:** `npm run vo` (needs `ELEVENLABS_API_KEY` in `../.env`) makes one file per sentence, cached by a hash so a re-run spends nothing. `vo-script.json` holds the text and the pronunciations.
+- **Music:** `python3 scripts/make-music.py` synthesises an original bed (no third-party audio).
+- **Render:** `npm run render:launch`, then normalise the audio to -16 LUFS with `ffmpeg loudnorm` (see the commands in `truth-audit.md` notes). `node scripts/extract-code.mjs` refreshes the code shown in beat 5; `npx tsx scripts/export-srt.mts` writes the captions file.
+- The clips, voice files, music and renders are not committed (`public/clips/`, `public/vo-launch/*.mp3`, `public/music/`, `out/`).
+
 ## A cut for X
 
 X accepts 2 min 20 s from a standard account, and the demo is 3 min 9 s. `node scripts/make-short.mjs` cuts the finished `../docs/nims-demo.mp4` (nothing is re-rendered, no API key is needed; it needs `ffmpeg` and Chrome) into `out/nims-demo-x.mp4`, about 2 min 19 s: the sign-in, price, plan, sale, merchants-talk, council, fast-forward, chain and DAO scenes, with a caption over the first seconds ("Drawn from the real game's engine and screen. Not a screen recording.") and a 4 s end card with the live URL, the repo and the hashtags (`scripts/short/*.html`). It drops the multiplayer, broke, news and cities scenes and the long outro. The scene times are written in the script; it stops if the source video's length changes, so update them from `src/timeline.ts` after a re-render.

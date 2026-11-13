@@ -6,7 +6,7 @@
 
 **A market town where every trader is an AI agent with its own money, its own stock and its own pricing.**
 
-[Play it live](https://nims-app.up.railway.app) · [Who is playing: the town board](https://nims-app.up.railway.app/town) · [Demo video (3:09)](docs/nims-demo.mp4) · [New places (47 s)](docs/nims-new-places.mp4) · [Judge walk-through](docs/DEMO.md) · Contract: `oja-items.testnet`
+[Play it live](https://nims-app.up.railway.app) · [Who is playing: the town board](https://nims-app.up.railway.app/town) · [Demo video](https://x.com/marrnueldev/status/2121288348845171056) · Contract: `oja-items.testnet`
 
 ![NEAR testnet](https://img.shields.io/badge/NEAR-testnet-00ec97) ![NEP-245](https://img.shields.io/badge/items-NEP--245-blue) ![tests](https://img.shields.io/badge/tests-593%20passing-brightgreen) ![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)
 
@@ -82,7 +82,7 @@ The chain is invisible: continue with Google or play as a guest in one press, no
 </tr>
 </table>
 
-**Beyond the town.** Saltmere Harbour and the three frontiers, drawn from the real game ([47-second video](docs/nims-new-places.mp4)):
+**Beyond the town.** Saltmere Harbour and the three frontiers, drawn from the real game:
 
 <table>
 <tr>
@@ -256,7 +256,7 @@ web/src/
   ui/                  Small shared inputs (select, number field, slider, ...)
   art/, lib/, test/    Icons and mascot; rank and sound helpers; fixtures
 video/                 The demo video, built with Remotion (see video/README.md)
-docs/                  Judge walk-through, deploy notes, voice-over script, demo video, images
+docs/                  Deploy notes, the bounded-agents write-up, screenshots
 ```
 
 The [privacy policy](web/public/privacy.html) is served at `/privacy.html`. The full design (world, game loop, on-chain design, balance numbers) is in [DESIGN.md](DESIGN.md).
@@ -346,7 +346,7 @@ One container serves the pages and the API ([`Dockerfile`](Dockerfile)). Steps f
 
 ## Hackathon entry
 
-**Built at NEAR HACKATHON.** The first commit is dated 2026-11-04, with no earlier baseline. MIT license. Main libraries: near-api-js, near-sdk (Rust), React, React Three Fiber, Vite, Radix UI, Vitest, Remotion. The code was written with Claude Code (Anthropic) under the author's direction; NEAR AI Cloud and ElevenLabs run inside the game.
+**Built at NEAR HACKATHON.** The first commit is dated 2026-11-04, with no earlier baseline. MIT license. Main libraries: near-api-js, near-sdk (Rust), React, React Three Fiber, Vite, Radix UI, Vitest. The code was written with Claude Code (Anthropic) under the author's direction; NEAR AI Cloud and ElevenLabs run inside the game.
 
 **Another project in this hackathon.** The same author also has a separate project in this hackathon: [NearQuery](https://github.com/EmekaManuel/nearquery), a data-backed, re-runnable thesis on NEAR Intents. It is a different repository and a different entry, and is not part of Nims.
 

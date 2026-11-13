@@ -8,7 +8,7 @@
 
 [Play it live](https://nims-app.up.railway.app) · [Demo video (3:09)](docs/nims-demo.mp4) · [New places (47 s)](docs/nims-new-places.mp4) · [Judge walk-through](docs/DEMO.md) · Contract: `oja-items.testnet`
 
-![NEAR testnet](https://img.shields.io/badge/NEAR-testnet-00ec97) ![NEP-245](https://img.shields.io/badge/items-NEP--245-blue) ![tests](https://img.shields.io/badge/tests-587%20passing-brightgreen) ![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)
+![NEAR testnet](https://img.shields.io/badge/NEAR-testnet-00ec97) ![NEP-245](https://img.shields.io/badge/items-NEP--245-blue) ![tests](https://img.shields.io/badge/tests-588%20passing-brightgreen) ![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)
 
 </div>
 
@@ -214,7 +214,7 @@ Below its cash floor a merchant stops buying; at zero cash with nothing to sell 
 
 - One pricing file, one economy: fast-forward calls the same engine as the live game.
 - Gameplay never waits on the chain. If the chain rejects a call, the settler starts a fresh epoch minted from the game state instead of patching.
-- A redeploy does not cost a new epoch: the settler never sends anything the saved game does not contain, and on a stop signal it finishes the call in flight and saves before exiting.
+- A redeploy tries not to cost a new epoch: the settler never sends anything the saved game does not contain, and on a stop signal it finishes the call in flight and saves before exiting. **On the hosted demo it often still starts a fresh epoch after a deploy** (a new namespace `gN-….oja-items.testnet` on the same contract, so `/chain/status` shows a lower epoch number and a backlog to catch up), and it can start one on its own when a call is rejected. Each epoch is an exact mirror of the game from its start, and a transient network error (for example a just-created account's key not being visible yet) is retried inside the same epoch. If more than three fresh epochs start within ten minutes, settlement pauses until the server restarts; gameplay is never affected.
 - Testnet only: the chain client refuses any other network. Secrets live in `.env`; only `.env.example` is committed.
 
 ```
@@ -286,6 +286,7 @@ Games With Real Economies asks for *"NPCs with wallets, player-owned markets and
 
 - **The DAO is a record, not the counter.** Votes are counted in the game, weighted by seats and shares. The DAO shows how each vote ended. It does not decide anything.
 - **Only the Town Clerk is OutLayer-custodied.** The merchants' own accounts, and player accounts, are still signed with keys the server holds (encrypted).
+- **Settlement is best-effort and restarts often on the demo.** The chain mirrors the game, and when it ever disagrees the settler starts a fresh epoch rather than patching (see Design rules). Expect the epoch number on `/chain/status` to change, and `behind` to be non-zero. `lastSettledAt` moving is the sign it is working. The game never waits on it.
 - **Delivery orders do not use NEAR Intents.** They follow its shape (state the outcome and a limit price, a solver fills it) but run inside the game, not on the Intents network.
 - **Shares, council tallies and funds live in the game server,** not in a contract. Item and coin balances settle to the NEP-245 contract.
 - **Testnet only.** Nothing here uses mainnet or real funds.
@@ -294,7 +295,7 @@ Games With Real Economies asks for *"NPCs with wallets, player-owned markets and
 ## Tests and chain verification
 
 ```bash
-npm test               # economy, pricing, server, API, chain, merchant agents, names  (365 tests)
+npm test               # economy, pricing, server, API, chain, merchant agents, names  (366 tests)
 npm run test:web       # the UI against real game state, 3D walkways, the 3D speed check, the town board, merchants' plans  (222 tests)
 npm run contract:test  # the NEP-245 contract  (18 tests, needs Rust)
 ```

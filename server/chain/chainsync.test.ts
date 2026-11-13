@@ -126,6 +126,42 @@ async function drain(game: Game, sync: ChainSync) {
   throw new Error('did not finish');
 }
 
+describe('ChainSync with the whole game', () => {
+  it('stays an exact mirror (no reset) through travel, land, shares, quests, jobs, upgrades and orders', async () => {
+    const { game, chain, sync, logs } = setup();
+    const a = 'ada@example.com', b = 'bo@example.com';
+    for (const who of [a, b]) game.state(who);
+    for (const p of game.w.players) p.cash = 60_000;
+    const acts: ((who: string) => unknown)[] = [
+      (w) => game.claimDailyReward(w),
+      (w) => game.gather(w, 'iron'),
+      (w) => game.sell(w, 'anil', 'iron', 10),
+      (w) => game.buyShares(w, 'mira', 3),
+      (w) => game.upgrade(w, 'pickup'),
+      (w) => game.scavenge(w),
+      (w) => game.placeOrder(w, 'anil', 'iron', 5, 1),
+      (w) => game.sellShares(w, 'mira', 1),
+    ];
+    for (const who of [a, b]) for (const f of acts) { f(who); game.tickOnce(); }
+    for (const who of [a, b]) for (const q of ['first-haul', 'first-sale', 'a-haggle', 'two-markets']) game.claimQuest(who, q);
+    // out to the harbour and back, and to a frontier: land, a business, a resale
+    for (const realm of ['saltmere', 'town', 'timberfell']) {
+      game.travel(a, realm);
+      for (let h = 0; h < 12; h++) game.tickOnce();
+      game.gather(a, realm === 'saltmere' ? 'fish' : realm === 'timberfell' ? 'timber' : 'iron');
+    }
+    game.buyLand(a, 'timberfell-1'); game.build(a, 'timberfell-1', 'Ada Timber'); game.listLand(a, 'timberfell-2', 5000); game.buyLand(a, 'timberfell-2');
+    game.travel(b, 'timberfell'); for (let h = 0; h < 12; h++) game.tickOnce();
+    game.buyLand(b, 'timberfell-2');
+    for (let h = 0; h < 60; h++) game.tickOnce();
+    game.w.hour += 200;
+    for (let i = 0; i < 600; i++) { const r = await sync.step(); if (r === 'idle') break; if (r === 'paused') throw new Error('paused: ' + logs.slice(-4).join(' | ')); }
+    expect(logs.filter((l) => /rejected|fresh epoch/.test(l)), logs.join('\n')).toEqual([]);
+    expect((await sync.verify()).mismatches).toEqual([]);
+    expect(chain.calls).toBeGreaterThan(0);
+  });
+});
+
 describe('ChainSync', () => {
   it('starts an epoch from the game’s current state, as an exact mirror of goods and coins', async () => {
     const { game, chain, sync } = setup();

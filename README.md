@@ -8,7 +8,7 @@
 
 [Play it live](https://nims-app.up.railway.app) · [Demo video (3:09)](docs/nims-demo.mp4) · [New places (47 s)](docs/nims-new-places.mp4) · [Judge walk-through](docs/DEMO.md) · Contract: `oja-items.testnet`
 
-![NEAR testnet](https://img.shields.io/badge/NEAR-testnet-00ec97) ![NEP-245](https://img.shields.io/badge/items-NEP--245-blue) ![tests](https://img.shields.io/badge/tests-592%20passing-brightgreen) ![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)
+![NEAR testnet](https://img.shields.io/badge/NEAR-testnet-00ec97) ![NEP-245](https://img.shields.io/badge/items-NEP--245-blue) ![tests](https://img.shields.io/badge/tests-593%20passing-brightgreen) ![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)
 
 </div>
 
@@ -316,7 +316,7 @@ Games With Real Economies asks for *"NPCs with wallets, player-owned markets and
 
 ```bash
 npm test               # economy, pricing, server, API, chain, merchant agents, names  (370 tests)
-npm run test:web       # the UI against real game state, 3D walkways, the 3D speed check, the town board, merchants' plans  (222 tests)
+npm run test:web       # the UI against real game state, 3D walkways, the 3D speed check, the town board, merchants' plans  (223 tests)
 npm run contract:test  # the NEP-245 contract  (18 tests, needs Rust)
 ```
 

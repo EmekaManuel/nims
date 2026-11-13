@@ -164,7 +164,7 @@ The economy is the gameplay, so it has to stay healthy without a human in it. Th
 | Dividend and levy | only on shares held since the day began | No buying at 10pm to collect and sell. |
 | Merchant upkeep | a quarter of the cash above 40,000 (plus what shareholders paid in), each evening, after dividends | Without a sink merchants earn forever and a share (1% of worth) rises tenfold in a few months. |
 | Merchants' guild | upkeep goes to open merchants under 6,000 coins; the rest to the town | Smooths a lean spell. A closed shop is left for the community fund. `sim/guild.test.ts` runs 120 days and checks no store is closed more than 2% of the time or low on cash more than 5%. |
-| Fortune goal | 10,000 coins | Hauling alone levels off at about 9,500 to 16,000 coins (prices fall as you sell, and merchants' cash is finite); growing beyond that takes shares or a stall. At 12,000 the goal sat on that ceiling. `npm run balance`: a trader acting every 2.5 to 3.3 seconds reaches 10,000 in 14 of 16 seeded runs, from under a minute to about 14 minutes. |
+| Fortune goal | 10,000 coins | Hauling alone levels off at about 9,500 to 16,000 coins (prices fall as you sell, and merchants' cash is finite); growing beyond that takes shares or a stall. At 12,000 the goal sat on that ceiling. `npm run balance`: a trader acting every 2.5 to 3.3 seconds reaches 10,000 in 14 of 16 seeded runs, in about 5 to 29 real minutes. |
 | Ranks | 3,000 / 7,000 / 15,000 / 35,000 | A new rank every few minutes early on. |
 
 Before this pass a calm player reached the goal in about 40 seconds and Tycoon in 2.5 minutes: free goods plus an oversupplied market made money a fountain. Wholesale prices, fares and upkeep now make it slow; `npm run balance` prints the current times.

@@ -26,7 +26,7 @@ import type { HaggleFacts } from '../voice/haggle';
 import { planBoard, totalDue, type Job } from './jobs';
 import { gather } from '../../sim/players';
 import { EFFECT, isRegular, LEVELS, MIN_VOTING_HOURS, newCouncils, propose, seatsOf, tally, vote, type Lever } from '../../sim/council';
-import { addPlayer, BASE_PRICE, CAPACITY, COINS, createWorld, createPlots, frontierSources, harbourMerchants, harbourSources, BUILD_COST, type Plot, marketsIn, REALMS, realmOf, type RealmId, VEHICLE_VALUE, Item, MARKETS, MarketId, Merchant, Player, Vehicle, World } from '../../sim/world';
+import { addPlayer, BASE_PRICE, CAPACITY, COINS, createWorld, createPlots, frontierSources, harbourMerchants, harbourSources, BUILD_COST, type Plot, marketsIn, REALMS, realmOf, type RealmId, VEHICLE_VALUE, Item, MARKETS, MarketId, Merchant, Player, Vehicle, World, type WorldEvent } from '../../sim/world';
 
 export const UPGRADE_COST: Record<Exclude<Vehicle, 'wheelbarrow'>, number> = { pickup: VEHICLE_VALUE.pickup, van: VEHICLE_VALUE.van };
 const SOURCE_LABEL: Record<string, string> = {};
@@ -1342,9 +1342,14 @@ export class Game {
     return { id: m.id, merchant: m.name, personality: m.personality, item, pays: q.buyPrice, charges: q.sellPrice, reasons: q.reasons, tooltip: q.tooltip };
   }
 
-  /** The town's most recent events, newest first, for the gazette. World events only: nothing about any one player. */
+  /**
+   * The town's most recent events, newest first, for the gazette. World events only: nothing about any one player.
+   * An allowlist, not a blocklist: 'discovery' and 'land' events carry a player's chosen name and the name they typed for
+   * their business, so they never go to the model, and a new event type stays out until someone decides it is safe.
+   */
   gazetteFacts(): GazetteFacts {
-    return { events: this.w.events.slice(-8).reverse().map((e) => ({ hour: e.hour, text: e.text })) };
+    const safe = new Set<WorldEvent['type']>(['shock', 'state', 'revived', 'dividend', 'council', 'guild', 'plan']);
+    return { events: this.w.events.filter((e) => safe.has(e.type)).slice(-8).reverse().map((e) => ({ hour: e.hour, text: e.text })) };
   }
 
   private stallViews(p: Player) {

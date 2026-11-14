@@ -22,7 +22,7 @@ The model's one sentence is shown only if it is short, uses no forbidden word, a
 
 **4. The model sees only the merchant's own situation.**
 The prompt holds the merchant's books, its prices against the usual ones, any shock in town and its market's council rules ([`planner.ts#L51-L57`](../server/agents/planner.ts#L51-L57)). It contains nothing about any player, and no player-typed text reaches any prompt (the plan, the price explanation, the gazette and the haggle reply are all built from the game's own facts).
-[`planner.test.ts#L41`](../server/agents/planner.test.ts#L41), [`server/agents/planner.ts#L13`](../server/agents/planner.ts#L13), [`server/voice/voice.ts#L12`](../server/voice/voice.ts#L12), [`server/voice/gazette.ts#L8`](../server/voice/gazette.ts#L8), [`server/voice/haggle.ts#L11-L25`](../server/voice/haggle.ts#L11-L25).
+[`planner.test.ts#L41`](../server/agents/planner.test.ts#L41), [`server/voice/no-player-text.test.ts#L21`](../server/voice/no-player-text.test.ts#L21) (plays a player with a typed name and business name, then checks every prompt), [`server/game/game.ts#L1350-L1353`](../server/game/game.ts#L1350-L1353) (the gazette's event allowlist).
 
 **5. Money never passes through the model.**
 Prices come from a plain function of stock, cash and recent trades ([`merchants/pricing.ts#L98`](../merchants/pricing.ts#L98), `quote`). The plan only nudges that function's inputs. Coins and goods move only through game actions, and every movement is written to a ledger that the chain mirrors. A test plays five players through every kind of action and checks that the ledger reproduces every coin and every good ([`sim/ledger-fuzz.test.ts`](../sim/ledger-fuzz.test.ts)).
